@@ -1,0 +1,210 @@
+# ============================================================================
+# Auth Service - Development Profile
+# ============================================================================
+# Optimized for developer experience:
+# - Fast startup with minimal connection pools
+# - Detailed logging for debugging
+# - Localhost defaults (no env vars needed)
+# - Long JWT expiration for convenience
+# - Hot reload support
+# ============================================================================
+
+server:
+  port: 8081
+  # Faster shutdown for development
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 10  # Reduced for faster startup
+      min-spare: 2
+
+spring:
+  application:
+    name: auth-service
+
+  # Development tools for hot reload
+  devtools:
+    restart:
+      enabled: true
+      additional-paths: src/main/java
+    livereload:
+      enabled: true
+
+  # PostgreSQL datasource (local development)
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/auth_service
+    username: postgres
+    password: gcrf_secure_2024
+
+    # HikariCP configuration - small pool for development
+    hikari:
+      maximum-pool-size: 5          # Small pool (default 10)
+      minimum-idle: 2               # Min idle connections
+      connection-timeout: 10000     # 10 seconds
+      idle-timeout: 300000          # 5 minutes
+      max-lifetime: 600000          # 10 minutes
+      connection-test-query: SELECT 1
+      pool-name: AuthService-HikariCP-Dev
+      # Detailed logging for connection issues
+      leak-detection-threshold: 30000  # 30 seconds
+
+  # Nacos discovery (local)
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
+        namespace: dev  # Separate dev namespace
+        group: DEV_GROUP
+        # Faster heartbeat for development
+        heart-beat-interval: 3000
+        heart-beat-timeout: 9000
+        # Development metadata
+        metadata:
+          version: dev
+          environment: development
+
+  # Redis configuration (local)
+  redis:
+    host: localhost
+    port: 6379
+    password: gcrf_redis_2024
+    database: 0  # Use DB 0 for dev
+    timeout: 5000
+    # Lettuce connection pool (small for dev)
+    lettuce:
+      pool:
+        max-active: 5    # Small pool for dev
+        max-idle: 3
+        min-idle: 1
+        max-wait: 3000
+      shutdown-timeout: 5000
+
+# MyBatis-Plus configuration
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*Mapper.xml
+  type-aliases-package: com.gcrf.library.auth.entity
+  configuration:
+    # Development-friendly settings
+    map-underscore-to-camel-case: true
+    cache-enabled: false  # Disable second-level cache in dev
+    lazy-loading-enabled: false
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl  # SQL logging
+  global-config:
+    db-config:
+      id-type: auto
+      table-prefix: ""
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+    banner: false  # Disable MyBatis-Plus banner
+
+# JWT configuration (MUST match Gateway Service)
+# WARNING: This is a development secret - NOT for production!
+jwt:
+  secret: DEV_SECRET_ONLY_NOT_FOR_PRODUCTION_USE_MINIMUM_64_CHARACTERS_REQUIRED_HERE
+  expiration: 86400000  # 24 hours (long expiration for dev convenience)
+  # Refresh token expiration
+  refresh-expiration: 604800000  # 7 days
+
+# CORS disabled - handled by Gateway
+library:
+  web:
+    cors:
+      enabled: false  # Gateway handles CORS in dev
+
+# Detailed logging for development
+logging:
+  level:
+    root: INFO
+    # Application packages - DEBUG for detailed tracing
+    com.gcrf.library.auth: DEBUG
+    com.gcrf.library.common: DEBUG
+    # MyBatis SQL logging - see all queries
+    com.gcrf.library.auth.mapper: DEBUG
+    # Spring Framework
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.transaction: DEBUG
+    # Database
+    org.springframework.jdbc.datasource: DEBUG
+    com.zaxxer.hikari: INFO  # Connection pool
+    # Nacos
+    com.alibaba.nacos.client: INFO
+    # Redis
+    org.springframework.data.redis: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Actuator configuration - expose all for development
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"  # Expose all endpoints in dev
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always  # Always show detailed health info
+      probes:
+        enabled: true
+  health:
+    defaults:
+      enabled: true
+    redis:
+      enabled: true
+    db:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# SpringDoc OpenAPI configuration
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+    # Easier testing in dev
+    display-request-duration: true
+    default-models-expand-depth: 3
+    try-it-out-enabled: true
+
+# Knife4j configuration
+knife4j:
+  enable: true
+  setting:
+    language: zh-CN
+    enable-debug: true  # Enable debug mode in dev
+    enable-home-custom: true
+    home-custom-path: /README.md
+
+# ============================================================================
+# Development Notes:
+# ============================================================================
+# 1. Fast Startup: Small connection pools, faster timeouts
+# 2. Detailed Logging: DEBUG level for app code, SQL queries visible
+# 3. No Env Vars: Everything defaults to localhost
+# 4. Long JWT: 24-hour tokens for dev convenience
+# 5. Hot Reload: Spring DevTools enabled
+#
+# To activate this profile:
+#   - Run with: mvn spring-boot:run -Dspring-boot.run.profiles=dev
+#   - Or set: SPRING_PROFILES_ACTIVE=dev
+#
+# Key Differences from Production:
+#   - Smaller connection pools (5 vs 20)
+#   - Longer timeouts (dev-friendly)
+#   - All actuator endpoints exposed
+#   - SQL logging enabled
+#   - Cache disabled
+#   - Permissive error details
+# ============================================================================

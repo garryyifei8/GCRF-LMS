@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/auth_service
+    username: postgres
+    password: gcrf_secure_2024
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initial-size: 1
+      min-idle: 1
+      max-active: 5
+
+  # Redis配置 (Redisson)
+  redis:
+    host: localhost
+    port: 6379
+    password: gcrf_redis_2024
+    database: 1
+
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+
+# JWT配置
+jwt:
+  secret: test-secret-key-for-unit-tests-only-do-not-use-in-production-minimum-256-bits
+  expiration: 7200000 # 2小时(毫秒)
+
+logging:
+  level:
+    com.gcrf.library: DEBUG
+    org.springframework.security: DEBUG

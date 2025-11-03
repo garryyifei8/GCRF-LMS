@@ -1,0 +1,291 @@
+# Auth Service - Production Configuration
+# This file uses environment variable placeholders
+# All sensitive values should be injected via environment variables
+
+server:
+  port: ${AUTH_SERVER_PORT:8081}
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: ${SERVER_TOMCAT_THREADS_MAX:200}
+      min-spare: ${SERVER_TOMCAT_THREADS_MIN:10}
+
+spring:
+  application:
+    name: ${APP_NAME_PREFIX:gcrf-library}-auth-service
+
+  profiles:
+    active: prod
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+  # PostgreSQL Database Configuration
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${AUTH_DB_NAME:gcrf_auth}?currentSchema=${DB_SCHEMA:public}&sslmode=${DB_SSL_MODE:disable}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres123}
+
+    hikari:
+      pool-name: AuthServiceHikariCP
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      idle-timeout: 600000
+      max-lifetime: ${DB_POOL_MAX_LIFETIME:1800000}
+      auto-commit: true
+      connection-test-query: SELECT 1
+      leak-detection-threshold: 60000
+
+      # PostgreSQL specific optimizations
+      data-source-properties:
+        cachePrepStmts: true
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
+        useServerPrepStmts: true
+        useLocalSessionState: true
+        rewriteBatchedStatements: true
+        cacheResultSetMetadata: true
+        cacheServerConfiguration: true
+        elideSetAutoCommits: true
+        maintainTimeStats: false
+
+  # Read Replica Configuration (Optional)
+  read-datasource:
+    enabled: ${DB_READ_REPLICA_HOST:false}
+    url: jdbc:postgresql://${DB_READ_REPLICA_HOST:localhost}:${DB_READ_REPLICA_PORT:5432}/${AUTH_DB_NAME:gcrf_auth}?currentSchema=${DB_SCHEMA:public}&sslmode=${DB_SSL_MODE:disable}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres123}
+
+  # Redis Configuration for Session Management
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: ${REDIS_TIMEOUT:2000}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:8}
+          max-idle: ${REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${REDIS_POOL_MIN_IDLE:0}
+          max-wait: ${REDIS_POOL_MAX_WAIT:-1}
+        cluster:
+          refresh:
+            period: 60s
+      sentinel:
+        master: ${REDIS_SENTINEL_MASTER:}
+        nodes: ${REDIS_SENTINEL_NODES:}
+
+  # Session Configuration
+  session:
+    store-type: redis
+    timeout: ${AUTH_SESSION_TIMEOUT:1800}s
+    redis:
+      namespace: ${APP_NAME_PREFIX:gcrf-library}:session
+      flush-mode: on_save
+      cleanup-cron: "0 * * * * *"
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600s
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: ${APP_NAME_PREFIX:gcrf-library}:cache:auth:
+
+  cloud:
+    # Nacos Service Discovery
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR}
+      namespace: ${NACOS_NAMESPACE:}
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
+
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        cluster-name: ${ENVIRONMENT:prod}
+        heart-beat-interval: 5000
+        heart-beat-timeout: 15000
+        metadata:
+          version: ${IMAGE_TAG:latest}
+          environment: ${ENVIRONMENT:prod}
+
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:true}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+        refresh-enabled: true
+
+# MyBatis-Plus Configuration
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.gcrf.library.auth.domain.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: true
+    lazy-loading-enabled: true
+    aggressive-lazy-loading: false
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: AUTO
+      table-underline: true
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      update-strategy: not_empty
+      insert-strategy: not_empty
+    banner: false
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET}
+  issuer: ${JWT_ISSUER:gcrf-library-system}
+  access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:3600}
+  refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:86400}
+  remember-me-validity: ${JWT_REFRESH_TOKEN_VALIDITY:604800}
+  token-prefix: "Bearer "
+  header-name: "Authorization"
+
+# Security Configuration
+security:
+  bcrypt:
+    strength: ${BCRYPT_STRENGTH:10}
+
+  password:
+    min-length: ${AUTH_PASSWORD_MIN_LENGTH:8}
+    require-uppercase: ${AUTH_PASSWORD_REQUIRE_UPPERCASE:true}
+    require-lowercase: ${AUTH_PASSWORD_REQUIRE_LOWERCASE:true}
+    require-numbers: ${AUTH_PASSWORD_REQUIRE_NUMBERS:true}
+    require-special: ${AUTH_PASSWORD_REQUIRE_SPECIAL:true}
+
+  login:
+    max-attempts: ${AUTH_MAX_LOGIN_ATTEMPTS:5}
+    lock-duration: ${AUTH_ACCOUNT_LOCK_DURATION:30}
+    remember-me-enabled: true
+
+  oauth2:
+    enabled: ${FEATURE_SOCIAL_LOGIN:false}
+    providers:
+      wechat:
+        enabled: ${NOTIFICATION_WECHAT_ENABLED:false}
+        app-id: ${NOTIFICATION_WECHAT_APP_ID:}
+        app-secret: ${NOTIFICATION_WECHAT_APP_SECRET:}
+
+# Audit Configuration
+audit:
+  enabled: ${SYSTEM_AUDIT_ENABLED:true}
+  log-level: INFO
+  include-request-body: false
+  include-response-body: false
+  exclude-paths:
+    - /actuator/**
+    - /swagger-ui/**
+    - /v3/api-docs/**
+
+# Management Endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: true
+    diskspace:
+      enabled: true
+  metrics:
+    enable:
+      all: ${METRICS_ENABLED:true}
+    export:
+      prometheus:
+        enabled: ${METRICS_ENABLED:true}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:prod}
+
+# Logging Configuration
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.gcrf.library.auth: ${LOG_LEVEL:INFO}
+    org.springframework.security: ${LOG_LEVEL:INFO}
+    org.mybatis: ${LOG_LEVEL:INFO}
+    com.zaxxer.hikari: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/${spring.application.name}/${spring.application.name}.log
+    max-size: 100MB
+    max-history: 30
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+# Application Custom Properties
+app:
+  name: ${APP_NAME_PREFIX:gcrf-library}
+  version: '@project.version@'
+  environment: ${ENVIRONMENT:prod}
+
+  # Token settings
+  token:
+    access-prefix: "access:"
+    refresh-prefix: "refresh:"
+    blacklist-prefix: "blacklist:"
+
+  # User settings
+  user:
+    default-role: READER
+    default-status: ACTIVE
+
+  # Rate limiting
+  rate-limit:
+    login:
+      capacity: 10
+      refill: 1
+      duration: 60
+
+    api:
+      capacity: 100
+      refill: 100
+      duration: 1
+
+# Feature Flags
+features:
+  multi-tenant: false
+  two-factor-auth: false
+  password-history: true
+  session-concurrent-control: true
+  ip-whitelist: false

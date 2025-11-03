@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:localhost:8848}
+        username: nacos
+        password: nacos
+        # namespace: ${NACOS_NAMESPACE:dev}  # Commented out - using default 'public' namespace
+        group: ${NACOS_GROUP:LIBRARY_GROUP}
+      config:
+        enabled: false  # Disable Nacos Config for now - using application.yml
+        # server-addr: ${NACOS_SERVER:localhost:8848}
+        # namespace: ${NACOS_NAMESPACE:dev}
+        # group: ${NACOS_GROUP:LIBRARY_GROUP}
+        # file-extension: yml
+        # refresh-enabled: true

@@ -1,0 +1,2189 @@
+openapi: 3.0.3
+info:
+  title: GCRF Library Management System API
+  version: 1.0.0
+  description: |
+    RESTful API documentation for GCRF (国创睿峰) Intelligent Library Management System.
+
+    This system provides comprehensive library management capabilities including:
+    - Authentication and authorization
+    - Book catalog management
+    - Reader management
+    - Circulation (borrow, return, renew)
+    - System administration
+
+    **Architecture**: Microservices with Spring Cloud Gateway
+
+    **Base URL**: All requests go through the API Gateway at `http://localhost:8080`
+
+    **Authentication**: JWT Bearer token required for most endpoints (see Authentication section)
+
+  contact:
+    name: GCRF Library Team
+    email: support@gcrf-library.com
+  license:
+    name: Proprietary
+    url: https://gcrf-library.com/license
+
+servers:
+  - url: http://localhost:8080
+    description: Development server (Local)
+  - url: https://api.gcrf-library.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and token management
+  - name: Users
+    description: User account management (Admin only)
+  - name: Books
+    description: Book catalog management
+  - name: Readers
+    description: Library reader/member management
+  - name: Circulation
+    description: Book circulation (borrow, return, renew)
+  - name: Roles
+    description: Role management and permissions
+  - name: System
+    description: System utilities and health checks
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ========================================
+  # Authentication APIs
+  # ========================================
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      description: Authenticate user with username and password, returns JWT access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              admin:
+                summary: Admin login
+                value:
+                  username: "admin"
+                  password: "admin123"
+              teacher:
+                summary: Teacher login
+                value:
+                  username: "teacher001"
+                  password: "teacher123"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LoginResponse'
+              examples:
+                success:
+                  value:
+                    code: 200
+                    message: "操作成功"
+                    data:
+                      accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      tokenType: "Bearer"
+                      expiresIn: 7200
+                      userId: 1
+                      username: "admin"
+                      userType: "ADMIN"
+                    timestamp: 1698765432000
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh token
+      description: Refresh JWT token before expiration
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: Current valid JWT token
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: User logout
+      description: Logout current user and invalidate JWT token (add to blacklist)
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/auth/info:
+    get:
+      tags: [Authentication]
+      summary: Get current user info
+      description: Retrieve detailed information of the currently authenticated user
+      responses:
+        '200':
+          description: User info retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserInfoResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/auth/validate:
+    get:
+      tags: [Authentication]
+      summary: Validate token
+      description: Check if the provided JWT token is valid
+      responses:
+        '200':
+          description: Token validation result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: boolean
+                        description: True if token is valid
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/auth/current-user:
+    get:
+      tags: [Authentication]
+      summary: Get current user ID
+      description: Extract and return user ID from JWT token
+      responses:
+        '200':
+          description: User ID retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: integer
+                        format: int64
+                        description: User ID
+                        example: 1
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ========================================
+  # User Management APIs
+  # ========================================
+  /api/v1/users:
+    get:
+      tags: [Users]
+      summary: List users with pagination
+      description: Query user list with filters (Admin only)
+      parameters:
+        - name: pageNum
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          description: Page size
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: username
+          in: query
+          description: Username keyword (fuzzy search)
+          schema:
+            type: string
+        - name: userType
+          in: query
+          description: User type filter
+          schema:
+            type: string
+            enum: [STUDENT, TEACHER, ADMIN]
+        - name: status
+          in: query
+          description: Account status filter
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE, LOCKED]
+      responses:
+        '200':
+          description: User list retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PagedUserInfoResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags: [Users]
+      summary: Create new user
+      description: Create a new user account (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '200':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserInfoResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/users/{userId}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      description: Retrieve user details by user ID
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200':
+          description: User details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserInfoResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    put:
+      tags: [Users]
+      summary: Update user
+      description: Update user information (Admin only)
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserInfoResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    delete:
+      tags: [Users]
+      summary: Delete user
+      description: Soft delete user account (Admin only)
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/users/{userId}/password:
+    put:
+      tags: [Users]
+      summary: Change password
+      description: Change user password
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - oldPassword
+                - newPassword
+              properties:
+                oldPassword:
+                  type: string
+                  format: password
+                  description: Current password
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 8
+                  description: New password (min 8 characters)
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ========================================
+  # Book Management APIs
+  # ========================================
+  /api/v1/books:
+    get:
+      tags: [Books]
+      summary: List books with pagination
+      description: Query book catalog with search, filters and pagination
+      parameters:
+        - name: pageNum
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          description: Page size
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: keyword
+          in: query
+          description: Search keyword (title, author, ISBN)
+          schema:
+            type: string
+        - name: classificationCode
+          in: query
+          description: Classification code filter
+          schema:
+            type: string
+        - name: publisher
+          in: query
+          description: Publisher filter
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Book status filter
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+      responses:
+        '200':
+          description: Book list retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PagedBookResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+    post:
+      tags: [Books]
+      summary: Create new book
+      description: Add a new book to the catalog (Admin/Librarian only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreateRequest'
+      responses:
+        '200':
+          description: Book created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BookDetailVO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/books/{id}:
+    get:
+      tags: [Books]
+      summary: Get book details
+      description: Retrieve detailed information of a specific book
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Book ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Book details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BookDetailVO'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags: [Books]
+      summary: Update book
+      description: Update book information (Admin/Librarian only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Book ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookUpdateRequest'
+      responses:
+        '200':
+          description: Book updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BookDetailVO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    delete:
+      tags: [Books]
+      summary: Delete book
+      description: Soft delete a book from catalog (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Book ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Book deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ========================================
+  # Reader Management APIs
+  # ========================================
+  /api/v1/readers:
+    get:
+      tags: [Readers]
+      summary: List readers with pagination
+      description: Query reader list with filters
+      parameters:
+        - name: pageNum
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          description: Page size
+          schema:
+            type: integer
+            default: 10
+        - name: keyword
+          in: query
+          description: Search keyword (name, readerId, phone)
+          schema:
+            type: string
+        - name: readerType
+          in: query
+          description: Reader type filter
+          schema:
+            type: string
+            enum: [STUDENT, TEACHER, STAFF, PUBLIC]
+        - name: cardStatus
+          in: query
+          description: Card status filter
+          schema:
+            type: string
+            enum: [PENDING, ACTIVE, SUSPENDED, CANCELLED]
+      responses:
+        '200':
+          description: Reader list retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PagedReaderResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags: [Readers]
+      summary: Create reader
+      description: Register a new library reader and generate library card
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReaderCreateRequest'
+      responses:
+        '200':
+          description: Reader created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReaderDetailVO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/readers/{id}:
+    get:
+      tags: [Readers]
+      summary: Get reader details
+      description: Retrieve detailed information of a specific reader
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Reader ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Reader details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReaderDetailVO'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    put:
+      tags: [Readers]
+      summary: Update reader
+      description: Update reader information
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Reader ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReaderUpdateRequest'
+      responses:
+        '200':
+          description: Reader updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReaderDetailVO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    delete:
+      tags: [Readers]
+      summary: Delete reader
+      description: Soft delete reader (logic delete)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Reader ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Reader deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/readers/readerId/{readerId}:
+    get:
+      tags: [Readers]
+      summary: Get reader by card number
+      description: Retrieve reader information by reader card number
+      parameters:
+        - name: readerId
+          in: path
+          required: true
+          description: Reader card number
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reader details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReaderDetailVO'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/readers/{id}/activate:
+    post:
+      tags: [Readers]
+      summary: Activate library card
+      description: Activate reader's library card to enable borrowing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Reader ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Card activated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReaderDetailVO'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/readers/{id}/suspend:
+    post:
+      tags: [Readers]
+      summary: Suspend library card
+      description: Suspend reader's library card (report lost)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Reader ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Card suspended successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReaderDetailVO'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/readers/{id}/cancel:
+    post:
+      tags: [Readers]
+      summary: Cancel library card
+      description: Cancel reader's library card permanently
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Reader ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Card cancelled successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReaderDetailVO'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ========================================
+  # Circulation Management APIs
+  # ========================================
+  /api/v1/circulation/borrow:
+    post:
+      tags: [Circulation]
+      summary: Borrow a book
+      description: Create a borrowing record and decrease book inventory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BorrowRequest'
+      responses:
+        '200':
+          description: Book borrowed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CirculationRecord'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/circulation/return/{recordId}:
+    post:
+      tags: [Circulation]
+      summary: Return a book
+      description: Complete a borrowing record and increase book inventory
+      parameters:
+        - name: recordId
+          in: path
+          required: true
+          description: Circulation record ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Book returned successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CirculationRecord'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/circulation/renew/{recordId}:
+    post:
+      tags: [Circulation]
+      summary: Renew a book
+      description: Extend the borrowing period
+      parameters:
+        - name: recordId
+          in: path
+          required: true
+          description: Circulation record ID
+          schema:
+            type: integer
+            format: int64
+        - name: renewDays
+          in: query
+          description: Number of days to extend (default 30)
+          schema:
+            type: integer
+            default: 30
+            minimum: 1
+            maximum: 90
+      responses:
+        '200':
+          description: Book renewed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CirculationRecord'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/circulation/reader/{readerId}:
+    get:
+      tags: [Circulation]
+      summary: Get reader's circulation records
+      description: Query circulation history for a specific reader
+      parameters:
+        - name: readerId
+          in: path
+          required: true
+          description: Reader ID
+          schema:
+            type: integer
+            format: int64
+        - name: status
+          in: query
+          description: Record status filter (0=Borrowed, 1=Returned, 2=Overdue)
+          schema:
+            type: integer
+            enum: [0, 1, 2]
+      responses:
+        '200':
+          description: Circulation records retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CirculationRecord'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ========================================
+  # Role Management APIs
+  # ========================================
+  /api/v1/roles:
+    get:
+      tags: [Roles]
+      summary: List roles with pagination
+      description: Query role list with filters (Admin only)
+      parameters:
+        - name: pageNum
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: roleCode
+          in: query
+          description: Role code filter
+          schema:
+            type: string
+        - name: roleName
+          in: query
+          description: Role name filter
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Role status
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+      responses:
+        '200':
+          description: Role list retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PagedRoleResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags: [Roles]
+      summary: Create role
+      description: Create a new role (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreateRequest'
+      responses:
+        '200':
+          description: Role created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RoleDetailVO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/roles/{id}:
+    get:
+      tags: [Roles]
+      summary: Get role details
+      description: Retrieve role details with permissions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Role details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RoleDetailVO'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags: [Roles]
+      summary: Update role
+      description: Update role information (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleUpdateRequest'
+      responses:
+        '200':
+          description: Role updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RoleDetailVO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags: [Roles]
+      summary: Delete role
+      description: Soft delete role (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Role deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/roles/{id}/permissions:
+    get:
+      tags: [Roles]
+      summary: Get role permissions
+      description: Retrieve list of permissions assigned to role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Permissions retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PermissionVO'
+
+    post:
+      tags: [Roles]
+      summary: Assign permissions to role
+      description: Assign multiple permissions to a role (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - permissionIds
+              properties:
+                permissionIds:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64
+                  description: List of permission IDs to assign
+                  example: [1, 2, 3, 5, 8]
+      responses:
+        '200':
+          description: Permissions assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ========================================
+  # Health Check APIs
+  # ========================================
+  /api/v1/auth/health:
+    get:
+      tags: [System]
+      summary: Auth service health check
+      description: Check if authentication service is running
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: string
+                        example: "Auth Service is running"
+
+  /api/v1/books/health:
+    get:
+      tags: [System]
+      summary: Book service health check
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: string
+                        example: "Book Service is running"
+
+  /api/v1/readers/health:
+    get:
+      tags: [System]
+      summary: Reader service health check
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: string
+                        example: "Reader Service is running"
+
+  /api/v1/circulation/health:
+    get:
+      tags: [System]
+      summary: Circulation service health check
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: string
+                        example: "Circulation Service is running"
+
+# ========================================
+# Components
+# ========================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer token authentication. Include the token in the Authorization header:
+        ```
+        Authorization: Bearer <your-jwt-token>
+        ```
+
+  parameters:
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      description: User ID
+      schema:
+        type: integer
+        format: int64
+        example: 1
+
+  # ========================================
+  # Request Schemas
+  # ========================================
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          description: Username
+          example: "admin"
+        password:
+          type: string
+          format: password
+          minLength: 6
+          description: Password
+          example: "admin123"
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZSI6ImFkbWluIiwidXNlclR5cGUiOiJBRE1JTiIsImlhdCI6MTY5ODc2NTQzMiwiZXhwIjoxNjk4NzcyNjMyfQ.xyz"
+        tokenType:
+          type: string
+          description: Token type
+          default: "Bearer"
+          example: "Bearer"
+        expiresIn:
+          type: integer
+          format: int64
+          description: Token expiration time in seconds
+          example: 7200
+        userId:
+          type: integer
+          format: int64
+          description: User ID
+          example: 1
+        username:
+          type: string
+          description: Username
+          example: "admin"
+        userType:
+          type: string
+          enum: [STUDENT, TEACHER, ADMIN]
+          description: User type
+          example: "ADMIN"
+
+    UserInfoResponse:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: "admin"
+        userType:
+          type: string
+          enum: [STUDENT, TEACHER, ADMIN]
+          example: "ADMIN"
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, LOCKED]
+          example: "ACTIVE"
+        email:
+          type: string
+          format: email
+          example: "admin@gcrf-library.com"
+        phone:
+          type: string
+          example: "13800138000"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-10-12T08:30:00"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-10-28T15:20:00"
+
+    CreateUserRequest:
+      type: object
+      required:
+        - username
+        - password
+        - userType
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "newuser"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: "password123"
+        userType:
+          type: string
+          enum: [STUDENT, TEACHER, ADMIN]
+          example: "STUDENT"
+        email:
+          type: string
+          format: email
+          example: "newuser@example.com"
+        phone:
+          type: string
+          pattern: '^1[3-9]\d{9}$'
+          example: "13800138000"
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          pattern: '^1[3-9]\d{9}$'
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, LOCKED]
+
+    BookCreateRequest:
+      type: object
+      required:
+        - isbn
+        - title
+        - author
+        - publisher
+        - totalQuantity
+      properties:
+        isbn:
+          type: string
+          pattern: '^(97[89])?\d{9}[\dX]$'
+          description: ISBN-10 or ISBN-13
+          example: "9787115551234"
+        title:
+          type: string
+          maxLength: 500
+          example: "Spring Boot实战"
+        subtitle:
+          type: string
+          maxLength: 500
+          example: "从入门到精通"
+        author:
+          type: string
+          maxLength: 200
+          example: "张三"
+        translator:
+          type: string
+          maxLength: 200
+          example: "李四"
+        publisher:
+          type: string
+          maxLength: 200
+          example: "人民邮电出版社"
+        publishDate:
+          type: string
+          format: date
+          example: "2023-06-01"
+        edition:
+          type: string
+          maxLength: 50
+          example: "第1版"
+        pages:
+          type: integer
+          minimum: 1
+          example: 520
+        price:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 89.00
+        binding:
+          type: string
+          maxLength: 50
+          example: "平装"
+        language:
+          type: string
+          maxLength: 50
+          default: "Chinese"
+          example: "Chinese"
+        classificationCode:
+          type: string
+          maxLength: 50
+          example: "TP312"
+        subjectKeywords:
+          type: string
+          maxLength: 500
+          example: "Java, Spring Boot, 微服务"
+        description:
+          type: string
+          maxLength: 2000
+          example: "本书全面介绍Spring Boot框架的核心概念和实战技巧..."
+        coverUrl:
+          type: string
+          format: uri
+          maxLength: 500
+          example: "https://cdn.gcrf-library.com/covers/book123.jpg"
+        totalQuantity:
+          type: integer
+          minimum: 1
+          example: 10
+        availableQuantity:
+          type: integer
+          minimum: 0
+          example: 8
+
+    BookUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 500
+        author:
+          type: string
+          maxLength: 200
+        publisher:
+          type: string
+          maxLength: 200
+        publishDate:
+          type: string
+          format: date
+        price:
+          type: number
+          format: decimal
+          minimum: 0
+        description:
+          type: string
+          maxLength: 2000
+        coverUrl:
+          type: string
+          format: uri
+        totalQuantity:
+          type: integer
+          minimum: 0
+        availableQuantity:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+
+    BookDetailVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        isbn:
+          type: string
+          example: "9787115551234"
+        title:
+          type: string
+          example: "Spring Boot实战"
+        subtitle:
+          type: string
+          example: "从入门到精通"
+        author:
+          type: string
+          example: "张三"
+        translator:
+          type: string
+          example: "李四"
+        publisher:
+          type: string
+          example: "人民邮电出版社"
+        publishDate:
+          type: string
+          format: date
+          example: "2023-06-01"
+        edition:
+          type: string
+          example: "第1版"
+        pages:
+          type: integer
+          example: 520
+        price:
+          type: number
+          format: decimal
+          example: 89.00
+        binding:
+          type: string
+          example: "平装"
+        language:
+          type: string
+          example: "Chinese"
+        classificationCode:
+          type: string
+          example: "TP312"
+        subjectKeywords:
+          type: string
+          example: "Java, Spring Boot, 微服务"
+        description:
+          type: string
+          example: "本书全面介绍Spring Boot框架的核心概念和实战技巧..."
+        coverUrl:
+          type: string
+          format: uri
+          example: "https://cdn.gcrf-library.com/covers/book123.jpg"
+        totalQuantity:
+          type: integer
+          example: 10
+        availableQuantity:
+          type: integer
+          example: 8
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          example: "ACTIVE"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-10-12T08:30:00"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-10-28T15:20:00"
+
+    ReaderCreateRequest:
+      type: object
+      required:
+        - readerId
+        - name
+        - readerType
+      properties:
+        readerId:
+          type: string
+          maxLength: 50
+          description: Reader card number (unique)
+          example: "R202400001"
+        name:
+          type: string
+          maxLength: 100
+          example: "王小明"
+        gender:
+          type: string
+          enum: [MALE, FEMALE, OTHER]
+          example: "MALE"
+        idCard:
+          type: string
+          pattern: '^[1-9]\d{5}(18|19|20)\d{2}((0[1-9])|(1[0-2]))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$'
+          example: "110101199001011234"
+        phone:
+          type: string
+          pattern: '^1[3-9]\d{9}$'
+          example: "13912345678"
+        email:
+          type: string
+          format: email
+          example: "wangxiaoming@example.com"
+        readerType:
+          type: string
+          enum: [STUDENT, TEACHER, STAFF, PUBLIC]
+          example: "STUDENT"
+        department:
+          type: string
+          maxLength: 200
+          example: "计算机科学与技术学院"
+        majorOrPosition:
+          type: string
+          maxLength: 200
+          example: "软件工程"
+        depositAmount:
+          type: integer
+          minimum: 0
+          description: Deposit amount in cents (分)
+          example: 10000
+        maxBorrowQuantity:
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 5
+        remarks:
+          type: string
+          maxLength: 1000
+
+    ReaderUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        phone:
+          type: string
+          pattern: '^1[3-9]\d{9}$'
+        email:
+          type: string
+          format: email
+        department:
+          type: string
+          maxLength: 200
+        majorOrPosition:
+          type: string
+          maxLength: 200
+        maxBorrowQuantity:
+          type: integer
+          minimum: 1
+          maximum: 100
+        remarks:
+          type: string
+          maxLength: 1000
+
+    ReaderDetailVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        readerId:
+          type: string
+          example: "R202400001"
+        name:
+          type: string
+          example: "王小明"
+        gender:
+          type: string
+          enum: [MALE, FEMALE, OTHER]
+          example: "MALE"
+        idCard:
+          type: string
+          example: "110101199001011234"
+        phone:
+          type: string
+          example: "13912345678"
+        email:
+          type: string
+          example: "wangxiaoming@example.com"
+        readerType:
+          type: string
+          enum: [STUDENT, TEACHER, STAFF, PUBLIC]
+          example: "STUDENT"
+        department:
+          type: string
+          example: "计算机科学与技术学院"
+        majorOrPosition:
+          type: string
+          example: "软件工程"
+        cardStatus:
+          type: string
+          enum: [PENDING, ACTIVE, SUSPENDED, CANCELLED]
+          example: "ACTIVE"
+        depositAmount:
+          type: integer
+          example: 10000
+        currentBorrowedCount:
+          type: integer
+          example: 3
+        maxBorrowQuantity:
+          type: integer
+          example: 5
+        totalBorrowedCount:
+          type: integer
+          example: 25
+        overdueCount:
+          type: integer
+          example: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BorrowRequest:
+      type: object
+      required:
+        - readerId
+        - bookId
+      properties:
+        readerId:
+          type: integer
+          format: int64
+          description: Reader ID
+          example: 1
+        bookId:
+          type: integer
+          format: int64
+          description: Book ID
+          example: 10
+
+    CirculationRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        readerId:
+          type: integer
+          format: int64
+          example: 1
+        bookId:
+          type: integer
+          format: int64
+          example: 10
+        borrowDate:
+          type: string
+          format: date-time
+          example: "2024-10-28T14:30:00"
+        dueDate:
+          type: string
+          format: date-time
+          example: "2024-11-27T14:30:00"
+        returnDate:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        renewCount:
+          type: integer
+          example: 0
+        status:
+          type: integer
+          description: "0=Borrowed, 1=Returned, 2=Overdue"
+          example: 0
+        overdueDays:
+          type: integer
+          example: 0
+        fine:
+          type: integer
+          description: Fine amount in cents (分)
+          example: 0
+
+    RoleCreateRequest:
+      type: object
+      required:
+        - roleCode
+        - roleName
+      properties:
+        roleCode:
+          type: string
+          maxLength: 50
+          example: "LIBRARIAN"
+        roleName:
+          type: string
+          maxLength: 100
+          example: "图书管理员"
+        description:
+          type: string
+          maxLength: 500
+          example: "负责图书入库、借还等日常管理"
+        sortOrder:
+          type: integer
+          example: 10
+
+    RoleUpdateRequest:
+      type: object
+      properties:
+        roleName:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        sortOrder:
+          type: integer
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+
+    RoleDetailVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        roleCode:
+          type: string
+          example: "LIBRARIAN"
+        roleName:
+          type: string
+          example: "图书管理员"
+        description:
+          type: string
+          example: "负责图书入库、借还等日常管理"
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          example: "ACTIVE"
+        sortOrder:
+          type: integer
+          example: 10
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PermissionVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        permissionCode:
+          type: string
+          example: "book:create"
+        permissionName:
+          type: string
+          example: "创建图书"
+        permissionType:
+          type: string
+          enum: [MENU, BUTTON, API]
+          example: "API"
+        resourcePath:
+          type: string
+          example: "/api/v1/books"
+        description:
+          type: string
+
+    # ========================================
+    # Response Wrappers
+    # ========================================
+    SuccessResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Response code (200 for success)
+          example: 200
+        message:
+          type: string
+          description: Response message
+          example: "操作成功"
+        data:
+          description: Response data (varies by endpoint)
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix timestamp in milliseconds
+          example: 1698765432000
+        traceId:
+          type: string
+          description: Request trace ID for debugging
+          example: "trace-abc123xyz"
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+          example: 400
+        message:
+          type: string
+          description: Error message
+          example: "参数验证失败"
+        data:
+          nullable: true
+        timestamp:
+          type: integer
+          format: int64
+          example: 1698765432000
+        traceId:
+          type: string
+          example: "trace-abc123xyz"
+
+    PageResult:
+      type: object
+      properties:
+        records:
+          type: array
+          items: {}
+          description: List of records
+        total:
+          type: integer
+          format: int64
+          description: Total number of records
+          example: 100
+        pageNum:
+          type: integer
+          description: Current page number (1-based)
+          example: 1
+        pageSize:
+          type: integer
+          description: Page size
+          example: 10
+        pages:
+          type: integer
+          description: Total number of pages
+          example: 10
+
+    PagedBookResponse:
+      allOf:
+        - $ref: '#/components/schemas/PageResult'
+        - type: object
+          properties:
+            records:
+              type: array
+              items:
+                $ref: '#/components/schemas/BookDetailVO'
+
+    PagedReaderResponse:
+      allOf:
+        - $ref: '#/components/schemas/PageResult'
+        - type: object
+          properties:
+            records:
+              type: array
+              items:
+                $ref: '#/components/schemas/ReaderDetailVO'
+
+    PagedRoleResponse:
+      allOf:
+        - $ref: '#/components/schemas/PageResult'
+        - type: object
+          properties:
+            records:
+              type: array
+              items:
+                $ref: '#/components/schemas/RoleDetailVO'
+
+    PagedUserInfoResponse:
+      type: object
+      description: MyBatis-Plus IPage wrapper
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserInfoResponse'
+        total:
+          type: integer
+          format: int64
+          example: 100
+        size:
+          type: integer
+          example: 10
+        current:
+          type: integer
+          example: 1
+        pages:
+          type: integer
+          example: 10
+
+  # ========================================
+  # Common Responses
+  # ========================================
+  responses:
+    UnauthorizedError:
+      description: Authentication required or token invalid/expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missingToken:
+              summary: Missing token
+              value:
+                code: 401
+                message: "未提供认证令牌"
+                data: null
+                timestamp: 1698765432000
+            invalidToken:
+              summary: Invalid token
+              value:
+                code: 401
+                message: "令牌无效或已过期"
+                data: null
+                timestamp: 1698765432000
+
+    ForbiddenError:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            forbidden:
+              value:
+                code: 403
+                message: "权限不足，无法访问该资源"
+                data: null
+                timestamp: 1698765432000
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notFound:
+              value:
+                code: 404
+                message: "请求的资源不存在"
+                data: null
+                timestamp: 1698765432000
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation:
+              value:
+                code: 400
+                message: "参数验证失败：用户名不能为空"
+                data: null
+                timestamp: 1698765432000
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            serverError:
+              value:
+                code: 500
+                message: "服务器内部错误"
+                data: null
+                timestamp: 1698765432000

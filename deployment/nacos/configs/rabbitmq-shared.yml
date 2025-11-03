@@ -1,0 +1,34 @@
+# RabbitMQ Configuration
+spring:
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: admin
+    password: gcrf_rabbitmq_2024
+    virtual-host: /
+
+    # Connection settings
+    connection-timeout: 15000
+    requested-heartbeat: 30
+    publisher-confirms: true
+    publisher-returns: true
+
+    # Template settings
+    template:
+      mandatory: true
+      receive-timeout: 10000
+      reply-timeout: 10000
+
+    # Listener settings
+    listener:
+      simple:
+        acknowledge-mode: manual
+        concurrency: 1
+        max-concurrency: 10
+        prefetch: 1
+        retry:
+          enabled: true
+          initial-interval: 1000
+          max-attempts: 3
+          max-interval: 10000
+          multiplier: 2

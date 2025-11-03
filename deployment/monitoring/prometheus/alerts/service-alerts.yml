@@ -1,0 +1,360 @@
+# GCRF Library Management System - Service Alert Rules
+# Version: 1.0.0
+# Last Updated: 2025-11-01
+#
+# 应用服务告警规则 - 覆盖微服务健康、性能、JVM等指标
+
+groups:
+  # ========================================
+  # 服务健康告警
+  # ========================================
+  - name: service_health
+    interval: 30s
+    rules:
+      # 服务健康检查失败
+      - alert: ServiceHealthCheckFailed
+        expr: |
+          up{job=~"gateway-service|auth-service|book-service|circulation-service|reader-service"} == 1
+          AND
+          (health_status_up{job=~"gateway-service|auth-service|book-service|circulation-service|reader-service"} == 0
+          OR absent(health_status_up{job=~"gateway-service|auth-service|book-service|circulation-service|reader-service"}))
+        for: 2m
+        labels:
+          severity: warning
+          category: health
+        annotations:
+          summary: "服务 {{ $labels.job }} 健康检查失败"
+          description: "服务: {{ $labels.job }} ({{ $labels.instance }})\n状态: Health check 失败\n持续时间: 2分钟\n建议: 检查 /actuator/health 端点详情"
+
+      # 数据库连接池耗尽
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          hikaricp_connections_active / hikaricp_connections_max > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "服务 {{ $labels.application }} 数据库连接池接近耗尽"
+          description: "服务: {{ $labels.application }}\n连接池: {{ $labels.pool }}\n使用率: {{ $value | humanizePercentage }}\n活跃连接: {{ with query \"hikaricp_connections_active\" }}{{ . | first | value }}{{ end }}\n最大连接: {{ with query \"hikaricp_connections_max\" }}{{ . | first | value }}{{ end }}\n紧急: 新请求可能无法获取数据库连接"
+
+      - alert: DatabaseConnectionPoolHigh
+        expr: |
+          hikaricp_connections_active / hikaricp_connections_max > 0.80
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "服务 {{ $labels.application }} 数据库连接池使用率过高"
+          description: "服务: {{ $labels.application }}\n连接池使用率: {{ $value | humanizePercentage }}\n建议: 检查慢查询或增加连接池大小"
+
+      # 数据库连接等待
+      - alert: DatabaseConnectionWaiting
+        expr: hikaricp_connections_pending > 5
+        for: 2m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "服务 {{ $labels.application }} 存在数据库连接等待"
+          description: "服务: {{ $labels.application }}\n等待连接数: {{ $value }}\n建议: 优化查询或增加连接池"
+
+  # ========================================
+  # HTTP 性能告警
+  # ========================================
+  - name: http_performance
+    interval: 30s
+    rules:
+      # HTTP 请求响应时间过高 (P95)
+      - alert: HighHTTPResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket{uri!~"/actuator.*"}[5m])) by (le, application, uri)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "服务 {{ $labels.application }} HTTP 响应时间过高"
+          description: "服务: {{ $labels.application }}\n接口: {{ $labels.uri }}\nP95 响应时间: {{ $value | humanizeDuration }}\n阈值: 2秒\n建议: 检查慢查询、优化业务逻辑"
+
+      - alert: CriticalHTTPResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket{uri!~"/actuator.*"}[5m])) by (le, application, uri)
+          ) > 5
+        for: 2m
+        labels:
+          severity: critical
+          category: performance
+        annotations:
+          summary: "服务 {{ $labels.application }} HTTP 响应时间严重过高"
+          description: "服务: {{ $labels.application }}\n接口: {{ $labels.uri }}\nP95 响应时间: {{ $value | humanizeDuration }}\n阈值: 5秒\n紧急: 用户体验严重受影响"
+
+      # HTTP 错误率过高
+      - alert: HighHTTPErrorRate
+        expr: |
+          (sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (application, uri)
+          /
+          sum(rate(http_server_requests_seconds_count[5m])) by (application, uri)) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: reliability
+        annotations:
+          summary: "服务 {{ $labels.application }} HTTP 5xx 错误率过高"
+          description: "服务: {{ $labels.application }}\n接口: {{ $labels.uri }}\n错误率: {{ $value | humanize }}%\n阈值: 5%\n建议: 检查应用日志和异常堆栈"
+
+      - alert: CriticalHTTPErrorRate
+        expr: |
+          (sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (application, uri)
+          /
+          sum(rate(http_server_requests_seconds_count[5m])) by (application, uri)) * 100 > 20
+        for: 2m
+        labels:
+          severity: critical
+          category: reliability
+        annotations:
+          summary: "服务 {{ $labels.application }} HTTP 5xx 错误率严重过高"
+          description: "服务: {{ $labels.application }}\n接口: {{ $labels.uri }}\n错误率: {{ $value | humanize }}%\n阈值: 20%\n紧急: 服务可能已严重故障"
+
+      # 客户端错误率过高 (4xx)
+      - alert: HighHTTPClientErrorRate
+        expr: |
+          (sum(rate(http_server_requests_seconds_count{status=~"4.."}[5m])) by (application, uri)
+          /
+          sum(rate(http_server_requests_seconds_count[5m])) by (application, uri)) * 100 > 20
+        for: 10m
+        labels:
+          severity: info
+          category: reliability
+        annotations:
+          summary: "服务 {{ $labels.application }} HTTP 4xx 错误率过高"
+          description: "服务: {{ $labels.application }}\n接口: {{ $labels.uri }}\n错误率: {{ $value | humanize }}%\n可能原因: 客户端请求参数错误或认证失败"
+
+      # HTTP 请求速率异常 (突然下降可能表示服务故障)
+      - alert: HTTPRequestRateDrop
+        expr: |
+          (sum(rate(http_server_requests_seconds_count{uri!~"/actuator.*"}[5m])) by (application)
+          /
+          sum(rate(http_server_requests_seconds_count{uri!~"/actuator.*"}[5m] offset 10m)) by (application)) < 0.5
+          AND
+          sum(rate(http_server_requests_seconds_count{uri!~"/actuator.*"}[5m] offset 10m)) by (application) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: traffic
+        annotations:
+          summary: "服务 {{ $labels.application }} HTTP 请求速率异常下降"
+          description: "服务: {{ $labels.application }}\n当前速率: {{ with query \"sum(rate(http_server_requests_seconds_count{application='\" }}{{ . | first | value | humanize }}{{ end }} req/s\n相比10分钟前下降: {{ $value | humanizePercentage }}\n建议: 检查服务是否正常、网关路由是否正常"
+
+  # ========================================
+  # JVM 内存告警
+  # ========================================
+  - name: jvm_memory
+    interval: 30s
+    rules:
+      # JVM 堆内存使用率过高
+      - alert: HighJVMHeapUsage
+        expr: |
+          (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          category: jvm
+        annotations:
+          summary: "服务 {{ $labels.application }} JVM 堆内存使用率过高"
+          description: "服务: {{ $labels.application }}\n堆内存使用率: {{ $value | humanize }}%\n已用: {{ with query \"jvm_memory_used_bytes{area='heap'}\" }}{{ . | first | value | humanize1024 }}B{{ end }}\n最大: {{ with query \"jvm_memory_max_bytes{area='heap'}\" }}{{ . | first | value | humanize1024 }}B{{ end }}\n建议: 检查内存泄漏或增加堆内存"
+
+      - alert: CriticalJVMHeapUsage
+        expr: |
+          (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: jvm
+        annotations:
+          summary: "服务 {{ $labels.application }} JVM 堆内存接近耗尽"
+          description: "服务: {{ $labels.application }}\n堆内存使用率: {{ $value | humanize }}%\n紧急: 可能触发 Full GC 或 OOM"
+
+      # GC 时间占比过高
+      - alert: HighGCTime
+        expr: |
+          (rate(jvm_gc_pause_seconds_sum[5m]) / rate(jvm_gc_pause_seconds_count[5m])) * 100 > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: jvm
+        annotations:
+          summary: "服务 {{ $labels.application }} GC 时间占比过高"
+          description: "服务: {{ $labels.application }}\nGC 收集器: {{ $labels.action }}\nGC 时间占比: {{ $value | humanize }}%\n建议: 优化内存使用或调整 GC 参数"
+
+      # Full GC 频繁
+      - alert: FrequentFullGC
+        expr: |
+          rate(jvm_gc_pause_seconds_count{action="end of major GC"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: jvm
+        annotations:
+          summary: "服务 {{ $labels.application }} Full GC 过于频繁"
+          description: "服务: {{ $labels.application }}\nFull GC 频率: {{ $value | humanize }}/秒\n建议: 检查内存泄漏、增加堆内存或优化对象生命周期"
+
+      # Metaspace 使用率过高
+      - alert: HighMetaspaceUsage
+        expr: |
+          (jvm_memory_used_bytes{area="nonheap", id="Metaspace"}
+          /
+          jvm_memory_max_bytes{area="nonheap", id="Metaspace"}) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          category: jvm
+        annotations:
+          summary: "服务 {{ $labels.application }} Metaspace 使用率过高"
+          description: "服务: {{ $labels.application }}\nMetaspace 使用率: {{ $value | humanize }}%\n建议: 增加 MaxMetaspaceSize 或检查类加载"
+
+  # ========================================
+  # JVM 线程告警
+  # ========================================
+  - name: jvm_threads
+    interval: 30s
+    rules:
+      # 活跃线程数过高
+      - alert: HighThreadCount
+        expr: jvm_threads_live > 500
+        for: 5m
+        labels:
+          severity: warning
+          category: jvm
+        annotations:
+          summary: "服务 {{ $labels.application }} 活跃线程数过高"
+          description: "服务: {{ $labels.application }}\n活跃线程数: {{ $value }}\n峰值线程数: {{ with query \"jvm_threads_peak\" }}{{ . | first | value }}{{ end }}\n建议: 检查线程泄漏或优化并发控制"
+
+      # 死锁线程
+      - alert: ThreadDeadlock
+        expr: jvm_threads_deadlocked > 0
+        for: 1m
+        labels:
+          severity: critical
+          category: jvm
+        annotations:
+          summary: "服务 {{ $labels.application }} 检测到线程死锁"
+          description: "服务: {{ $labels.application }}\n死锁线程数: {{ $value }}\n紧急: 需要线程 dump 分析"
+
+      # 线程数突增
+      - alert: ThreadCountSpike
+        expr: |
+          (jvm_threads_live - (jvm_threads_live offset 5m)) > 100
+        for: 2m
+        labels:
+          severity: info
+          category: jvm
+        annotations:
+          summary: "服务 {{ $labels.application }} 线程数突增"
+          description: "服务: {{ $labels.application }}\n当前线程数: {{ with query \"jvm_threads_live\" }}{{ . | first | value }}{{ end }}\n5分钟前: {{ with query \"jvm_threads_live offset 5m\" }}{{ . | first | value }}{{ end }}\n增加: {{ $value }}\n建议: 检查是否有异常任务创建过多线程"
+
+  # ========================================
+  # 业务指标告警 (示例)
+  # ========================================
+  - name: business_metrics
+    interval: 1m
+    rules:
+      # 借书失败率过高
+      - alert: HighBorrowFailureRate
+        expr: |
+          (sum(rate(http_server_requests_seconds_count{uri="/api/v1/circulation/borrow", status="500"}[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count{uri="/api/v1/circulation/borrow"}[5m]))) * 100 > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "借书功能失败率过高"
+          description: "失败率: {{ $value | humanize }}%\n阈值: 10%\n建议: 检查库存服务和流通服务"
+
+      # 登录失败率异常
+      - alert: HighLoginFailureRate
+        expr: |
+          (sum(rate(http_server_requests_seconds_count{uri="/api/v1/auth/login", status=~"401|403"}[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count{uri="/api/v1/auth/login"}[5m]))) * 100 > 30
+        for: 10m
+        labels:
+          severity: info
+          category: security
+        annotations:
+          summary: "登录失败率异常"
+          description: "失败率: {{ $value | humanize }}%\n可能原因: 暴力破解攻击或密码批量过期"
+
+  # ========================================
+  # 服务依赖告警
+  # ========================================
+  - name: service_dependencies
+    interval: 30s
+    rules:
+      # Nacos 服务注册中心不可用
+      - alert: NacosDown
+        expr: |
+          absent(up{job="nacos"})
+          OR
+          up{job="nacos"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: infrastructure
+        annotations:
+          summary: "Nacos 服务注册中心不可用"
+          description: "Nacos 在过去2分钟内无法访问\n影响: 服务发现和配置管理功能失效"
+
+      # Gateway 到后端服务路由失败率高
+      - alert: HighGatewayRoutingFailureRate
+        expr: |
+          (sum(rate(http_server_requests_seconds_count{application="gateway-service", status="503"}[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count{application="gateway-service"}[5m]))) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: gateway
+        annotations:
+          summary: "Gateway 路由失败率过高"
+          description: "失败率: {{ $value | humanize }}%\n可能原因: 后端服务不可用或负载均衡异常"
+
+  # ========================================
+  # 日志错误告警 (如果集成了日志采集)
+  # ========================================
+  - name: application_logs
+    interval: 1m
+    rules:
+      # ERROR 日志激增
+      - alert: HighErrorLogRate
+        expr: |
+          (sum(rate(logback_events_total{level="error"}[5m])) by (application) > 10)
+          AND
+          (sum(rate(logback_events_total{level="error"}[5m])) by (application)
+          /
+          sum(rate(logback_events_total{level="error"}[5m] offset 10m)) by (application) > 5)
+        for: 5m
+        labels:
+          severity: warning
+          category: logging
+        annotations:
+          summary: "服务 {{ $labels.application }} ERROR 日志激增"
+          description: "服务: {{ $labels.application }}\nERROR 日志速率: {{ $value | humanize }}/秒\n相比10分钟前增长: >5倍\n建议: 检查应用日志详情"
+
+      # WARN 日志持续高频
+      - alert: HighWarnLogRate
+        expr: |
+          sum(rate(logback_events_total{level="warn"}[5m])) by (application) > 50
+        for: 10m
+        labels:
+          severity: info
+          category: logging
+        annotations:
+          summary: "服务 {{ $labels.application }} WARN 日志持续高频"
+          description: "服务: {{ $labels.application }}\nWARN 日志速率: {{ $value | humanize }}/秒\n建议: 检查是否有需要修复的警告"

@@ -1,0 +1,337 @@
+# Docker Image Tag Retention Policy Configuration
+# Version: 1.0.0
+# Description: Defines retention rules for Docker image tags across environments
+# Author: GCRF Library Management System Team
+# Date: 2025-01-01
+
+# Global settings
+global:
+  # Enable retention policy enforcement
+  enabled: true
+
+  # Run cleanup frequency (cron format)
+  # Daily at 2 AM: "0 2 * * *"
+  # Weekly on Sunday at 3 AM: "0 3 * * 0"
+  cleanup_schedule: "0 2 * * *"
+
+  # Dry run mode (log actions without deleting)
+  dry_run: false
+
+  # Maximum number of images to delete per run (rate limiting)
+  max_deletions_per_run: 100
+
+  # Registries to apply retention policies
+  registries:
+    - name: docker.io
+      namespace: gcrf-library
+    - name: registry.gcrf.local
+      namespace: library
+
+# Retention rules by environment
+environments:
+  production:
+    # Production images are kept forever by default
+    rules:
+      - pattern: "^v[0-9]+\\.[0-9]+\\.[0-9]+$"  # Semantic versions (v1.2.3)
+        retention_days: -1  # -1 means keep forever
+        protected: true
+        description: "Production release versions"
+
+      - pattern: "^prod-.*"  # Production tags
+        retention_days: -1
+        protected: true
+        description: "Production environment tags"
+
+      - pattern: "^stable$"  # Stable tag
+        retention_days: -1
+        protected: true
+        description: "Current stable version"
+
+      - pattern: "^rollback-.*"  # Rollback tags
+        retention_days: 90
+        protected: false
+        description: "Rollback recovery points"
+        max_count: 10  # Keep only last 10 rollback points
+
+  staging:
+    rules:
+      - pattern: "^staging-[0-9]+\\.[0-9]+\\.[0-9]+.*$"  # Staging versions
+        retention_days: 90
+        protected: false
+        description: "Staging environment versions"
+
+      - pattern: "^staging-[0-9]{8}$"  # Staging date snapshots
+        retention_days: 60
+        protected: false
+        description: "Staging daily snapshots"
+        max_count: 30  # Keep maximum 30 snapshots
+
+      - pattern: "^staging-candidate$"  # Staging candidate
+        retention_days: 30
+        protected: false
+        description: "Next staging deployment candidate"
+
+      - pattern: "^rc-.*"  # Release candidates
+        retention_days: 60
+        protected: false
+        description: "Release candidate versions"
+
+  development:
+    rules:
+      - pattern: "^dev$|^dev-latest$"  # Current dev tags
+        retention_days: -1  # Always keep current
+        protected: true
+        description: "Current development version"
+
+      - pattern: "^dev-[0-9]{8}$"  # Dev date snapshots
+        retention_days: 30
+        protected: false
+        description: "Development daily snapshots"
+        max_count: 14  # Keep only 2 weeks of snapshots
+
+      - pattern: "^dev-.*"  # Other dev tags
+        retention_days: 7
+        protected: false
+        description: "Development feature branches"
+
+      - pattern: "^latest$"  # Latest tag
+        retention_days: -1
+        protected: true
+        description: "Latest development build"
+
+      - pattern: "^nightly-.*"  # Nightly builds
+        retention_days: 7
+        protected: false
+        description: "Automated nightly builds"
+        max_count: 7  # Keep only 1 week
+
+  testing:
+    rules:
+      - pattern: "^test-.*"  # Test tags
+        retention_days: 14
+        protected: false
+        description: "Testing environment tags"
+
+      - pattern: "^qa-.*"  # QA tags
+        retention_days: 14
+        protected: false
+        description: "QA testing tags"
+
+      - pattern: "^perf-.*"  # Performance test tags
+        retention_days: 7
+        protected: false
+        description: "Performance testing tags"
+
+# Retention rules by tag pattern (applies across all environments)
+tag_patterns:
+  git_based:
+    - pattern: "^git-[a-f0-9]{7}$"  # Short Git SHA
+      retention_days: 60
+      protected: false
+      description: "Git commit SHA (short)"
+
+    - pattern: "^git-[a-f0-9]{40}$"  # Full Git SHA
+      retention_days: 30
+      protected: false
+      description: "Git commit SHA (full)"
+
+    - pattern: "^sha-.*"  # Alternative SHA format
+      retention_days: 60
+      protected: false
+      description: "Git SHA alternative format"
+
+  branch_based:
+    - pattern: "^branch-.*"  # Branch builds
+      retention_days: 30
+      protected: false
+      description: "Branch-specific builds"
+
+    - pattern: "^feature-.*"  # Feature branches
+      retention_days: 14
+      protected: false
+      description: "Feature branch builds"
+      max_count: 5  # Keep only last 5 per feature
+
+    - pattern: "^bugfix-.*"  # Bugfix branches
+      retention_days: 14
+      protected: false
+      description: "Bugfix branch builds"
+
+    - pattern: "^hotfix-.*"  # Hotfix branches
+      retention_days: 30
+      protected: false
+      description: "Hotfix branch builds"
+
+  pull_requests:
+    - pattern: "^pr-[0-9]+$"  # Pull request builds
+      retention_days: 14
+      protected: false
+      description: "Pull request builds"
+
+    - pattern: "^pr-[0-9]+-[a-f0-9]+$"  # PR with commit
+      retention_days: 14
+      protected: false
+      description: "Pull request with commit SHA"
+
+  pre_release:
+    - pattern: ".*-alpha\\.[0-9]+$"  # Alpha releases
+      retention_days: 30
+      protected: false
+      description: "Alpha pre-releases"
+      max_count: 10  # Keep last 10 alpha versions
+
+    - pattern: ".*-beta\\.[0-9]+$"  # Beta releases
+      retention_days: 60
+      protected: false
+      description: "Beta pre-releases"
+      max_count: 10  # Keep last 10 beta versions
+
+    - pattern: ".*-rc\\.[0-9]+$"  # Release candidates
+      retention_days: 90
+      protected: false
+      description: "Release candidates"
+      max_count: 5  # Keep last 5 RCs per version
+
+  special:
+    - pattern: "^canary$|^canary-.*"  # Canary deployments
+      retention_days: 7
+      protected: false
+      description: "Canary deployment versions"
+
+    - pattern: "^edge$|^edge-.*"  # Edge/bleeding edge
+      retention_days: 3
+      protected: false
+      description: "Bleeding edge versions"
+
+    - pattern: "^dirty-.*"  # Dirty builds (uncommitted changes)
+      retention_days: 1
+      protected: false
+      description: "Builds with uncommitted changes"
+
+# Protected tags (never delete, regardless of other rules)
+protected_tags:
+  # Exact matches
+  exact:
+    - "latest"
+    - "stable"
+    - "prod"
+    - "prod-stable"
+    - "dev"
+    - "dev-latest"
+    - "staging"
+
+  # Pattern matches
+  patterns:
+    - "^v[0-9]+\\.[0-9]+\\.[0-9]+$"  # Semantic versions
+    - "^prod-[0-9]+\\.[0-9]+\\.[0-9]+$"  # Production versions
+    - "^lts-.*"  # Long-term support versions
+
+# Services with special retention rules
+services:
+  gateway-service:
+    # Gateway is critical, keep images longer
+    retention_multiplier: 2.0  # Double the retention period
+    additional_protected_patterns:
+      - "^gateway-stable$"
+
+  auth-service:
+    # Auth service for security audit
+    retention_multiplier: 1.5
+    additional_protected_patterns:
+      - "^auth-secure$"
+
+  database-migration:
+    # Keep all migration images
+    retention_multiplier: -1  # Keep forever
+    additional_protected_patterns:
+      - "^migration-.*"
+
+# Cleanup configuration
+cleanup:
+  # Strategy: "oldest_first" or "least_used"
+  strategy: "oldest_first"
+
+  # Grace period before deletion (hours)
+  # Images must be unused for this period before deletion
+  grace_period_hours: 24
+
+  # Keep minimum number of tags per service
+  min_tags_per_service: 5
+
+  # Size-based cleanup (in addition to time-based)
+  size_limits:
+    # Maximum total size per service (GB)
+    max_size_per_service_gb: 50
+
+    # Maximum size for single tag (GB)
+    max_size_per_tag_gb: 5
+
+    # Warn if total registry size exceeds (GB)
+    warn_total_size_gb: 500
+
+    # Critical if total registry size exceeds (GB)
+    critical_total_size_gb: 1000
+
+# Audit and compliance
+audit:
+  # Enable audit logging
+  enabled: true
+
+  # Audit log retention (days)
+  log_retention_days: 365
+
+  # Log deletions to external system
+  external_logging:
+    enabled: false
+    webhook_url: "https://audit.gcrf.local/webhook/docker-cleanup"
+
+  # Require approval for production deletions
+  require_approval:
+    production: true
+    staging: false
+    development: false
+
+  # Notification settings
+  notifications:
+    # Send summary after cleanup
+    send_summary: true
+
+    # Email recipients
+    email_recipients:
+      - "devops@gcrf.local"
+      - "platform@gcrf.local"
+
+    # Slack webhook
+    slack_webhook: "https://hooks.slack.com/services/xxx/yyy/zzz"
+
+    # Only notify on errors
+    only_on_error: false
+
+# Exceptions and overrides
+exceptions:
+  # Tags to never delete (in addition to protected_tags)
+  never_delete:
+    - pattern: "^security-patch-.*"
+      reason: "Security patches must be retained for audit"
+    - pattern: "^compliance-.*"
+      reason: "Compliance-required images"
+
+  # Temporary overrides (useful during incidents)
+  temporary_overrides:
+    - pattern: "^incident-.*"
+      until: "2025-02-01"
+      reason: "Keep incident-related images until investigation complete"
+
+# Backup configuration
+backup:
+  # Backup images before deletion
+  enabled: false
+
+  # Backup destination
+  destination: "s3://gcrf-docker-backup/"
+
+  # Backup retention (days)
+  retention_days: 30
+
+  # Only backup production images
+  production_only: true

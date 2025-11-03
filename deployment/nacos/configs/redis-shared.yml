@@ -1,0 +1,26 @@
+# Redis Configuration
+spring:
+  data:
+    redis:
+      host: redis
+      port: 6379
+      password: gcrf_redis_2024
+      database: 0
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+        cluster:
+          refresh:
+            period: 60s
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000  # 1 hour
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "gcrf:"

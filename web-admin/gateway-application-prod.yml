@@ -1,0 +1,278 @@
+# Gateway Service - Production Configuration
+# This file uses environment variable placeholders
+# All sensitive values should be injected via environment variables
+
+server:
+  port: ${GATEWAY_SERVER_PORT:8080}
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: ${SERVER_TOMCAT_THREADS_MAX:200}
+      min-spare: ${SERVER_TOMCAT_THREADS_MIN:10}
+    connection-timeout: ${GATEWAY_TIMEOUT:30000}
+    max-http-form-post-size: ${GATEWAY_MAX_REQUEST_SIZE:10485760}
+
+spring:
+  application:
+    name: ${APP_NAME_PREFIX:gcrf-library}-gateway
+
+  profiles:
+    active: prod
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+  cloud:
+    # Nacos Discovery Configuration
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR}
+      namespace: ${NACOS_NAMESPACE:}
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
+
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        cluster-name: ${ENVIRONMENT:prod}
+        heart-beat-interval: 5000
+        heart-beat-timeout: 15000
+
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:true}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+        refresh-enabled: true
+
+    # Gateway Configuration
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
+
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOriginPatterns: ${CORS_ALLOWED_ORIGINS:http://localhost:3011}
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+            maxAge: 3600
+
+      routes:
+        # Auth Service Route
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: authServiceCircuitBreaker
+                fallbackUri: forward:/fallback/auth
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT:100}
+                redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT:100}
+                key-resolver: "#{@ipKeyResolver}"
+
+        # Book Service Route
+        - id: book-service
+          uri: lb://book-service
+          predicates:
+            - Path=/api/v1/books/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: bookServiceCircuitBreaker
+                fallbackUri: forward:/fallback/book
+
+        # Circulation Service Route
+        - id: circulation-service
+          uri: lb://circulation-service
+          predicates:
+            - Path=/api/v1/circulation/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: circulationServiceCircuitBreaker
+                fallbackUri: forward:/fallback/circulation
+
+        # Reader Service Route
+        - id: reader-service
+          uri: lb://reader-service
+          predicates:
+            - Path=/api/v1/readers/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: readerServiceCircuitBreaker
+                fallbackUri: forward:/fallback/reader
+
+        # System Service Route
+        - id: system-service
+          uri: lb://system-service
+          predicates:
+            - Path=/api/v1/system/**
+          filters:
+            - StripPrefix=2
+            - AuthorizeFilter
+
+        # Notification Service Route
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/notifications/**
+          filters:
+            - StripPrefix=2
+
+    # Circuit Breaker Configuration
+    circuitbreaker:
+      instances:
+        authServiceCircuitBreaker:
+          failureRateThreshold: ${GATEWAY_CIRCUIT_BREAKER_THRESHOLD:50}
+          waitDurationInOpenState: 10s
+          slidingWindowType: COUNT_BASED
+          slidingWindowSize: 10
+          minimumNumberOfCalls: 5
+        bookServiceCircuitBreaker:
+          failureRateThreshold: ${GATEWAY_CIRCUIT_BREAKER_THRESHOLD:50}
+          waitDurationInOpenState: 10s
+          slidingWindowType: COUNT_BASED
+          slidingWindowSize: 10
+          minimumNumberOfCalls: 5
+        circulationServiceCircuitBreaker:
+          failureRateThreshold: ${GATEWAY_CIRCUIT_BREAKER_THRESHOLD:50}
+          waitDurationInOpenState: 10s
+        readerServiceCircuitBreaker:
+          failureRateThreshold: ${GATEWAY_CIRCUIT_BREAKER_THRESHOLD:50}
+          waitDurationInOpenState: 10s
+
+  # Redis Configuration for Rate Limiting
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: ${REDIS_TIMEOUT:2000}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:8}
+          max-idle: ${REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${REDIS_POOL_MIN_IDLE:0}
+          max-wait: ${REDIS_POOL_MAX_WAIT:-1}
+      sentinel:
+        master: ${REDIS_SENTINEL_MASTER:}
+        nodes: ${REDIS_SENTINEL_NODES:}
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET}
+  issuer: ${JWT_ISSUER:gcrf-library-system}
+  access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:3600}
+  refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:86400}
+  skip-paths:
+    - /api/v1/auth/login
+    - /api/v1/auth/register
+    - /api/v1/auth/refresh
+    - /api/v1/books/search
+    - /actuator/health
+
+# Management Endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+  metrics:
+    enable:
+      all: ${METRICS_ENABLED:true}
+    export:
+      prometheus:
+        enabled: ${METRICS_ENABLED:true}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:prod}
+
+# Logging Configuration
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.gcrf.library: ${LOG_LEVEL:INFO}
+    org.springframework.cloud.gateway: ${LOG_LEVEL:INFO}
+    org.springframework.web.reactive.function.client: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/${spring.application.name}/${spring.application.name}.log
+    max-size: 100MB
+    max-history: 30
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+
+# Resilience4j Configuration
+resilience4j:
+  ratelimiter:
+    instances:
+      default:
+        limitForPeriod: ${GATEWAY_RATE_LIMIT:100}
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
+        registerHealthIndicator: true
+        eventConsumerBufferSize: 100
+
+  timelimiter:
+    instances:
+      default:
+        timeoutDuration: ${GATEWAY_TIMEOUT:30000}ms
+        cancelRunningFuture: true
+
+# Security Headers
+security:
+  headers:
+    content-security-policy: "default-src 'self'"
+    x-frame-options: DENY
+    x-content-type-options: nosniff
+    x-xss-protection: "1; mode=block"
+    strict-transport-security: "max-age=31536000; includeSubDomains"
+
+# Feature Flags
+features:
+  new-ui: ${FEATURE_NEW_UI_ENABLED:false}
+  advanced-search: ${FEATURE_ADVANCED_SEARCH:true}
+  social-login: ${FEATURE_SOCIAL_LOGIN:false}
+  mobile-app: ${FEATURE_MOBILE_APP:false}
+  ai-recommendations: ${FEATURE_AI_RECOMMENDATIONS:false}

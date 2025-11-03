@@ -1,0 +1,169 @@
+{
+  "rabbit_version": "3.12.0",
+  "rabbitmq_version": "3.12.0",
+  "users": [
+    {
+      "name": "rabbitmq",
+      "password_hash": "JlIvFPGMw6WjTmm/PdWnOKpd7pGJDmKWOqJ7WFQMX8M=",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": "administrator"
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/library"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "rabbitmq",
+      "vhost": "/library",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "parameters": [],
+  "global_parameters": [
+    {
+      "name": "cluster_name",
+      "value": "library-rabbitmq-cluster"
+    }
+  ],
+  "policies": [
+    {
+      "vhost": "/library",
+      "name": "ha-all",
+      "pattern": ".*",
+      "apply-to": "all",
+      "definition": {
+        "ha-mode": "all",
+        "ha-sync-mode": "automatic"
+      },
+      "priority": 0
+    }
+  ],
+  "queues": [
+    {
+      "name": "notification.queue",
+      "vhost": "/library",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 86400000,
+        "x-max-length": 100000
+      }
+    },
+    {
+      "name": "log.queue",
+      "vhost": "/library",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 604800000,
+        "x-max-length": 500000
+      }
+    },
+    {
+      "name": "analytics.queue",
+      "vhost": "/library",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 86400000,
+        "x-max-length": 100000
+      }
+    },
+    {
+      "name": "email.queue",
+      "vhost": "/library",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 86400000,
+        "x-max-length": 50000
+      }
+    },
+    {
+      "name": "sms.queue",
+      "vhost": "/library",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 86400000,
+        "x-max-length": 50000
+      }
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "library.topic.exchange",
+      "vhost": "/library",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "library.direct.exchange",
+      "vhost": "/library",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "library.fanout.exchange",
+      "vhost": "/library",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "library.topic.exchange",
+      "vhost": "/library",
+      "destination": "notification.queue",
+      "destination_type": "queue",
+      "routing_key": "notification.*",
+      "arguments": {}
+    },
+    {
+      "source": "library.topic.exchange",
+      "vhost": "/library",
+      "destination": "log.queue",
+      "destination_type": "queue",
+      "routing_key": "log.*",
+      "arguments": {}
+    },
+    {
+      "source": "library.topic.exchange",
+      "vhost": "/library",
+      "destination": "analytics.queue",
+      "destination_type": "queue",
+      "routing_key": "analytics.*",
+      "arguments": {}
+    },
+    {
+      "source": "library.topic.exchange",
+      "vhost": "/library",
+      "destination": "email.queue",
+      "destination_type": "queue",
+      "routing_key": "notification.email",
+      "arguments": {}
+    },
+    {
+      "source": "library.topic.exchange",
+      "vhost": "/library",
+      "destination": "sms.queue",
+      "destination_type": "queue",
+      "routing_key": "notification.sms",
+      "arguments": {}
+    }
+  ]
+}

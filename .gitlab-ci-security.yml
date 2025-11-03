@@ -1,0 +1,480 @@
+# GitLab CI/CD Pipeline for GCRF Library Security Scanning
+# Version: 1.0.0
+# Last Updated: 2025-11-01
+#
+# This pipeline performs security scanning of Docker images using Trivy
+# Include this file in your main .gitlab-ci.yml with:
+#   include:
+#     - local: .gitlab-ci-security.yml
+
+#==============================================================================
+# Global Configuration
+#==============================================================================
+variables:
+  # Trivy configuration
+  TRIVY_VERSION: "0.56.2"
+  TRIVY_CACHE_DIR: ".trivycache/"
+  TRIVY_NO_PROGRESS: "true"
+  TRIVY_TIMEOUT: "10m"
+
+  # Security baseline
+  SCAN_SEVERITY: "CRITICAL,HIGH,MEDIUM,LOW"
+  FAIL_ON_SEVERITY: "CRITICAL,HIGH"
+
+  # Docker configuration
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+
+  # Report paths
+  REPORTS_DIR: "security-reports"
+
+#==============================================================================
+# Pipeline Stages
+#==============================================================================
+stages:
+  - build
+  - security-scan
+  - sbom-generation
+  - report
+  - notify
+
+#==============================================================================
+# Templates
+#==============================================================================
+.trivy-scan-template:
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - apk add --no-cache curl jq
+    - |
+      # Install Trivy
+      curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v${TRIVY_VERSION}
+    - mkdir -p ${REPORTS_DIR}/{json,html,sarif,summary}
+    - trivy --version
+  cache:
+    key: trivy-db
+    paths:
+      - ${TRIVY_CACHE_DIR}
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - ${REPORTS_DIR}/
+    reports:
+      container_scanning: ${REPORTS_DIR}/sarif/${SERVICE_NAME}.sarif
+
+#==============================================================================
+# Build Jobs (Example - adjust to your actual build process)
+#==============================================================================
+.build-service-template:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker build -t gcrf-library/${SERVICE_NAME}:${CI_COMMIT_SHA} -f backend/${SERVICE_NAME}/Dockerfile backend/${SERVICE_NAME}/
+    - docker save gcrf-library/${SERVICE_NAME}:${CI_COMMIT_SHA} | gzip > ${SERVICE_NAME}.tar.gz
+  artifacts:
+    expire_in: 1 hour
+    paths:
+      - ${SERVICE_NAME}.tar.gz
+
+build:gateway:
+  extends: .build-service-template
+  variables:
+    SERVICE_NAME: "gateway-service"
+
+build:auth:
+  extends: .build-service-template
+  variables:
+    SERVICE_NAME: "auth-service"
+
+build:book:
+  extends: .build-service-template
+  variables:
+    SERVICE_NAME: "book-service"
+
+build:circulation:
+  extends: .build-service-template
+  variables:
+    SERVICE_NAME: "circulation-service"
+
+build:reader:
+  extends: .build-service-template
+  variables:
+    SERVICE_NAME: "reader-service"
+
+build:system:
+  extends: .build-service-template
+  variables:
+    SERVICE_NAME: "system-service"
+
+build:notification:
+  extends: .build-service-template
+  variables:
+    SERVICE_NAME: "notification-service"
+
+build:web-admin:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker build -t gcrf-library-web-admin:${CI_COMMIT_SHA} -f web-admin/Dockerfile web-admin/
+    - docker save gcrf-library-web-admin:${CI_COMMIT_SHA} | gzip > web-admin.tar.gz
+  artifacts:
+    expire_in: 1 hour
+    paths:
+      - web-admin.tar.gz
+
+#==============================================================================
+# Security Scan Jobs
+#==============================================================================
+.security-scan-service:
+  extends: .trivy-scan-template
+  stage: security-scan
+  script:
+    - |
+      # Load Docker image
+      gunzip -c ${SERVICE_NAME}.tar.gz | docker load
+
+      # Set image reference
+      if [ "${SERVICE_NAME}" = "web-admin" ]; then
+        IMAGE_REF="gcrf-library-web-admin:${CI_COMMIT_SHA}"
+      else
+        IMAGE_REF="gcrf-library/${SERVICE_NAME}:${CI_COMMIT_SHA}"
+      fi
+
+      echo "Scanning image: ${IMAGE_REF}"
+
+      # Generate JSON report
+      trivy image \
+        --format json \
+        --output ${REPORTS_DIR}/json/${SERVICE_NAME}.json \
+        --severity ${SCAN_SEVERITY} \
+        --scanners vuln,secret,misconfig,license \
+        --timeout ${TRIVY_TIMEOUT} \
+        --cache-dir ${TRIVY_CACHE_DIR} \
+        --ignore-unfixed \
+        --ignorefile deployment/config/.trivyignore \
+        ${IMAGE_REF}
+
+      # Generate HTML report
+      trivy image \
+        --format template \
+        --template "@contrib/html.tpl" \
+        --output ${REPORTS_DIR}/html/${SERVICE_NAME}.html \
+        --severity ${SCAN_SEVERITY} \
+        --cache-dir ${TRIVY_CACHE_DIR} \
+        ${IMAGE_REF}
+
+      # Generate SARIF report for GitLab Security Dashboard
+      trivy image \
+        --format sarif \
+        --output ${REPORTS_DIR}/sarif/${SERVICE_NAME}.sarif \
+        --severity ${SCAN_SEVERITY} \
+        --cache-dir ${TRIVY_CACHE_DIR} \
+        ${IMAGE_REF}
+
+      # Parse results
+      CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' ${REPORTS_DIR}/json/${SERVICE_NAME}.json || echo 0)
+      HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length' ${REPORTS_DIR}/json/${SERVICE_NAME}.json || echo 0)
+      MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length' ${REPORTS_DIR}/json/${SERVICE_NAME}.json || echo 0)
+      LOW=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="LOW")] | length' ${REPORTS_DIR}/json/${SERVICE_NAME}.json || echo 0)
+
+      # Generate summary
+      cat > ${REPORTS_DIR}/summary/${SERVICE_NAME}.txt << EOF
+      ================================================================================
+      Security Scan Summary: ${SERVICE_NAME}
+      Scan Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+      Commit: ${CI_COMMIT_SHA}
+      ================================================================================
+
+      Vulnerability Counts:
+      ---------------------
+      CRITICAL: ${CRITICAL} (Threshold: 0)
+      HIGH:     ${HIGH} (Threshold: 0)
+      MEDIUM:   ${MEDIUM} (Threshold: 5)
+      LOW:      ${LOW} (Informational)
+
+      Security Baseline Status:
+      -------------------------
+      EOF
+
+      # Check security baseline
+      BASELINE_FAILED=0
+      if [ "${CRITICAL}" -gt 0 ]; then
+        echo "❌ CRITICAL vulnerabilities found: ${CRITICAL}" | tee -a ${REPORTS_DIR}/summary/${SERVICE_NAME}.txt
+        BASELINE_FAILED=1
+      else
+        echo "✅ CRITICAL: Pass" | tee -a ${REPORTS_DIR}/summary/${SERVICE_NAME}.txt
+      fi
+
+      if [ "${HIGH}" -gt 0 ]; then
+        echo "❌ HIGH vulnerabilities found: ${HIGH}" | tee -a ${REPORTS_DIR}/summary/${SERVICE_NAME}.txt
+        BASELINE_FAILED=1
+      else
+        echo "✅ HIGH: Pass" | tee -a ${REPORTS_DIR}/summary/${SERVICE_NAME}.txt
+      fi
+
+      if [ "${MEDIUM}" -gt 5 ]; then
+        echo "⚠️  MEDIUM vulnerabilities exceed threshold: ${MEDIUM}" | tee -a ${REPORTS_DIR}/summary/${SERVICE_NAME}.txt
+      else
+        echo "✅ MEDIUM: Pass" | tee -a ${REPORTS_DIR}/summary/${SERVICE_NAME}.txt
+      fi
+
+      echo "ℹ️  LOW: ${LOW} (Informational)" | tee -a ${REPORTS_DIR}/summary/${SERVICE_NAME}.txt
+
+      # Fail job if baseline not met
+      if [ "${BASELINE_FAILED}" -eq 1 ]; then
+        echo ""
+        echo "❌ Security baseline check FAILED"
+        echo "Please review and remediate CRITICAL/HIGH vulnerabilities"
+        exit 1
+      else
+        echo ""
+        echo "✅ Security baseline check PASSED"
+      fi
+  allow_failure: false
+
+scan:gateway:
+  extends: .security-scan-service
+  variables:
+    SERVICE_NAME: "gateway-service"
+  needs:
+    - build:gateway
+
+scan:auth:
+  extends: .security-scan-service
+  variables:
+    SERVICE_NAME: "auth-service"
+  needs:
+    - build:auth
+
+scan:book:
+  extends: .security-scan-service
+  variables:
+    SERVICE_NAME: "book-service"
+  needs:
+    - build:book
+
+scan:circulation:
+  extends: .security-scan-service
+  variables:
+    SERVICE_NAME: "circulation-service"
+  needs:
+    - build:circulation
+
+scan:reader:
+  extends: .security-scan-service
+  variables:
+    SERVICE_NAME: "reader-service"
+  needs:
+    - build:reader
+
+scan:system:
+  extends: .security-scan-service
+  variables:
+    SERVICE_NAME: "system-service"
+  needs:
+    - build:system
+
+scan:notification:
+  extends: .security-scan-service
+  variables:
+    SERVICE_NAME: "notification-service"
+  needs:
+    - build:notification
+
+scan:web-admin:
+  extends: .security-scan-service
+  variables:
+    SERVICE_NAME: "web-admin"
+  needs:
+    - build:web-admin
+
+#==============================================================================
+# SBOM Generation Jobs
+#==============================================================================
+.sbom-generation:
+  extends: .trivy-scan-template
+  stage: sbom-generation
+  script:
+    - |
+      # Load Docker image
+      gunzip -c ${SERVICE_NAME}.tar.gz | docker load
+
+      # Set image reference
+      if [ "${SERVICE_NAME}" = "web-admin" ]; then
+        IMAGE_REF="gcrf-library-web-admin:${CI_COMMIT_SHA}"
+      else
+        IMAGE_REF="gcrf-library/${SERVICE_NAME}:${CI_COMMIT_SHA}"
+      fi
+
+      # Generate SBOM in SPDX JSON format
+      trivy image \
+        --format spdx-json \
+        --output ${REPORTS_DIR}/sbom/${SERVICE_NAME}-sbom.spdx.json \
+        --cache-dir ${TRIVY_CACHE_DIR} \
+        ${IMAGE_REF}
+
+      # Generate SBOM in CycloneDX format
+      trivy image \
+        --format cyclonedx \
+        --output ${REPORTS_DIR}/sbom/${SERVICE_NAME}-sbom.cyclonedx.json \
+        --cache-dir ${TRIVY_CACHE_DIR} \
+        ${IMAGE_REF}
+
+      echo "✅ SBOM generated for ${SERVICE_NAME}"
+  artifacts:
+    expire_in: 90 days
+    paths:
+      - ${REPORTS_DIR}/sbom/
+
+sbom:gateway:
+  extends: .sbom-generation
+  variables:
+    SERVICE_NAME: "gateway-service"
+  needs:
+    - build:gateway
+
+sbom:auth:
+  extends: .sbom-generation
+  variables:
+    SERVICE_NAME: "auth-service"
+  needs:
+    - build:auth
+
+sbom:web-admin:
+  extends: .sbom-generation
+  variables:
+    SERVICE_NAME: "web-admin"
+  needs:
+    - build:web-admin
+
+#==============================================================================
+# Consolidated Report Job
+#==============================================================================
+consolidated-report:
+  stage: report
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache jq
+  script:
+    - |
+      # Create consolidated report
+      cat > consolidated-report.md << 'EOF'
+      # GCRF Library Security Scan Report
+
+      **Generated:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+      **Pipeline:** ${CI_PIPELINE_ID}
+      **Commit:** ${CI_COMMIT_SHA}
+      **Branch:** ${CI_COMMIT_REF_NAME}
+
+      ## Security Baseline
+
+      | Severity | Threshold | Policy |
+      |----------|-----------|---------|
+      | CRITICAL | 0 | Build fails |
+      | HIGH | 0 | Build fails |
+      | MEDIUM | ≤ 5 | Warning |
+      | LOW | No limit | Informational |
+
+      ## Scan Results
+
+      EOF
+
+      # Parse each service summary
+      for summary in ${REPORTS_DIR}/summary/*.txt; do
+        if [ -f "$summary" ]; then
+          echo "---" >> consolidated-report.md
+          cat "$summary" >> consolidated-report.md
+          echo "" >> consolidated-report.md
+        fi
+      done
+
+      cat >> consolidated-report.md << 'EOF'
+
+      ## Recommendations
+
+      1. Review HTML reports for detailed vulnerability information
+      2. Prioritize CRITICAL and HIGH vulnerabilities
+      3. Update dependencies and base images
+      4. Re-run scans after applying fixes
+      5. Document accepted risks in .trivyignore
+
+      ---
+      *Generated by GitLab CI/CD Security Pipeline*
+      EOF
+
+      echo "✅ Consolidated report generated"
+  artifacts:
+    expire_in: 90 days
+    paths:
+      - consolidated-report.md
+  needs:
+    - scan:gateway
+    - scan:auth
+    - scan:book
+    - scan:circulation
+    - scan:reader
+    - scan:system
+    - scan:notification
+    - scan:web-admin
+
+#==============================================================================
+# Notification Job
+#==============================================================================
+notify-security-team:
+  stage: notify
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - |
+      # Send notification on failure
+      if [ "${CI_JOB_STATUS}" = "failed" ]; then
+        curl -X POST ${SLACK_WEBHOOK_URL} \
+          -H 'Content-Type: application/json' \
+          -d '{
+            "text": "🚨 GCRF Security Scan Failed",
+            "attachments": [{
+              "color": "danger",
+              "fields": [
+                {"title": "Pipeline", "value": "'${CI_PIPELINE_ID}'", "short": true},
+                {"title": "Commit", "value": "'${CI_COMMIT_SHORT_SHA}'", "short": true},
+                {"title": "Branch", "value": "'${CI_COMMIT_REF_NAME}'", "short": true},
+                {"title": "URL", "value": "'${CI_PIPELINE_URL}'", "short": false}
+              ]
+            }]
+          }'
+      fi
+  when: on_failure
+  needs:
+    - consolidated-report
+  only:
+    - main
+    - develop
+
+#==============================================================================
+# Security Dashboard Integration
+#==============================================================================
+# GitLab Security Dashboard will automatically display results from SARIF reports
+# No additional configuration needed if using GitLab Ultimate
+
+#==============================================================================
+# Pipeline Rules
+#==============================================================================
+# Run on:
+# - Merge requests
+# - Commits to main/develop
+# - Manual triggers
+# - Scheduled pipelines
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'

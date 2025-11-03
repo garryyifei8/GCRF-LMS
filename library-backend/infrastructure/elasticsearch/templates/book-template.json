@@ -1,0 +1,137 @@
+{
+  "index_patterns": ["library-books-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1,
+      "analysis": {
+        "analyzer": {
+          "ik_smart_analyzer": {
+            "type": "custom",
+            "tokenizer": "ik_smart",
+            "filter": ["lowercase"]
+          },
+          "ik_max_word_analyzer": {
+            "type": "custom",
+            "tokenizer": "ik_max_word",
+            "filter": ["lowercase"]
+          }
+        }
+      },
+      "index": {
+        "max_result_window": 10000,
+        "refresh_interval": "1s"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "book_id": {
+          "type": "keyword"
+        },
+        "isbn": {
+          "type": "keyword"
+        },
+        "title": {
+          "type": "text",
+          "analyzer": "ik_max_word_analyzer",
+          "search_analyzer": "ik_smart_analyzer",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "subtitle": {
+          "type": "text",
+          "analyzer": "ik_max_word_analyzer",
+          "search_analyzer": "ik_smart_analyzer"
+        },
+        "author": {
+          "type": "text",
+          "analyzer": "ik_smart_analyzer",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "publisher": {
+          "type": "text",
+          "analyzer": "ik_smart_analyzer",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "publish_date": {
+          "type": "date",
+          "format": "yyyy-MM-dd||yyyy-MM||yyyy"
+        },
+        "category": {
+          "type": "keyword"
+        },
+        "tags": {
+          "type": "keyword"
+        },
+        "description": {
+          "type": "text",
+          "analyzer": "ik_max_word_analyzer",
+          "search_analyzer": "ik_smart_analyzer"
+        },
+        "language": {
+          "type": "keyword"
+        },
+        "pages": {
+          "type": "integer"
+        },
+        "price": {
+          "type": "scaled_float",
+          "scaling_factor": 100
+        },
+        "stock": {
+          "type": "integer"
+        },
+        "available": {
+          "type": "integer"
+        },
+        "borrow_count": {
+          "type": "integer"
+        },
+        "rating": {
+          "type": "half_float"
+        },
+        "rating_count": {
+          "type": "integer"
+        },
+        "cover_url": {
+          "type": "keyword",
+          "index": false
+        },
+        "location": {
+          "type": "keyword"
+        },
+        "call_number": {
+          "type": "keyword"
+        },
+        "status": {
+          "type": "keyword"
+        },
+        "created_at": {
+          "type": "date"
+        },
+        "updated_at": {
+          "type": "date"
+        }
+      }
+    }
+  },
+  "priority": 100,
+  "version": 1,
+  "_meta": {
+    "description": "Template for library book index with IK analyzer"
+  }
+}

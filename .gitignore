@@ -1,0 +1,366 @@
+# GCRF Library Management System - Git Ignore Rules
+# Last Updated: 2025-11-01
+
+# ============================================
+# Environment Configuration Files (SECRETS)
+# ============================================
+# Critical: Never commit real secrets to Git!
+
+# Environment files with secrets
+.env
+.env.local
+.env.dev
+.env.staging
+.env.prod
+.env.*.local
+
+# Docker secrets
+docker-secrets/
+secrets/
+
+# Kubernetes secrets (if applicable)
+k8s-secrets/
+*.secret.yaml
+*-secret.yaml
+
+# Keep templates only
+!.env.example
+!.env.template
+
+# ============================================
+# IDE and Editor Files
+# ============================================
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# NetBeans
+nbproject/
+nbbuild/
+dist/
+nbdist/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ============================================
+# Build and Compilation Outputs
+# ============================================
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# ============================================
+# Java and Spring Boot
+# ============================================
+
+# Compiled class files
+*.class
+
+# Log files
+*.log
+logs/
+log/
+*.log.*
+
+# Package Files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# JVM crash logs
+hs_err_pid*
+replay_pid*
+
+# Spring Boot
+spring.log
+application-*.log
+
+# ============================================
+# Node.js and Frontend
+# ============================================
+
+# Dependencies
+node_modules/
+jspm_packages/
+
+# Production build
+dist/
+build/
+
+# npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Yarn
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Environment files
+.env.production.local
+
+# ============================================
+# Database and Cache
+# ============================================
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# PostgreSQL
+*.backup
+*.sql.gz
+
+# Redis dumps
+dump.rdb
+appendonly.aof
+
+# ============================================
+# Docker
+# ============================================
+
+# Docker Compose override (local customizations)
+docker-compose.override.yml
+docker-compose.*.local.yml
+
+# Docker build context
+.dockerignore
+
+# ============================================
+# Temporary and OS Files
+# ============================================
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Windows
+*.stackdump
+
+# Linux
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ============================================
+# Test and Coverage Reports
+# ============================================
+
+# Test output
+test-results/
+test-output/
+coverage/
+.nyc_output/
+
+# JaCoCo
+jacoco.exec
+jacoco/
+
+# ============================================
+# Security and Sensitive Data
+# ============================================
+
+# SSL/TLS Certificates and Keys
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.truststore
+
+# Keep example/template certificates
+!example.crt
+!template.pem
+
+# SSH keys
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# GPG keys
+*.gpg
+*.asc
+
+# AWS credentials
+.aws/credentials
+
+# GCP credentials
+*-credentials.json
+service-account*.json
+
+# ============================================
+# Backup and Archive Files
+# ============================================
+
+# Backup files
+*.backup
+*.bak
+*.old
+
+# Archive files (except distribution packages)
+# Uncomment if you want to ignore all archives
+# *.zip
+# *.tar
+# *.tar.gz
+
+# ============================================
+# Monitoring and Observability
+# ============================================
+
+# Prometheus data
+prometheus-data/
+grafana-data/
+
+# Logs from monitoring
+monitoring-logs/
+
+# ============================================
+# Documentation Build Outputs
+# ============================================
+
+# Generated documentation
+docs/_build/
+docs/.doctrees/
+site/
+
+# API documentation
+swagger-output/
+openapi-generated/
+
+# ============================================
+# Deployment and Infrastructure
+# ============================================
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+override.tf
+override.tf.json
+
+# Ansible
+*.retry
+
+# Helm
+charts/*.tgz
+
+# ============================================
+# Miscellaneous
+# ============================================
+
+# Project-specific temporary files
+scratch/
+temp/
+tmp/
+
+# Performance profiling
+*.prof
+*.hprof
+
+# Core dumps
+core
+core.*
+
+# ============================================
+# IMPORTANT: Keep These Files
+# ============================================
+
+# Configuration templates (without secrets)
+!.env.example
+!config.example.yml
+!application-example.yml
+
+# Documentation
+!README.md
+!CONTRIBUTING.md
+!LICENSE
+
+# Build configurations
+!pom.xml
+!package.json
+!Dockerfile
+!docker-compose.yml
+
+# Git configuration
+!.gitignore
+!.gitattributes
+
+# CI/CD
+!.github/
+!.gitlab-ci.yml
+!Jenkinsfile
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# MCP Configuration with secrets
+.mcp.json

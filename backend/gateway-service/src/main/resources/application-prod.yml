@@ -1,0 +1,469 @@
+# ============================================
+# Gateway Service Production Configuration
+# ============================================
+# This configuration is for production environment
+# All sensitive data should be externalized via environment variables
+# Author: GCRF Team
+# Last Updated: 2025-11-01
+# ============================================
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8080}
+  # Production optimizations
+  undertow:
+    # I/O threads for handling requests
+    io-threads: ${SERVER_IO_THREADS:8}
+    # Worker threads for blocking operations
+    worker-threads: ${SERVER_WORKER_THREADS:200}
+    # Buffer size
+    buffer-size: 1024
+    direct-buffers: true
+  # Compression for better performance
+  compression:
+    enabled: true
+    min-response-size: 1024
+    mime-types:
+      - text/html
+      - text/xml
+      - text/plain
+      - text/css
+      - text/javascript
+      - application/javascript
+      - application/json
+      - application/xml
+
+spring:
+  application:
+    name: gateway-service
+
+  main:
+    web-application-type: reactive
+    allow-bean-definition-overriding: false  # Strict mode in production
+
+  # Cloud Configuration
+  cloud:
+    # Nacos Service Discovery & Configuration
+    nacos:
+      discovery:
+        # Nacos server address (use Docker service name in container)
+        server-addr: ${NACOS_SERVER_ADDR:nacos:8848}
+        # Authentication credentials (externalized for security)
+        username: ${NACOS_USERNAME}
+        password: ${NACOS_PASSWORD}
+        # Namespace for environment isolation
+        namespace: ${NACOS_NAMESPACE:production}
+        # Service group
+        group: ${NACOS_GROUP:GCRF_LIBRARY}
+        # Health check settings
+        heart-beat-interval: 5000
+        heart-beat-timeout: 15000
+        # Metadata for service identification
+        metadata:
+          environment: production
+          version: ${APP_VERSION:1.0.0}
+
+      # Configuration management (if used)
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:nacos:8848}
+        username: ${NACOS_USERNAME}
+        password: ${NACOS_PASSWORD}
+        namespace: ${NACOS_NAMESPACE:production}
+        group: ${NACOS_GROUP:GCRF_LIBRARY}
+        # Auto-refresh configuration
+        refresh-enabled: true
+
+    # Gateway Configuration
+    gateway:
+      # Service discovery routing
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+          # Custom filters for all discovered routes
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback
+
+      # HTTP client configuration for backend services
+      httpclient:
+        # Connection timeout in milliseconds
+        connect-timeout: ${GATEWAY_CONNECT_TIMEOUT:10000}
+        # Response timeout in milliseconds
+        response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:30s}
+        # Connection pooling
+        pool:
+          type: elastic
+          max-idle-time: 30s
+          max-life-time: 60s
+
+      # Route definitions
+      routes:
+        # Authentication Service
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            # Circuit breaker for auth service
+            - name: CircuitBreaker
+              args:
+                name: authServiceCircuitBreaker
+                fallbackUri: forward:/fallback/auth
+            # Retry mechanism
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET,POST
+                backoff:
+                  firstBackoff: 10ms
+                  maxBackoff: 50ms
+                  factor: 2
+                  basedOnPreviousValue: false
+
+        # Book Service
+        - id: book-service
+          uri: lb://book-service
+          predicates:
+            - Path=/api/v1/books/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: bookServiceCircuitBreaker
+                fallbackUri: forward:/fallback/book
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${BOOK_SERVICE_RATE_LIMIT:100}
+                redis-rate-limiter.burstCapacity: ${BOOK_SERVICE_BURST_CAPACITY:200}
+                redis-rate-limiter.requestedTokens: 1
+
+        # Reader Service
+        - id: reader-service
+          uri: lb://reader-service
+          predicates:
+            - Path=/api/v1/readers/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: readerServiceCircuitBreaker
+                fallbackUri: forward:/fallback/reader
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${READER_SERVICE_RATE_LIMIT:100}
+                redis-rate-limiter.burstCapacity: ${READER_SERVICE_BURST_CAPACITY:200}
+                redis-rate-limiter.requestedTokens: 1
+
+        # Circulation Service
+        - id: circulation-service
+          uri: lb://circulation-service
+          predicates:
+            - Path=/api/v1/circulation/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: circulationServiceCircuitBreaker
+                fallbackUri: forward:/fallback/circulation
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${CIRCULATION_SERVICE_RATE_LIMIT:50}
+                redis-rate-limiter.burstCapacity: ${CIRCULATION_SERVICE_BURST_CAPACITY:100}
+                redis-rate-limiter.requestedTokens: 1
+
+      # Global CORS Configuration (Production - Restricted)
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            # Production domains only (comma-separated in env var)
+            allowedOriginPatterns: ${CORS_ALLOWED_ORIGINS:https://*.gcrf.com,https://library.gcrf.com}
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowed-headers:
+              - Authorization
+              - Content-Type
+              - X-Requested-With
+              - Accept
+              - Origin
+              - Access-Control-Request-Method
+              - Access-Control-Request-Headers
+            expose-headers:
+              - X-Total-Count
+              - X-Page-Number
+              - X-Page-Size
+            allow-credentials: true
+            max-age: 3600
+
+      # Default filters for all routes
+      default-filters:
+        # Add response headers
+        - AddResponseHeader=X-Response-Time, ${spring.cloud.gateway.request.time.elapsed}
+        - AddResponseHeader=X-Gateway-Instance, ${spring.application.name}:${server.port}
+        # Remove sensitive headers
+        - RemoveResponseHeader=X-Powered-By
+        - RemoveResponseHeader=Server
+        # Secure headers
+        - AddResponseHeader=X-Content-Type-Options, nosniff
+        - AddResponseHeader=X-Frame-Options, DENY
+        - AddResponseHeader=X-XSS-Protection, 1; mode=block
+        - AddResponseHeader=Strict-Transport-Security, max-age=31536000; includeSubDomains
+
+# Redis Configuration (for Rate Limiting)
+spring.redis:
+  host: ${REDIS_HOST:redis}
+  port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD}
+  database: ${REDIS_DATABASE:0}
+  timeout: 2000ms
+  lettuce:
+    pool:
+      max-active: 20
+      max-idle: 10
+      min-idle: 5
+      max-wait: -1ms
+    cluster:
+      refresh:
+        period: 60s
+
+# Circuit Breaker Configuration (Resilience4j)
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        # Sliding window configuration
+        slidingWindowSize: 100
+        slidingWindowType: COUNT_BASED
+        # Failure rate threshold to open circuit
+        failureRateThreshold: 50
+        # Wait duration in open state
+        waitDurationInOpenState: 30s
+        # Permitted calls in half-open state
+        permittedNumberOfCallsInHalfOpenState: 10
+        # Automatic transition from open to half-open
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        # Record exceptions
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.client.HttpServerErrorException
+        # Ignore exceptions
+        ignoreExceptions:
+          - org.springframework.security.access.AccessDeniedException
+    instances:
+      authServiceCircuitBreaker:
+        baseConfig: default
+        failureRateThreshold: 60
+        waitDurationInOpenState: 20s
+      bookServiceCircuitBreaker:
+        baseConfig: default
+      readerServiceCircuitBreaker:
+        baseConfig: default
+      circulationServiceCircuitBreaker:
+        baseConfig: default
+
+# Gateway-specific Configuration
+gateway:
+  # Whitelist paths (no authentication required)
+  whitelist:
+    paths:
+      - /api/v1/auth/login
+      - /api/v1/auth/register
+      - /api/v1/auth/refresh
+      - /api/v1/auth/health
+      - /actuator/health
+      - /actuator/health/**
+      # Remove API docs in production
+      # - /doc.html
+      # - /swagger-ui.html
+      # - /swagger-ui/**
+      # - /swagger-resources/**
+      # - /v3/api-docs/**
+      # - /webjars/**
+
+# JWT Configuration (Must match Auth Service)
+jwt:
+  # JWT secret key (externalized for security)
+  secret: ${JWT_SECRET}
+  # Token expiration time in milliseconds (24 hours default)
+  expiration: ${JWT_EXPIRATION:86400000}
+  # Token refresh window (4 hours before expiration)
+  refresh-window: ${JWT_REFRESH_WINDOW:14400000}
+  # Issuer for token validation
+  issuer: ${JWT_ISSUER:GCRF-Library-System}
+
+# Logging Configuration (Production - Optimized)
+logging:
+  level:
+    # Root logger at WARN level
+    root: WARN
+    # Application packages at INFO level
+    com.gcrf.gateway: INFO
+    # Spring Cloud Gateway at INFO level
+    org.springframework.cloud.gateway: INFO
+    # Security logging
+    org.springframework.security: WARN
+    # Nacos client
+    com.alibaba.nacos: WARN
+    # Database operations (if any)
+    org.springframework.jdbc: WARN
+    # HTTP client
+    org.springframework.web.reactive.function.client: WARN
+  # Log pattern for production (structured logging)
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  # File logging configuration
+  file:
+    name: ${LOG_PATH:/var/log/gcrf}/gateway-service.log
+    max-size: 100MB
+    max-history: 30
+    total-size-cap: 3GB
+  # Logback configuration
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+      total-size-cap: 3GB
+
+# Actuator Configuration (Production - Secured)
+management:
+  endpoints:
+    web:
+      exposure:
+        # Only expose necessary endpoints
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      # Show details only to authorized users
+      show-details: when-authorized
+      show-components: when-authorized
+      # Custom health indicators
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  # Health check configuration
+  health:
+    defaults:
+      enabled: true
+    # Circuit breaker health indicator
+    circuitbreakers:
+      enabled: true
+    # Rate limiter health indicator
+    ratelimiters:
+      enabled: true
+    # Redis health indicator
+    redis:
+      enabled: true
+    # Nacos health indicator
+    nacos:
+      enabled: true
+  # Metrics configuration
+  metrics:
+    distribution:
+      percentiles-histogram:
+        spring.cloud.gateway.requests: true
+    tags:
+      application: ${spring.application.name}
+      environment: production
+  # Server configuration for actuator
+  server:
+    port: ${MANAGEMENT_PORT:8090}
+
+# API Documentation (Disabled in Production)
+knife4j:
+  gateway:
+    enabled: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+# Performance Tuning
+spring.cloud.gateway:
+  # Metrics collection
+  metrics:
+    enabled: true
+    tags:
+      path:
+        enabled: true
+      method:
+        enabled: true
+      status:
+        enabled: true
+  # Request size limits
+  request:
+    size:
+      max-in-memory-size: 10MB
+
+# Thread Pool Configuration
+spring.task:
+  execution:
+    pool:
+      core-size: ${THREAD_POOL_CORE_SIZE:10}
+      max-size: ${THREAD_POOL_MAX_SIZE:50}
+      queue-capacity: ${THREAD_POOL_QUEUE_CAPACITY:100}
+      keep-alive: 60s
+      thread-name-prefix: gateway-exec-
+  scheduling:
+    pool:
+      size: ${SCHEDULER_POOL_SIZE:5}
+      thread-name-prefix: gateway-sched-
+
+# Netty Configuration (for WebFlux)
+reactor.netty:
+  # Connection pool
+  pool:
+    max-connections: ${NETTY_MAX_CONNECTIONS:500}
+    max-idle-time: ${NETTY_MAX_IDLE_TIME:30s}
+    max-life-time: ${NETTY_MAX_LIFE_TIME:60s}
+  # HTTP client configuration
+  http:
+    client:
+      connect-timeout-millis: ${NETTY_CONNECT_TIMEOUT:10000}
+      read-timeout-millis: ${NETTY_READ_TIMEOUT:30000}
+      write-timeout-millis: ${NETTY_WRITE_TIMEOUT:30000}
+
+# Additional Production Security Headers
+server.reactive.session:
+  timeout: 30m
+  cookie:
+    secure: true
+    http-only: true
+    same-site: strict
+
+# ============================================
+# Environment Variables Summary:
+# ============================================
+# Required:
+# - NACOS_USERNAME: Nacos authentication username
+# - NACOS_PASSWORD: Nacos authentication password
+# - JWT_SECRET: Secret key for JWT token signing
+# - REDIS_PASSWORD: Redis authentication password
+#
+# Optional (with defaults):
+# - SERVER_PORT: 8080
+# - NACOS_SERVER_ADDR: nacos:8848
+# - NACOS_NAMESPACE: production
+# - NACOS_GROUP: GCRF_LIBRARY
+# - JWT_EXPIRATION: 86400000 (24 hours)
+# - JWT_REFRESH_WINDOW: 14400000 (4 hours)
+# - JWT_ISSUER: GCRF-Library-System
+# - CORS_ALLOWED_ORIGINS: https://*.gcrf.com,https://library.gcrf.com
+# - REDIS_HOST: redis
+# - REDIS_PORT: 6379
+# - REDIS_DATABASE: 0
+# - LOG_PATH: /var/log/gcrf
+# - MANAGEMENT_PORT: 8090
+# - Various rate limit and pool size configurations
+# ============================================

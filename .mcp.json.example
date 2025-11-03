@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "claude-context": {
+      "command": "npx",
+      "args": ["@zilliz/claude-context-mcp@latest"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key-here",
+        "MILVUS_ADDRESS": "your-milvus-address-here",
+        "MILVUS_TOKEN": "your-milvus-token-here"
+      }
+    }
+  }
+}

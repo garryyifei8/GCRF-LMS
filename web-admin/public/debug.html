@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MSW Debug</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        button { padding: 10px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>MSW Debug Tool</h1>
+    <div id="output"></div>
+    <button onclick="testAll()">Run All Tests</button>
+    <button onclick="testLogin()">Test Login</button>
+    <button onclick="clearStorage()">Clear Storage & Reload</button>
+
+    <script>
+        const output = document.getElementById('output');
+
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            output.appendChild(div);
+        }
+
+        function logObject(label, obj) {
+            const div = document.createElement('div');
+            div.innerHTML = `<strong>${label}:</strong><pre>${JSON.stringify(obj, null, 2)}</pre>`;
+            output.appendChild(div);
+        }
+
+        async function testAll() {
+            output.innerHTML = '';
+            log('Starting diagnostics...', 'info');
+
+            // 1. Check Service Worker support
+            if (!('serviceWorker' in navigator)) {
+                log('❌ Service Worker not supported', 'error');
+                return;
+            }
+            log('✅ Service Worker API available', 'success');
+
+            // 2. Check registrations
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            log(`Found ${registrations.length} Service Worker registration(s)`, 'info');
+
+            registrations.forEach((reg, index) => {
+                logObject(`Registration #${index + 1}`, {
+                    scope: reg.scope,
+                    active: reg.active ? reg.active.scriptURL : null,
+                    waiting: reg.waiting ? reg.waiting.scriptURL : null,
+                    installing: reg.installing ? reg.installing.scriptURL : null
+                });
+            });
+
+            // 3. Check controller
+            if (navigator.serviceWorker.controller) {
+                log('✅ Service Worker is controlling this page', 'success');
+                logObject('Controller', {
+                    scriptURL: navigator.serviceWorker.controller.scriptURL,
+                    state: navigator.serviceWorker.controller.state
+                });
+            } else {
+                log('❌ Service Worker NOT controlling this page', 'error');
+                log('This page needs to be reloaded for Service Worker to take control', 'info');
+            }
+
+            // 4. Check sessionStorage
+            const reloaded = sessionStorage.getItem('msw-reloaded');
+            log(`sessionStorage 'msw-reloaded': ${reloaded}`, 'info');
+
+            // 5. Test fetch interception
+            log('\n--- Testing API Interception ---', 'info');
+            await testLogin();
+        }
+
+        async function testLogin() {
+            log('\nTesting login API...', 'info');
+
+            try {
+                const response = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+
+                log(`Response status: ${response.status}`, 'info');
+                log(`Response headers:`, 'info');
+                for (let [key, value] of response.headers.entries()) {
+                    log(`  ${key}: ${value}`, 'info');
+                }
+
+                const contentType = response.headers.get('content-type');
+
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    logObject('Response data', data);
+
+                    if (data.code === 200) {
+                        log('✅ Login successful! MSW is working!', 'success');
+                    } else {
+                        log('⚠️ API responded but login failed', 'error');
+                    }
+                } else {
+                    const text = await response.text();
+                    log('❌ Response is not JSON (MSW not intercepting)', 'error');
+                    log(`Response: ${text.substring(0, 200)}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Fetch error: ${error.message}`, 'error');
+            }
+        }
+
+        function clearStorage() {
+            sessionStorage.clear();
+            localStorage.clear();
+            log('Storage cleared, reloading...', 'info');
+            setTimeout(() => window.location.reload(), 1000);
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            setTimeout(testAll, 500);
+        });
+    </script>
+</body>
+</html>

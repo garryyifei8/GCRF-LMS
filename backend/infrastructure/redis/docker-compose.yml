@@ -1,0 +1,186 @@
+version: '3.8'
+
+services:
+  # Redis主节点
+  redis-master:
+    image: redis:7.2-alpine
+    container_name: gcrf-redis-master
+    hostname: redis-master
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-master-data:/data
+      - ./redis-master.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - gcrf-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis从节点1
+  redis-slave1:
+    image: redis:7.2-alpine
+    container_name: gcrf-redis-slave1
+    hostname: redis-slave1
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-slave1-data:/data
+      - ./redis-slave.conf:/usr/local/etc/redis/redis.conf:ro
+    command: >
+      sh -c "
+      redis-server /usr/local/etc/redis/redis.conf
+      --replicaof redis-master 6379
+      "
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - gcrf-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis从节点2
+  redis-slave2:
+    image: redis:7.2-alpine
+    container_name: gcrf-redis-slave2
+    hostname: redis-slave2
+    ports:
+      - "6382:6379"
+    volumes:
+      - redis-slave2-data:/data
+      - ./redis-slave.conf:/usr/local/etc/redis/redis.conf:ro
+    command: >
+      sh -c "
+      redis-server /usr/local/etc/redis/redis.conf
+      --replicaof redis-master 6379
+      "
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - gcrf-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Sentinel哨兵1
+  redis-sentinel1:
+    image: redis:7.2-alpine
+    container_name: gcrf-redis-sentinel1
+    hostname: redis-sentinel1
+    ports:
+      - "26379:26379"
+    volumes:
+      - sentinel1-data:/data
+      - ./sentinel.conf:/usr/local/etc/redis/sentinel.conf:ro
+    command: >
+      sh -c "
+      cp /usr/local/etc/redis/sentinel.conf /data/sentinel.conf &&
+      redis-sentinel /data/sentinel.conf
+      "
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - gcrf-network
+    restart: unless-stopped
+
+  # Sentinel哨兵2
+  redis-sentinel2:
+    image: redis:7.2-alpine
+    container_name: gcrf-redis-sentinel2
+    hostname: redis-sentinel2
+    ports:
+      - "26380:26379"
+    volumes:
+      - sentinel2-data:/data
+      - ./sentinel.conf:/usr/local/etc/redis/sentinel.conf:ro
+    command: >
+      sh -c "
+      cp /usr/local/etc/redis/sentinel.conf /data/sentinel.conf &&
+      redis-sentinel /data/sentinel.conf
+      "
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - gcrf-network
+    restart: unless-stopped
+
+  # Sentinel哨兵3
+  redis-sentinel3:
+    image: redis:7.2-alpine
+    container_name: gcrf-redis-sentinel3
+    hostname: redis-sentinel3
+    ports:
+      - "26381:26379"
+    volumes:
+      - sentinel3-data:/data
+      - ./sentinel.conf:/usr/local/etc/redis/sentinel.conf:ro
+    command: >
+      sh -c "
+      cp /usr/local/etc/redis/sentinel.conf /data/sentinel.conf &&
+      redis-sentinel /data/sentinel.conf
+      "
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - gcrf-network
+    restart: unless-stopped
+
+  # Redis Commander - Web管理界面(可选)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: gcrf-redis-commander
+    hostname: redis-commander
+    environment:
+      REDIS_HOSTS: "master:redis-master:6379,slave1:redis-slave1:6379,slave2:redis-slave2:6379"
+      HTTP_USER: ${REDIS_COMMANDER_USER:-admin}
+      HTTP_PASSWORD: ${REDIS_COMMANDER_PASSWORD:-gcrf_redis_2024}
+    ports:
+      - "8082:8081"
+    depends_on:
+      - redis-master
+      - redis-slave1
+      - redis-slave2
+    networks:
+      - gcrf-network
+    restart: unless-stopped
+
+networks:
+  gcrf-network:
+    external: true
+    name: gcrf-network
+
+volumes:
+  redis-master-data:
+    driver: local
+    name: gcrf-redis-master-data
+  redis-slave1-data:
+    driver: local
+    name: gcrf-redis-slave1-data
+  redis-slave2-data:
+    driver: local
+    name: gcrf-redis-slave2-data
+  sentinel1-data:
+    driver: local
+    name: gcrf-redis-sentinel1-data
+  sentinel2-data:
+    driver: local
+    name: gcrf-redis-sentinel2-data
+  sentinel3-data:
+    driver: local
+    name: gcrf-redis-sentinel3-data

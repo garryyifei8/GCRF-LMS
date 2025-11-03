@@ -1,0 +1,304 @@
+# Trivy Configuration for GCRF Library Management System
+# Version: 1.0.0
+# Last Updated: 2025-11-01
+#
+# This configuration file defines security scanning policies for all GCRF Docker images
+# Documentation: https://aquasecurity.github.io/trivy/
+
+#==============================================================================
+# Database Configuration
+#==============================================================================
+db:
+  # Vulnerability database repository
+  repository: ghcr.io/aquasecurity/trivy-db:2
+
+  # Java-specific vulnerability database
+  java-repository: ghcr.io/aquasecurity/trivy-java-db:1
+
+  # Skip database update (useful for CI/CD with cached databases)
+  skip-update: false
+
+  # Skip Java database update
+  skip-java-update: false
+
+  # Database download only mode
+  download-only: false
+
+#==============================================================================
+# Cache Configuration
+#==============================================================================
+cache:
+  # Cache backend: fs (filesystem) or redis
+  backend: fs
+
+  # Cache directory for filesystem backend
+  dir: ~/.cache/trivy
+
+  # Clear cache before scanning
+  clear: false
+
+  # Redis configuration (if using redis backend)
+  # redis:
+  #   url: redis://localhost:6379
+  #   ttl: 86400
+
+#==============================================================================
+# Scan Configuration
+#==============================================================================
+scan:
+  # Security check types to enable
+  security-checks:
+    - vuln        # Vulnerability scanning
+    - secret      # Secret detection
+    - config      # Misconfiguration detection
+    - license     # License detection
+
+  # Skip certain files/directories
+  skip-dirs:
+    - node_modules
+    - .git
+    - .cache
+    - .npm
+    - .gradle
+    - target
+    - build
+
+  # Skip certain files by pattern
+  skip-files:
+    - "**/*.md"
+    - "**/*.txt"
+    - "**/test/**"
+    - "**/tests/**"
+
+  # Offline mode (use cached databases only)
+  offline-scan: false
+
+  # File patterns (glob patterns for scanning)
+  file-patterns:
+    - "**/*"
+
+#==============================================================================
+# Vulnerability Configuration
+#==============================================================================
+vulnerability:
+  # Vulnerability types to detect
+  type:
+    - os          # OS packages
+    - library     # Application dependencies
+
+  # Severity levels to include in reports
+  severity:
+    - CRITICAL
+    - HIGH
+    - MEDIUM
+    - LOW
+    - UNKNOWN
+
+  # Ignore unfixed vulnerabilities
+  ignore-unfixed: false
+
+  # Ignore unpatched/EOL OS vulnerabilities
+  ignore-status:
+    # - end-of-life
+    # - will-not-fix
+
+#==============================================================================
+# Secret Detection Configuration
+#==============================================================================
+secret:
+  # Enable secret scanning
+  enabled: true
+
+  # Secret scanning configuration file
+  # config: .trivy/secret-config.yaml
+
+#==============================================================================
+# License Configuration
+#==============================================================================
+license:
+  # Enable license scanning
+  enabled: true
+
+  # Full license scanning (slower but more accurate)
+  full: false
+
+  # Forbidden licenses (fail scan if found)
+  forbidden:
+    - GPL-2.0
+    - GPL-3.0
+    - AGPL-3.0
+
+  # Restricted licenses (warn if found)
+  restricted:
+    - MPL-2.0
+    - EPL-1.0
+    - LGPL-2.1
+    - LGPL-3.0
+
+  # Allowed licenses
+  allowed:
+    - MIT
+    - Apache-2.0
+    - BSD-2-Clause
+    - BSD-3-Clause
+    - ISC
+    - 0BSD
+
+#==============================================================================
+# Misconfiguration Detection
+#==============================================================================
+misconfiguration:
+  # Enable misconfiguration scanning
+  enabled: true
+
+  # Include non-failures in results
+  include-non-failures: false
+
+  # Policy namespaces to scan
+  # policy:
+  #   - builtin.kubernetes
+  #   - builtin.dockerfile
+
+#==============================================================================
+# Report Configuration
+#==============================================================================
+report:
+  # Report format (table, json, sarif, template, cyclonedx, spdx, github)
+  format: table
+
+  # Output file path
+  # output: scan-report.json
+
+  # Template for custom report format
+  # template: "@contrib/html.tpl"
+
+  # Show dependency tree
+  dependency-tree: true
+
+  # Show lines of vulnerable code
+  list-all-pkgs: false
+
+  # Include CVE details
+  include-cve: true
+
+#==============================================================================
+# Filter Configuration
+#==============================================================================
+filter:
+  # Exit code when vulnerabilities are found
+  exit-code: 0  # Override with --exit-code flag in CI/CD
+
+  # Severity threshold to return non-zero exit code
+  severity:
+    - CRITICAL
+    - HIGH
+
+  # VEX (Vulnerability Exploitability eXchange) support
+  # vex: .trivy/vex.json
+
+#==============================================================================
+# Ignore Configuration
+#==============================================================================
+ignore:
+  # Ignore file path (list of CVEs to ignore)
+  file: .trivyignore
+
+  # Policy to ignore certain vulnerabilities
+  # policy: rego-policy.rego
+
+#==============================================================================
+# Timeout Configuration
+#==============================================================================
+timeout:
+  # Global timeout for scanning
+  scan: 10m
+
+  # Timeout for database download
+  db-download: 5m
+
+#==============================================================================
+# Debug Configuration
+#==============================================================================
+debug:
+  # Enable debug mode
+  enabled: false
+
+  # Quiet mode (suppress output)
+  quiet: false
+
+  # Show progress bar
+  no-progress: false
+
+#==============================================================================
+# Registry Configuration
+#==============================================================================
+registry:
+  # Registry credentials
+  # insecure: false
+
+  # Registry authentication
+  # username: ""
+  # password: ""
+
+  # Registry token
+  # token: ""
+
+#==============================================================================
+# SBOM Configuration
+#==============================================================================
+sbom:
+  # SBOM format (cyclonedx, spdx, spdx-json)
+  format: spdx-json
+
+  # Include components without vulnerabilities
+  include-dev-deps: false
+
+#==============================================================================
+# Kubernetes Configuration (for k8s manifest scanning)
+#==============================================================================
+kubernetes:
+  # Kubernetes context
+  # context: ""
+
+  # Kubernetes namespace
+  # namespace: default
+
+  # Include node information
+  # include-node-info: true
+
+#==============================================================================
+# Performance Configuration
+#==============================================================================
+performance:
+  # Number of parallel scans
+  parallel: 5
+
+  # Slow mode (more thorough but slower)
+  slow: false
+
+#==============================================================================
+# GCRF-Specific Configuration
+#==============================================================================
+# These settings are specific to GCRF Library Management System
+
+# Security baseline thresholds
+# CRITICAL: 0 allowed (fail build)
+# HIGH: 0 allowed (fail build)
+# MEDIUM: <= 5 allowed (warning)
+# LOW: No limit (informational)
+
+# Ignored CVEs (use .trivyignore file for better tracking)
+# - CVE-YYYY-XXXXX  # Description of why ignored
+
+# Custom policies for GCRF services
+# - All services must use approved base images
+# - No GPL licenses in production code
+# - Secrets must not be embedded in images
+# - Configuration must follow CIS Docker Benchmark
+
+#==============================================================================
+# Environment-Specific Overrides
+#==============================================================================
+# Development: More lenient settings
+# Staging: Production-like settings with warnings
+# Production: Strict enforcement of all policies

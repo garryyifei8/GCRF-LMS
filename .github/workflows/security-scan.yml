@@ -1,0 +1,435 @@
+name: Security Vulnerability Scanning
+
+# Trigger conditions
+on:
+  # Run on pull requests
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'backend/**'
+      - 'web-admin/**'
+      - 'deployment/docker/**'
+      - '**/Dockerfile'
+      - '**/pom.xml'
+      - '**/package.json'
+
+  # Run on push to main/develop
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'backend/**'
+      - 'web-admin/**'
+      - 'deployment/docker/**'
+      - '**/Dockerfile'
+      - '**/pom.xml'
+      - '**/package.json'
+
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      image:
+        description: 'Specific image to scan (leave empty for all)'
+        required: false
+        default: ''
+      severity:
+        description: 'Severity levels to scan'
+        required: false
+        default: 'CRITICAL,HIGH,MEDIUM,LOW'
+
+  # Scheduled scan (daily at 2 AM UTC)
+  schedule:
+    - cron: '0 2 * * *'
+
+# Environment variables
+env:
+  TRIVY_VERSION: '0.56.2'
+  SCAN_SEVERITY: 'CRITICAL,HIGH,MEDIUM,LOW'
+  FAIL_ON_SEVERITY: 'CRITICAL,HIGH'
+
+# Job definitions
+jobs:
+  #============================================================================
+  # Job 1: Build Docker Images
+  #============================================================================
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - gateway
+          - auth
+          - book
+          - circulation
+          - reader
+          - system
+          - notification
+          - web-admin
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          if [ -f "backend/${{ matrix.service }}-service/Dockerfile" ]; then
+            docker build \
+              --tag gcrf-library/${{ matrix.service }}-service:${{ github.sha }} \
+              --file backend/${{ matrix.service }}-service/Dockerfile \
+              backend/${{ matrix.service }}-service/
+          elif [ "${{ matrix.service }}" == "web-admin" ]; then
+            docker build \
+              --tag gcrf-library-web-admin:${{ github.sha }} \
+              --file web-admin/Dockerfile \
+              web-admin/
+          fi
+
+      - name: Save Docker image
+        run: |
+          if [ "${{ matrix.service }}" == "web-admin" ]; then
+            docker save gcrf-library-web-admin:${{ github.sha }} | gzip > /tmp/${{ matrix.service }}.tar.gz
+          else
+            docker save gcrf-library/${{ matrix.service }}-service:${{ github.sha }} | gzip > /tmp/${{ matrix.service }}.tar.gz
+          fi
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.service }}-image
+          path: /tmp/${{ matrix.service }}.tar.gz
+          retention-days: 1
+
+  #============================================================================
+  # Job 2: Security Scan with Trivy
+  #============================================================================
+  security-scan:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+    needs: build-images
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - gateway
+          - auth
+          - book
+          - circulation
+          - reader
+          - system
+          - notification
+          - web-admin
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.service }}-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: |
+          gunzip -c /tmp/${{ matrix.service }}.tar.gz | docker load
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: |
+            ${{ matrix.service == 'web-admin'
+              && format('gcrf-library-web-admin:{0}', github.sha)
+              || format('gcrf-library/{0}-service:{1}', matrix.service, github.sha) }}
+          format: 'sarif'
+          output: 'trivy-results-${{ matrix.service }}.sarif'
+          severity: ${{ env.SCAN_SEVERITY }}
+          scanners: 'vuln,secret,misconfig,license'
+          timeout: '10m'
+          trivyignores: deployment/config/.trivyignore
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-${{ matrix.service }}.sarif'
+          category: ${{ matrix.service }}
+
+      - name: Generate JSON report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: |
+            ${{ matrix.service == 'web-admin'
+              && format('gcrf-library-web-admin:{0}', github.sha)
+              || format('gcrf-library/{0}-service:{1}', matrix.service, github.sha) }}
+          format: 'json'
+          output: 'trivy-results-${{ matrix.service }}.json'
+          severity: ${{ env.SCAN_SEVERITY }}
+          scanners: 'vuln,secret,misconfig,license'
+
+      - name: Generate HTML report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: |
+            ${{ matrix.service == 'web-admin'
+              && format('gcrf-library-web-admin:{0}', github.sha)
+              || format('gcrf-library/{0}-service:{1}', matrix.service, github.sha) }}
+          format: 'template'
+          template: '@/contrib/html.tpl'
+          output: 'trivy-results-${{ matrix.service }}.html'
+          severity: ${{ env.SCAN_SEVERITY }}
+
+      - name: Parse vulnerability counts
+        id: parse-results
+        run: |
+          if [ -f "trivy-results-${{ matrix.service }}.json" ]; then
+            CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' trivy-results-${{ matrix.service }}.json)
+            HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length' trivy-results-${{ matrix.service }}.json)
+            MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length' trivy-results-${{ matrix.service }}.json)
+            LOW=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="LOW")] | length' trivy-results-${{ matrix.service }}.json)
+
+            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+            echo "high=$HIGH" >> $GITHUB_OUTPUT
+            echo "medium=$MEDIUM" >> $GITHUB_OUTPUT
+            echo "low=$LOW" >> $GITHUB_OUTPUT
+
+            echo "### 🔍 Vulnerability Summary for ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔴 CRITICAL | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟠 HIGH | $HIGH |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟡 MEDIUM | $MEDIUM |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔵 LOW | $LOW |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload scan reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-reports-${{ matrix.service }}
+          path: |
+            trivy-results-${{ matrix.service }}.json
+            trivy-results-${{ matrix.service }}.sarif
+            trivy-results-${{ matrix.service }}.html
+          retention-days: 30
+
+      - name: Check security baseline
+        run: |
+          CRITICAL=${{ steps.parse-results.outputs.critical }}
+          HIGH=${{ steps.parse-results.outputs.high }}
+
+          echo "Security Baseline Check:"
+          echo "CRITICAL: $CRITICAL (Threshold: 0)"
+          echo "HIGH: $HIGH (Threshold: 0)"
+
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+            echo "❌ Security baseline check failed!"
+            echo "Found $CRITICAL CRITICAL and $HIGH HIGH vulnerabilities"
+            exit 1
+          else
+            echo "✅ Security baseline check passed"
+          fi
+
+  #============================================================================
+  # Job 3: Generate SBOM
+  #============================================================================
+  generate-sbom:
+    name: Generate Software Bill of Materials
+    runs-on: ubuntu-latest
+    needs: build-images
+    strategy:
+      matrix:
+        service:
+          - gateway
+          - auth
+          - book
+          - circulation
+          - reader
+          - system
+          - notification
+          - web-admin
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.service }}-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: |
+          gunzip -c /tmp/${{ matrix.service }}.tar.gz | docker load
+
+      - name: Generate SBOM
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: |
+            ${{ matrix.service == 'web-admin'
+              && format('gcrf-library-web-admin:{0}', github.sha)
+              || format('gcrf-library/{0}-service:{1}', matrix.service, github.sha) }}
+          format: 'spdx-json'
+          output: 'sbom-${{ matrix.service }}.spdx.json'
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.service }}
+          path: sbom-${{ matrix.service }}.spdx.json
+          retention-days: 90
+
+  #============================================================================
+  # Job 4: Consolidated Report
+  #============================================================================
+  consolidated-report:
+    name: Generate Consolidated Report
+    runs-on: ubuntu-latest
+    needs: [security-scan, generate-sbom]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all scan reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: trivy-reports-*
+          path: reports/
+
+      - name: Generate consolidated report
+        run: |
+          cat > consolidated-report.md << 'EOF'
+          # GCRF Library Security Scan Report
+
+          **Generated:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          **Commit:** ${{ github.sha }}
+          **Branch:** ${{ github.ref_name }}
+
+          ## Summary
+
+          This report contains security scanning results for all GCRF Docker images.
+
+          ### Security Baseline
+
+          | Severity | Threshold | Policy |
+          |----------|-----------|---------|
+          | CRITICAL | 0 | Build fails |
+          | HIGH | 0 | Build fails |
+          | MEDIUM | ≤ 5 | Warning |
+          | LOW | No limit | Informational |
+
+          ## Scan Results by Service
+
+          EOF
+
+          # Parse each service report
+          for report in reports/*/trivy-results-*.json; do
+            if [ -f "$report" ]; then
+              service=$(basename "$report" | sed 's/trivy-results-//;s/.json//')
+              echo "### $service" >> consolidated-report.md
+              echo "" >> consolidated-report.md
+
+              CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' "$report")
+              HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length' "$report")
+              MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length' "$report")
+              LOW=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="LOW")] | length' "$report")
+
+              echo "| Severity | Count |" >> consolidated-report.md
+              echo "|----------|-------|" >> consolidated-report.md
+              echo "| CRITICAL | $CRITICAL |" >> consolidated-report.md
+              echo "| HIGH | $HIGH |" >> consolidated-report.md
+              echo "| MEDIUM | $MEDIUM |" >> consolidated-report.md
+              echo "| LOW | $LOW |" >> consolidated-report.md
+              echo "" >> consolidated-report.md
+            fi
+          done
+
+          cat >> consolidated-report.md << 'EOF'
+
+          ## Next Steps
+
+          1. Review detailed HTML reports for each service
+          2. Prioritize CRITICAL and HIGH vulnerabilities
+          3. Update dependencies and base images
+          4. Re-scan after applying fixes
+          5. Document any accepted risks
+
+          ---
+          *Generated by GitHub Actions Security Scan Workflow*
+          EOF
+
+      - name: Upload consolidated report
+        uses: actions/upload-artifact@v4
+        with:
+          name: consolidated-security-report
+          path: consolidated-report.md
+          retention-days: 90
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('consolidated-report.md', 'utf8');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
+
+  #============================================================================
+  # Job 5: Slack Notification (Optional)
+  #============================================================================
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    if: always() && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Send Slack notification
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "🚨 GCRF Security Scan Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Security vulnerabilities detected in GCRF Library*\n\n*Commit:* ${{ github.sha }}\n*Branch:* ${{ github.ref_name }}\n*Workflow:* ${{ github.workflow }}"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow Run"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

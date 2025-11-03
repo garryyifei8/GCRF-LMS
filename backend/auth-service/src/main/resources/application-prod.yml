@@ -1,0 +1,255 @@
+# Auth Service Production Configuration
+# Profile: production
+# Purpose: Optimized settings for production environment with externalized configuration
+# Last Updated: 2025-11-01
+
+server:
+  port: 8081
+  # Production server optimizations
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    accept-count: 100
+    max-connections: 8192
+  shutdown: graceful
+
+spring:
+  application:
+    name: auth-service
+
+  # Production DataSource Configuration with HikariCP Pool Optimization
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    # Externalized database connection with SSL enabled for production security
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:auth_service}?sslmode=require&prepareThreshold=0&preparedStatementCacheQueries=0
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:gcrf_secure_2024}
+
+    # HikariCP Connection Pool Settings - Optimized for Production
+    hikari:
+      # Pool name for monitoring and debugging
+      pool-name: AuthServiceHikariPool
+
+      # Maximum number of connections in the pool
+      # Set to 20 to handle production load while avoiding database connection exhaustion
+      maximum-pool-size: 20
+
+      # Minimum number of idle connections maintained in the pool
+      # Set to 5 to ensure quick response times for sudden traffic spikes
+      minimum-idle: 5
+
+      # Maximum time (ms) to wait for a connection from the pool
+      # 30 seconds provides reasonable timeout without causing user-facing errors
+      connection-timeout: 30000
+
+      # Maximum idle time (ms) for connections
+      # 10 minutes allows connections to remain idle during low traffic periods
+      idle-timeout: 600000
+
+      # Maximum lifetime (ms) of a connection in the pool
+      # 30 minutes ensures connections are refreshed regularly to avoid stale connections
+      max-lifetime: 1800000
+
+      # Time (ms) between keepalive attempts
+      # 5 minutes ensures connections remain valid and detects dead connections early
+      keepaliveTime: 300000
+
+      # Connection validation settings
+      connection-test-query: SELECT 1
+      validation-timeout: 5000
+
+      # Leak detection threshold (ms) - logs potential connection leaks
+      # 60 seconds helps identify code paths that don't properly close connections
+      leak-detection-threshold: 60000
+
+      # Register MBeans for JMX monitoring
+      register-mbeans: true
+
+  # Nacos Service Discovery Configuration
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        namespace: production
+        # Production health check settings
+        heart-beat-interval: 5000
+        heart-beat-timeout: 15000
+        # Enable persistent instance for production stability
+        ephemeral: false
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        namespace: production
+        file-extension: yaml
+        refresh-enabled: true
+
+  # Redis Configuration with Lettuce Connection Pool
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:gcrf_redis_2024}
+    database: 0
+    # Connection and command timeout settings
+    timeout: 10000ms
+    connect-timeout: 10000ms
+
+    # Lettuce client configuration (preferred over Jedis for production)
+    lettuce:
+      pool:
+        # Maximum active connections in the pool
+        # Set to 8 for typical production load with auth token operations
+        max-active: 8
+
+        # Maximum idle connections in the pool
+        # Matches max-active to maintain ready connections
+        max-idle: 8
+
+        # Minimum idle connections in the pool
+        # Set to 2 to ensure quick response for auth operations
+        min-idle: 2
+
+        # Maximum time (ms) to wait for a connection from pool
+        # -1 means indefinite wait (use connection-timeout instead)
+        max-wait: -1ms
+
+        # Time between eviction runs
+        time-between-eviction-runs: 60000ms
+
+      # Shutdown timeout for graceful shutdown
+      shutdown-timeout: 2000ms
+
+      # Enable adaptive cluster refresh for Redis cluster (if used)
+      cluster:
+        refresh:
+          adaptive: true
+          period: 60000ms
+
+  # Jackson configuration for production
+  jackson:
+    # Minimize JSON output size
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+  # Lifecycle management
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+# MyBatis-Plus Configuration
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*Mapper.xml
+  type-aliases-package: com.gcrf.library.auth.entity
+  configuration:
+    # Disable SQL logging in production for performance
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+    # Enable caching
+    cache-enabled: true
+    # Use column label instead of column name
+    use-column-label: true
+    # Enable camelCase to underscore mapping
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      # Logical delete configuration
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# JWT Configuration
+jwt:
+  # Externalized JWT secret - MUST be changed in production
+  secret: ${JWT_SECRET:GCRF_Library_System_Secret_2024_Secure_Production}
+  # Token expiration time in milliseconds (24 hours by default)
+  expiration: ${JWT_EXPIRATION:86400000}
+  # Refresh token expiration (7 days)
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  # Token issuer
+  issuer: GCRF-Library-Auth-Service
+
+# CORS Configuration - Disabled at service level (handled by Gateway)
+library:
+  web:
+    cors:
+      enabled: false
+
+# Actuator endpoints for production monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: production
+
+# Production Logging Configuration
+logging:
+  level:
+    # Root logger set to WARN to minimize log volume
+    root: WARN
+    # Application-specific logging at INFO level for debugging
+    com.gcrf.library.auth: INFO
+    # Framework logging levels
+    org.springframework: WARN
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+    # Database logging - disabled in production
+    org.hibernate: WARN
+    com.zaxxer.hikari: WARN
+    # Nacos client logging
+    com.alibaba.nacos: WARN
+  pattern:
+    # Structured logging pattern for production log aggregation
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    # Log file configuration for production
+    name: /var/log/gcrf-library/auth-service.log
+    max-size: 100MB
+    max-history: 30
+    total-size-cap: 3GB
+
+# Resilience Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      auth-service:
+        sliding-window-size: 100
+        permitted-number-of-calls-in-half-open-state: 10
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 100
+        slow-call-duration-threshold: 2s
+  retry:
+    instances:
+      auth-service:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+
+# Security Configuration
+security:
+  # Enable security headers
+  headers:
+    frame-options: DENY
+    xss-protection: true
+    content-type-options: true

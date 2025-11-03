@@ -1,0 +1,14 @@
+# JWT Configuration
+jwt:
+  secret: gcrf-library-jwt-secret-2024-production
+  expiration: 86400000  # 24 hours
+  refresh-expiration: 604800000  # 7 days
+  header: Authorization
+  prefix: "Bearer "
+  issuer: gcrf-library-system
+
+  # Token validation
+  validation:
+    issuer-uri: http://auth-service:8081
+    audience: gcrf-library
+    clock-skew-seconds: 60

@@ -1,0 +1,65 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/auth_service
+    username: postgres
+    password: gcrf_secure_2024
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
+
+  redis:
+    host: localhost
+    port: 6379
+    password: gcrf_redis_2024
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*Mapper.xml
+  type-aliases-package: com.gcrf.library.auth.entity
+
+jwt:
+  secret: GCRF_Library_System_Secret_2024_Secure
+  expiration: 86400000
+
+# 禁用业务服务CORS配置，由Gateway统一处理CORS
+library:
+  web:
+    cors:
+      enabled: false
+
+logging:
+  level:
+    com.gcrf.library: debug
+
+# Actuator配置 - 健康检查与监控
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      service: auth-service
+  health:
+    defaults:
+      enabled: true

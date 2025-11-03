@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # RabbitMQ消息队列服务
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: gcrf-rabbitmq
+    hostname: rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=gcrf_rabbitmq_2024
+      - RABBITMQ_DEFAULT_VHOST=/
+      - RABBITMQ_ERLANG_COOKIE=GCRF_RABBITMQ_SECRET_COOKIE
+    ports:
+      - "5672:5672"    # AMQP协议端口
+      - "15672:15672"  # Management管理界面
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+    networks:
+      - gcrf-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  gcrf-network:
+    external: true
+    name: gcrf-network
+
+volumes:
+  rabbitmq-data:
+    driver: local
+    name: gcrf-rabbitmq-data

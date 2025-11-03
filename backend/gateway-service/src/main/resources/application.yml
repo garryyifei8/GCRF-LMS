@@ -1,0 +1,141 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+  main:
+    web-application-type: reactive
+    allow-bean-definition-overriding: true
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
+
+    gateway:
+      # 启用服务发现路由
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+
+      # 路由规则配置
+      routes:
+        # 认证服务路由
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/auth/**
+          # 不使用StripPrefix，保留完整路径 /api/v1/auth/**
+
+        # 图书服务路由
+        - id: book-service
+          uri: lb://book-service
+          predicates:
+            - Path=/api/v1/books/**
+          # 不使用StripPrefix，保留完整路径 /api/v1/books/**
+
+        # 读者服务路由
+        - id: reader-service
+          uri: lb://reader-service
+          predicates:
+            - Path=/api/v1/readers/**
+          # 不使用StripPrefix，保留完整路径 /api/v1/readers/**
+
+        # 流通服务路由
+        - id: circulation-service
+          uri: lb://circulation-service
+          predicates:
+            - Path=/api/v1/circulation/**
+          # 不使用StripPrefix，保留完整路径 /api/v1/circulation/**
+
+      # 全局CORS配置
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowed-methods: "*"
+            allowed-headers: "*"
+            allow-credentials: true
+
+# Gateway白名单配置
+gateway:
+  whitelist:
+    paths:
+      - /api/v1/auth/login
+      - /api/v1/auth/register
+      - /api/v1/auth/health
+      - /actuator/**
+      - /doc.html
+      - /swagger-ui.html
+      - /swagger-ui/**
+      - /swagger-resources/**
+      - /v3/api-docs/**
+      - /webjars/**
+
+# JWT配置（必须与Auth Service保持一致）
+jwt:
+  secret: GCRF_Library_System_Secret_2024_Secure
+  expiration: 86400000
+
+logging:
+  level:
+    org.springframework.cloud.gateway: debug
+    com.gcrf.gateway: debug
+
+# Actuator配置 - 健康检查与监控
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      service: gateway-service
+  health:
+    defaults:
+      enabled: true
+
+# Knife4j配置
+knife4j:
+  gateway:
+    enabled: true
+    # 聚合各个微服务的API文档
+    routes:
+      - name: 认证服务
+        service-name: auth-service
+        url: /v3/api-docs/auth-service
+        order: 1
+      - name: 图书服务
+        service-name: book-service
+        url: /v3/api-docs/book-service
+        order: 2
+      - name: 读者服务
+        service-name: reader-service
+        url: /v3/api-docs/reader-service
+        order: 3
+      - name: 流通服务
+        service-name: circulation-service
+        url: /v3/api-docs/circulation-service
+        order: 4
+
+# SpringDoc配置
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html

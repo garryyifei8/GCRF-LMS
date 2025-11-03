@@ -1,0 +1,22 @@
+# Data directories
+mysql/master/data/
+mysql/slave/data/
+mysql/master/logs/
+mysql/slave/logs/
+redis/data/
+redis/logs/
+elasticsearch/data/
+elasticsearch/plugins/
+minio/data/
+minio/config/
+rabbitmq/data/
+
+# Environment files
+.env
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

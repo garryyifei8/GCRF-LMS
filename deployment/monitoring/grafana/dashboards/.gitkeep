@@ -1,0 +1,18 @@
+# Grafana Dashboards Directory
+#
+# This directory will contain pre-configured Grafana dashboards in JSON format.
+#
+# Recommended dashboards to import:
+# 1. Spring Boot 2.1 System Monitor (ID: 11378)
+# 2. PostgreSQL Database (ID: 9628)
+# 3. Redis Dashboard (ID: 11835)
+# 4. Node Exporter Full (ID: 1860)
+#
+# To import:
+# 1. Open Grafana (http://localhost:3000)
+# 2. Click + → Import
+# 3. Enter dashboard ID
+# 4. Select Prometheus datasource
+# 5. Click Import
+#
+# Custom dashboards will also be placed here and auto-loaded on startup.

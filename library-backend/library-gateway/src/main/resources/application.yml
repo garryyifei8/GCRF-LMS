@@ -1,0 +1,223 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: library-gateway
+  profiles:
+    active: dev
+
+  # Nacos服务注册配置
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_HOST:localhost}:${NACOS_PORT:8848}
+        namespace: ${NACOS_NAMESPACE:dev}
+        group: DEFAULT_GROUP
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        heart-beat-interval: 5
+        heart-beat-timeout: 15
+      config:
+        server-addr: ${NACOS_HOST:localhost}:${NACOS_PORT:8848}
+        namespace: ${NACOS_NAMESPACE:dev}
+        group: DEFAULT_GROUP
+        file-extension: yaml
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        refresh-enabled: true
+
+    # Gateway路由配置
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+
+      routes:
+        # 认证服务路由
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+
+        # 图书服务路由
+        - id: book-service
+          uri: lb://book-service
+          predicates:
+            - Path=/api/books/**
+          filters:
+            - StripPrefix=1
+
+        # 流通服务路由
+        - id: circulation-service
+          uri: lb://circulation-service
+          predicates:
+            - Path=/api/circulation/**
+          filters:
+            - StripPrefix=1
+
+        # 读者服务路由
+        - id: reader-service
+          uri: lb://reader-service
+          predicates:
+            - Path=/api/readers/**
+          filters:
+            - StripPrefix=1
+
+        # 系统服务路由
+        - id: system-service
+          uri: lb://system-service
+          predicates:
+            - Path=/api/system/**
+          filters:
+            - StripPrefix=1
+
+        # 推荐服务路由
+        - id: recommend-service
+          uri: lb://recommend-service
+          predicates:
+            - Path=/api/recommend/**
+          filters:
+            - StripPrefix=1
+
+        # NLP服务路由
+        - id: nlp-service
+          uri: lb://nlp-service
+          predicates:
+            - Path=/api/nlp/**
+          filters:
+            - StripPrefix=1
+
+        # 视觉服务路由
+        - id: vision-service
+          uri: lb://vision-service
+          predicates:
+            - Path=/api/vision/**
+          filters:
+            - StripPrefix=1
+
+        # 数据分析服务路由
+        - id: analytics-service
+          uri: lb://analytics-service
+          predicates:
+            - Path=/api/analytics/**
+          filters:
+            - StripPrefix=1
+
+        # 通知服务路由
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - StripPrefix=1
+
+        # 文件服务路由
+        - id: file-service
+          uri: lb://file-service
+          predicates:
+            - Path=/api/files/**
+          filters:
+            - StripPrefix=1
+
+        # 搜索服务路由
+        - id: search-service
+          uri: lb://search-service
+          predicates:
+            - Path=/api/search/**
+          filters:
+            - StripPrefix=1
+
+      # 全局CORS配置
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+      # 全局过滤器
+      default-filters:
+        - name: Retry
+          args:
+            retries: 3
+            statuses: SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+            methods: GET,POST
+            backoff:
+              firstBackoff: 100ms
+              maxBackoff: 500ms
+              factor: 2
+
+  # Redis配置（用于限流）
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: 0
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+
+# Sentinel限流配置
+spring.cloud.sentinel:
+  transport:
+    dashboard: ${SENTINEL_DASHBOARD:localhost:8858}
+    port: 8719
+  eager: true
+
+# JWT配置
+jwt:
+  secret: ${JWT_SECRET:MySecretKey012345678901234567890123456789}
+  expiration: 7200
+  refresh-expiration: 604800
+
+# 网关白名单配置
+gateway:
+  whitelist:
+    paths:
+      - /api/auth/login
+      - /api/auth/face-login
+      - /api/auth/register
+      - /actuator/**
+      - /error
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.gcrf.library.gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+  file:
+    name: logs/gateway.log
+    max-size: 100MB
+    max-history: 30
+
+# Actuator监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,gateway
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true

@@ -1,0 +1,226 @@
+# GCRF Library Management System - Monitoring Stack
+# Prometheus + Grafana + Exporters
+# Version: 1.0.0
+# Last Updated: 2025-11-01
+
+version: '3.8'
+
+networks:
+  gcrf-monitoring-network:
+    name: gcrf-monitoring-network
+    driver: bridge
+  gcrf-backend-network:
+    name: gcrf-backend-network
+    external: true  # Connects to existing backend network
+
+volumes:
+  prometheus-data:
+    name: gcrf-prometheus-data
+  grafana-data:
+    name: gcrf-grafana-data
+
+services:
+  # ===========================================
+  # Prometheus - Metrics Collection & Storage
+  # ===========================================
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: gcrf-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'      # Enable hot reload via /-/reload
+      - '--web.enable-admin-api'      # Enable admin API
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts:/etc/prometheus/alerts:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    networks:
+      - gcrf-monitoring-network
+      - gcrf-backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    labels:
+      com.gcrf.service: "prometheus"
+      com.gcrf.tier: "monitoring"
+
+  # ===========================================
+  # Grafana - Metrics Visualization
+  # ===========================================
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: gcrf-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Security
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+
+      # Server
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+
+      # Users
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_USERS_ALLOW_ORG_CREATE=false
+
+      # Auth
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+
+      # Dashboards
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/system-overview.json
+
+      # Alerting (disabled for now)
+      - GF_ALERTING_ENABLED=false
+      - GF_UNIFIED_ALERTING_ENABLED=true
+
+      # Logging
+      - GF_LOG_MODE=console
+      - GF_LOG_LEVEL=info
+    volumes:
+      # Provisioning
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      # Dashboards
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      # Data persistence
+      - grafana-data:/var/lib/grafana
+    networks:
+      - gcrf-monitoring-network
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      com.gcrf.service: "grafana"
+      com.gcrf.tier: "monitoring"
+
+  # ===========================================
+  # Node Exporter - Server Metrics
+  # ===========================================
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: gcrf-node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - gcrf-monitoring-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      com.gcrf.service: "node-exporter"
+      com.gcrf.tier: "monitoring"
+
+  # ===========================================
+  # PostgreSQL Exporter - Database Metrics
+  # ===========================================
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: gcrf-postgres-exporter
+    restart: unless-stopped
+    environment:
+      # Connection to primary PostgreSQL
+      - DATA_SOURCE_NAME=postgresql://postgres:gcrf_secure_2024@gcrf-postgres-primary:5432/postgres?sslmode=disable
+      # Metrics configuration
+      - PG_EXPORTER_AUTO_DISCOVER_DATABASES=true
+      - PG_EXPORTER_EXTEND_QUERY_PATH=/etc/postgres_exporter/queries.yml
+    ports:
+      - "9187:9187"
+    volumes:
+      - ./monitoring/exporters/postgres-queries.yml:/etc/postgres_exporter/queries.yml:ro
+    networks:
+      - gcrf-monitoring-network
+      - gcrf-backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      com.gcrf.service: "postgres-exporter"
+      com.gcrf.tier: "monitoring"
+
+  # ===========================================
+  # Redis Exporter - Cache Metrics
+  # ===========================================
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0
+    container_name: gcrf-redis-exporter
+    restart: unless-stopped
+    environment:
+      # Connection to Redis master
+      - REDIS_ADDR=gcrf-redis-master:6379
+      - REDIS_PASSWORD=gcrf_redis_2024
+      - REDIS_EXPORTER_CHECK_KEYS=*
+      - REDIS_EXPORTER_CHECK_SINGLE_KEYS=*
+    ports:
+      - "9121:9121"
+    networks:
+      - gcrf-monitoring-network
+      - gcrf-backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9121/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      com.gcrf.service: "redis-exporter"
+      com.gcrf.tier: "monitoring"
+
+# ===========================================
+# Additional Exporters (Optional, for future)
+# ===========================================
+  # RabbitMQ Exporter
+  # rabbitmq-exporter:
+  #   image: kbudde/rabbitmq-exporter:v1.0.0-RC19
+  #   container_name: gcrf-rabbitmq-exporter
+  #   environment:
+  #     - RABBIT_URL=http://gcrf-rabbitmq:15672
+  #     - RABBIT_USER=admin
+  #     - RABBIT_PASSWORD=admin
+  #   ports:
+  #     - "9419:9419"
+  #   networks:
+  #     - gcrf-monitoring-network
+  #     - gcrf-backend-network
+
+  # JMX Exporter for Nacos (if needed)
+  # nacos-exporter:
+  #   image: sscaling/jmx-prometheus-exporter:0.18.0
+  #   container_name: gcrf-nacos-exporter
+  #   ports:
+  #     - "9404:9404"
+  #   networks:
+  #     - gcrf-monitoring-network
+  #     - gcrf-backend-network

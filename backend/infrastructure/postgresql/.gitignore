@@ -1,0 +1,42 @@
+# 环境变量文件（包含密码）
+.env
+
+# 备份文件
+backup/full/*
+backup/incremental/*
+backup/wal/*
+backup/logs/*
+
+# 保留backup目录结构
+!backup/full/.gitkeep
+!backup/incremental/.gitkeep
+!backup/wal/.gitkeep
+!backup/logs/.gitkeep
+
+# Docker数据卷
+data/
+
+# 日志文件
+*.log
+log/
+
+# 临时文件
+*.tmp
+*.pid
+*.sock
+
+# macOS文件
+.DS_Store
+
+# IDE文件
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# PostgreSQL临时文件
+postmaster.pid
+postmaster.opts
+recovery.conf
+standby.signal

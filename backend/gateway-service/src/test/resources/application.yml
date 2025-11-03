@@ -1,0 +1,73 @@
+server:
+  port: 0  # Random port for testing
+
+spring:
+  application:
+    name: gateway-service-test
+  main:
+    web-application-type: reactive
+    allow-bean-definition-overriding: true
+
+  cloud:
+    nacos:
+      discovery:
+        enabled: false  # Disable Nacos discovery for unit tests
+      config:
+        enabled: false  # Disable Nacos config for unit tests
+
+    gateway:
+      discovery:
+        locator:
+          enabled: false  # Disable auto-discovery for tests
+
+      routes:
+        # Auth service routes (for whitelist testing)
+        - id: auth-service
+          uri: http://localhost:9999  # Dummy URI, won't be reached
+          predicates:
+            - Path=/api/v1/auth/**
+
+        # Book service routes (for protected path testing)
+        - id: book-service
+          uri: http://localhost:9999  # Dummy URI, won't be reached
+          predicates:
+            - Path=/api/v1/books/**
+
+        # Reader service routes (for protected path testing)
+        - id: reader-service
+          uri: http://localhost:9999  # Dummy URI, won't be reached
+          predicates:
+            - Path=/api/v1/readers/**
+
+        # Circulation service routes (for protected path testing)
+        - id: circulation-service
+          uri: http://localhost:9999  # Dummy URI, won't be reached
+          predicates:
+            - Path=/api/v1/circulation/**
+
+# JWT配置（测试用 - MUST match production secret for token generation）
+jwt:
+  secret: GCRF_Library_System_Secret_2024_Secure
+  expiration: 86400000
+
+# Gateway白名单配置
+gateway:
+  whitelist:
+    paths:
+      - /api/v1/auth/login
+      - /api/v1/auth/register
+      - /actuator/**
+
+# Actuator配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.gcrf.gateway: debug

@@ -1,0 +1,116 @@
+# GCRF Library Management System - BuildKit Configuration
+# Optimized for fast builds with aggressive caching
+# Last Updated: 2025-11-01
+
+# Enable debug mode for troubleshooting (set to false in production)
+debug = false
+
+# Root directory for buildkit state
+root = "/var/lib/buildkit"
+
+# ========================================
+# Worker Configuration - Build Execution
+# ========================================
+[worker.oci]
+  enabled = true
+  # Increase max parallelism for faster multi-stage builds
+  max-parallelism = 4
+
+  # Set resource limits for build containers
+  # CPU shares (relative weight, default: 1024)
+  # Memory limit in bytes (8GB)
+  [[worker.oci.gcpolicy]]
+    keepBytes = 10737418240  # 10GB - keep more cache
+    keepDuration = 604800    # 7 days in seconds
+    filters = ["type==source.local,type==exec.cachemount,type==source.git.checkout"]
+
+  [[worker.oci.gcpolicy]]
+    all = true
+    keepBytes = 5368709120   # 5GB - for all other layers
+    keepDuration = 172800    # 2 days
+
+# ========================================
+# Registry Configuration - Maven Central Mirror
+# ========================================
+[registry."repo1.maven.org"]
+  # Use Alibaba Cloud Maven mirror for faster downloads in CN
+  mirrors = ["maven.aliyun.com"]
+  http = false
+  insecure = false
+
+[registry."maven.aliyun.com"]
+  http = true
+  insecure = false
+
+# ========================================
+# Registry Configuration - Docker Hub
+# ========================================
+[registry."docker.io"]
+  # Uncomment to use mirrors (Alibaba Cloud, Tencent Cloud)
+  # mirrors = ["registry.cn-hangzhou.aliyuncs.com"]
+  http = false
+  insecure = false
+
+# ========================================
+# Network Configuration
+# ========================================
+[network]
+  # Use host network mode for better performance
+  mode = "host"
+
+# ========================================
+# gRPC Configuration
+# ========================================
+[grpc]
+  address = ["unix:///run/buildkit/buildkitd.sock"]
+  uid = 0
+  gid = 0
+
+  [grpc.tls]
+    # TLS disabled for local development
+    # Enable in production with proper certificates
+    enabled = false
+
+# ========================================
+# DNS Configuration
+# ========================================
+[dns]
+  # Use custom DNS servers for faster resolution
+  # Google Public DNS and Cloudflare DNS
+  nameservers = ["8.8.8.8", "1.1.1.1"]
+  # Search domains
+  search = ["local"]
+
+# ========================================
+# Cache Export/Import Configuration
+# ========================================
+# This enables inline cache in images for distributed builds
+[buildkit]
+  # Enable history API for build analysis
+  historyAPICaps = true
+
+  # Enable buildinfo for provenance
+  buildinfoEnabled = true
+
+# ========================================
+# Frontends Configuration - Dockerfile Support
+# ========================================
+[frontends]
+  # Enable Dockerfile frontend with latest syntax
+  [frontends.dockerfile.v0]
+    enabled = true
+
+# ========================================
+# Storage Configuration - Overlay Snapshotter
+# ========================================
+[snapshotter]
+  # Use overlay2 for better performance
+  type = "overlayfs"
+
+# ========================================
+# Experimental Features
+# ========================================
+# Enable experimental features for better caching
+[experimental]
+  # Enable containerd snapshotter integration
+  containerdSnapshotter = false

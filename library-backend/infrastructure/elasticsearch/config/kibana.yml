@@ -1,0 +1,15 @@
+# ============================================
+# Kibana Configuration
+# ============================================
+
+server.host: "0.0.0.0"
+server.port: 5601
+server.name: "library-kibana"
+
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+
+# Localization
+i18n.locale: "zh-CN"
+
+# Monitoring
+monitoring.ui.container.elasticsearch.enabled: true

@@ -1,0 +1,227 @@
+# ============================================================================
+# Gateway Service - Development Profile
+# ============================================================================
+# Optimized for developer experience:
+# - Fast startup with minimal overhead
+# - Detailed logging for debugging
+# - Localhost defaults (no env vars needed)
+# - Permissive CORS for frontend development
+# - Hot reload support
+# ============================================================================
+
+server:
+  port: 8080
+  # Faster shutdown for development
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 10  # Reduced for faster startup
+      min-spare: 2
+
+spring:
+  application:
+    name: gateway-service
+
+  main:
+    web-application-type: reactive
+    allow-bean-definition-overriding: true
+
+  # Development tools for hot reload
+  devtools:
+    restart:
+      enabled: true
+      additional-paths: src/main/java
+    livereload:
+      enabled: true
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848  # Local Nacos
+        username: nacos
+        password: nacos
+        namespace: dev  # Separate dev namespace
+        group: DEV_GROUP
+        # Faster heartbeat for development
+        heart-beat-interval: 3000
+        heart-beat-timeout: 9000
+
+    gateway:
+      # Service discovery routing
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+
+      # Route configurations
+      routes:
+        # Auth Service
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            # Add request logging in dev
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 1000  # Very permissive for dev
+                redis-rate-limiter.burstCapacity: 2000
+
+        # Book Service
+        - id: book-service
+          uri: lb://book-service
+          predicates:
+            - Path=/api/v1/books/**
+
+        # Reader Service
+        - id: reader-service
+          uri: lb://reader-service
+          predicates:
+            - Path=/api/v1/readers/**
+
+        # Circulation Service
+        - id: circulation-service
+          uri: lb://circulation-service
+          predicates:
+            - Path=/api/v1/circulation/**
+
+      # Permissive CORS for development (localhost ports for frontend)
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns:
+              - "http://localhost:*"        # Vue dev server (any port)
+              - "http://127.0.0.1:*"
+              - "http://192.168.*.*:*"      # Local network testing
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowed-headers: "*"
+            allow-credentials: true
+            max-age: 3600  # 1 hour cache for preflight
+
+      # Connection settings optimized for development
+      httpclient:
+        connect-timeout: 5000      # 5 seconds (faster failure)
+        response-timeout: 30000    # 30 seconds
+        pool:
+          max-connections: 50      # Small pool for dev
+          max-idle-time: 30000
+
+# Gateway whitelist configuration
+gateway:
+  whitelist:
+    paths:
+      # Auth endpoints (no JWT needed)
+      - /api/v1/auth/login
+      - /api/v1/auth/register
+      - /api/v1/auth/refresh
+      - /api/v1/auth/logout
+      - /api/v1/auth/health
+      # Health checks
+      - /actuator/**
+      # API documentation
+      - /doc.html
+      - /swagger-ui.html
+      - /swagger-ui/**
+      - /swagger-resources/**
+      - /v3/api-docs/**
+      - /webjars/**
+      # Static resources
+      - /favicon.ico
+      - /error
+
+# JWT configuration (MUST match Auth Service)
+# WARNING: This is a development secret - NOT for production!
+jwt:
+  secret: DEV_SECRET_ONLY_NOT_FOR_PRODUCTION_USE_MINIMUM_64_CHARACTERS_REQUIRED_HERE
+  expiration: 86400000  # 24 hours (long expiration for dev convenience)
+
+# Detailed logging for development
+logging:
+  level:
+    root: INFO
+    # Application packages - DEBUG for detailed tracing
+    com.gcrf.gateway: DEBUG
+    com.gcrf.library.common: DEBUG
+    # Spring Cloud Gateway - DEBUG to see routing decisions
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: TRACE
+    org.springframework.cloud.gateway.route.RouteDefinitionLocator: DEBUG
+    # HTTP logging
+    org.springframework.web.reactive: DEBUG
+    org.springframework.http.server.reactive: DEBUG
+    # Nacos discovery
+    com.alibaba.nacos.client: INFO
+    # Security (if needed)
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Actuator configuration - expose all for development
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"  # Expose all endpoints in dev
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always  # Always show detailed health info
+      probes:
+        enabled: true
+    gateway:
+      enabled: true  # Gateway-specific actuator endpoints
+  health:
+    defaults:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Knife4j configuration - aggregated API documentation
+knife4j:
+  gateway:
+    enabled: true
+    # Aggregate microservices API docs
+    routes:
+      - name: 认证服务
+        service-name: auth-service
+        url: /v3/api-docs/auth-service
+        order: 1
+      - name: 图书服务
+        service-name: book-service
+        url: /v3/api-docs/book-service
+        order: 2
+      - name: 读者服务
+        service-name: reader-service
+        url: /v3/api-docs/reader-service
+        order: 3
+      - name: 流通服务
+        service-name: circulation-service
+        url: /v3/api-docs/circulation-service
+        order: 4
+  # Enhanced documentation UI
+  setting:
+    language: zh-CN
+    enable-debug: true  # Enable debug mode in dev
+
+# SpringDoc OpenAPI configuration
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+    # Disable "Try it out" validation in dev for easier testing
+    display-request-duration: true
+    default-models-expand-depth: 3

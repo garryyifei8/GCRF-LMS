@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/circulation_service
+    username: postgres
+    password: gcrf_secure_2024
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initial-size: 1
+      min-idle: 1
+      max-active: 5
+
+  # Redis配置
+  redis:
+    host: localhost
+    port: 6379
+    password: gcrf_redis_2024
+    database: 4  # Different from production (using database 4 for circulation-service test)
+
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+
+logging:
+  level:
+    com.gcrf.library: DEBUG
+    org.springframework: INFO

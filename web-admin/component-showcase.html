@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧图书馆 - UI组件展示与代码示例</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.5.1/dist/index.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Figma Design System Variables */
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-color: #667eea;
+            --primary-dark: #764ba2;
+
+            /* Semantic Colors */
+            --success: #5AD8A6;
+            --warning: #F6BD16;
+            --danger: #FF6B6B;
+            --info: #5B8FF9;
+
+            /* Neutrals */
+            --text-primary: #303133;
+            --text-regular: #606266;
+            --text-secondary: #909399;
+            --text-placeholder: #C0C4CC;
+            --border-base: #DCDFE6;
+            --border-light: #E4E7ED;
+            --bg-color: #F5F7FA;
+
+            /* Shadows - Figma Style */
+            --shadow-xs: 0 0 0 1px rgba(0, 0, 0, 0.05);
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+            /* Border Radius */
+            --radius-base: 4px;
+            --radius-small: 2px;
+            --radius-round: 20px;
+            --radius-circle: 100%;
+
+            /* Transitions */
+            --transition-all: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+            --transition-fade: opacity 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+            --transition-md: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+        }
+
+        body {
+            font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+        }
+
+        .app-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .app-header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 60px 40px;
+            border-radius: 16px;
+            margin-bottom: 40px;
+            text-align: center;
+            box-shadow: var(--shadow-2xl);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 60%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            transform: rotate(45deg);
+        }
+
+        .app-header h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .app-header p {
+            font-size: 18px;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding: 8px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow-base);
+            overflow-x: auto;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition-all);
+            white-space: nowrap;
+            background: transparent;
+            border: none;
+            color: var(--text-regular);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .nav-tab:hover {
+            background: var(--bg-color);
+            color: var(--primary-color);
+        }
+
+        .nav-tab.active {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Content Sections */
+        .content-section {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Component Cards */
+        .component-section {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-base);
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: var(--primary-gradient);
+            border-radius: 2px;
+        }
+
+        .component-demo {
+            padding: 24px;
+            background: var(--bg-color);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .component-code {
+            position: relative;
+            margin-top: 16px;
+        }
+
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .code-lang {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255,255,255,0.1);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #cbd5e0;
+        }
+
+        /* Custom Components */
+        .lib-button {
+            display: inline-block;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition-all);
+            border: none;
+            margin: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .lib-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .lib-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .lib-button-primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .lib-button-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .lib-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow-base);
+            transition: var(--transition-all);
+            margin-bottom: 16px;
+        }
+
+        .lib-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .lib-stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(102, 126, 234, 0.1);
+            transition: var(--transition-all);
+        }
+
+        .lib-stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary-color);
+        }
+
+        .stat-icon-wrapper {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: var(--primary-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        /* Grid Layouts */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        /* Token Display */
+        .token-comment { color: #65737e; font-style: italic; }
+        .token-keyword { color: #c594c5; }
+        .token-string { color: #99c794; }
+        .token-function { color: #6699cc; }
+        .token-tag { color: #ec5f67; }
+        .token-attr { color: #fac863; }
+        .token-value { color: #99c794; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .app-header h1 { font-size: 32px; }
+            .nav-tabs { flex-wrap: nowrap; overflow-x: auto; }
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>智慧图书馆 UI组件系统</h1>
+            <p>基于 Vue 3 + Element Plus 构建的现代化组件库</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('basic')">基础组件</button>
+            <button class="nav-tab" onclick="switchTab('form')">表单组件</button>
+            <button class="nav-tab" onclick="switchTab('data')">数据展示</button>
+            <button class="nav-tab" onclick="switchTab('feedback')">反馈组件</button>
+            <button class="nav-tab" onclick="switchTab('layout')">布局组件</button>
+            <button class="nav-tab" onclick="switchTab('patterns')">设计模式</button>
+        </nav>
+
+        <!-- Basic Components -->
+        <div class="content-section active" id="basic">
+            <!-- Buttons -->
+            <div class="component-section">
+                <h2 class="section-title">按钮 Button</h2>
+                <div class="component-demo">
+                    <button class="lib-button lib-button-primary">主要按钮</button>
+                    <button class="lib-button" style="background: white; color: var(--primary-color); border: 2px solid var(--primary-color);">次要按钮</button>
+                    <button class="lib-button" style="background: linear-gradient(135deg, #5AD8A6, #52c41a); color: white;">成功按钮</button>
+                    <button class="lib-button" style="background: linear-gradient(135deg, #F6BD16, #fa8c16); color: white;">警告按钮</button>
+                    <button class="lib-button" style="background: linear-gradient(135deg, #FF6B6B, #FF8787); color: white;">危险按钮</button>
+                </div>
+                <div class="component-code">
+                    <span class="code-lang">Vue</span>
+                    <pre class="code-block"><span class="token-tag">&lt;template&gt;</span>
+  <span class="token-comment">&lt;!-- Element Plus 按钮 --&gt;</span>
+  <span class="token-tag">&lt;el-button</span> <span class="token-attr">type</span>=<span class="token-value">"primary"</span> <span class="token-attr">@click</span>=<span class="token-value">"handleClick"</span><span class="token-tag">&gt;</span>主要按钮<span class="token-tag">&lt;/el-button&gt;</span>
+  <span class="token-tag">&lt;el-button</span> <span class="token-attr">plain</span><span class="token-tag">&gt;</span>次要按钮<span class="token-tag">&lt;/el-button&gt;</span>
+  <span class="token-tag">&lt;el-button</span> <span class="token-attr">type</span>=<span class="token-value">"success"</span><span class="token-tag">&gt;</span>成功按钮<span class="token-tag">&lt;/el-button&gt;</span>
+  <span class="token-tag">&lt;el-button</span> <span class="token-attr">type</span>=<span class="token-value">"warning"</span><span class="token-tag">&gt;</span>警告按钮<span class="token-tag">&lt;/el-button&gt;</span>
+  <span class="token-tag">&lt;el-button</span> <span class="token-attr">type</span>=<span class="token-value">"danger"</span><span class="token-tag">&gt;</span>危险按钮<span class="token-tag">&lt;/el-button&gt;</span>
+<span class="token-tag">&lt;/template&gt;</span>
+
+<span class="token-tag">&lt;script</span> <span class="token-attr">setup</span><span class="token-tag">&gt;</span>
+<span class="token-keyword">const</span> <span class="token-function">handleClick</span> = () => {
+  ElMessage.success(<span class="token-string">'按钮被点击了！'</span>)
+}
+<span class="token-tag">&lt;/script&gt;</span>
+
+<span class="token-tag">&lt;style</span> <span class="token-attr">scoped</span><span class="token-tag">&gt;</span>
+<span class="token-comment">/* 自定义渐变按钮样式 */</span>
+<span class="token-function">.el-button--primary</span> {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+<span class="token-tag">&lt;/style&gt;</span></pre>
+                </div>
+            </div>
+
+            <!-- Cards -->
+            <div class="component-section">
+                <h2 class="section-title">卡片 Card</h2>
+                <div class="component-demo">
+                    <div class="grid-2">
+                        <div class="lib-card">
+                            <h3 style="margin-bottom: 12px;">基础卡片</h3>
+                            <p style="color: var(--text-secondary);">这是一个基础卡片组件，支持悬浮效果和阴影变化。</p>
+                        </div>
+                        <div class="lib-stat-card">
+                            <div>
+                                <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">今日借阅</div>
+                                <div style="font-size: 32px; font-weight: 700; background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">1,234</div>
+                                <div style="color: var(--text-placeholder); font-size: 12px; margin-top: 4px;">较昨日 +12.5%</div>
+                            </div>
+                            <div class="stat-icon-wrapper">📚</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-code">
+                    <span class="code-lang">Vue</span>
+                    <pre class="code-block"><span class="token-tag">&lt;template&gt;</span>
+  <span class="token-comment">&lt;!-- 统计卡片组件 --&gt;</span>
+  <span class="token-tag">&lt;el-card</span> <span class="token-attr">class</span>=<span class="token-value">"stat-card"</span> <span class="token-attr">shadow</span>=<span class="token-value">"hover"</span><span class="token-tag">&gt;</span>
+    <span class="token-tag">&lt;div</span> <span class="token-attr">class</span>=<span class="token-value">"stat-content"</span><span class="token-tag">&gt;</span>
+      <span class="token-tag">&lt;div</span> <span class="token-attr">class</span>=<span class="token-value">"stat-label"</span><span class="token-tag">&gt;</span>{{ label }}<span class="token-tag">&lt;/div&gt;</span>
+      <span class="token-tag">&lt;div</span> <span class="token-attr">class</span>=<span class="token-value">"stat-value"</span><span class="token-tag">&gt;</span>{{ value }}<span class="token-tag">&lt;/div&gt;</span>
+      <span class="token-tag">&lt;div</span> <span class="token-attr">class</span>=<span class="token-value">"stat-change"</span><span class="token-tag">&gt;</span>
+        <span class="token-tag">&lt;span</span> <span class="token-attr">:class</span>=<span class="token-value">"changeClass"</span><span class="token-tag">&gt;</span>{{ change }}<span class="token-tag">&lt;/span&gt;</span>
+      <span class="token-tag">&lt;/div&gt;</span>
+    <span class="token-tag">&lt;/div&gt;</span>
+    <span class="token-tag">&lt;div</span> <span class="token-attr">class</span>=<span class="token-value">"stat-icon"</span><span class="token-tag">&gt;</span>
+      <span class="token-tag">&lt;el-icon</span> <span class="token-attr">:size</span>=<span class="token-value">"32"</span><span class="token-tag">&gt;</span>
+        <span class="token-tag">&lt;component</span> <span class="token-attr">:is</span>=<span class="token-value">"icon"</span> <span class="token-tag">/&gt;</span>
+      <span class="token-tag">&lt;/el-icon&gt;</span>
+    <span class="token-tag">&lt;/div&gt;</span>
+  <span class="token-tag">&lt;/el-card&gt;</span>
+<span class="token-tag">&lt;/template&gt;</span>
+
+<span class="token-tag">&lt;script</span> <span class="token-attr">setup</span><span class="token-tag">&gt;</span>
+<span class="token-keyword">import</span> { computed } <span class="token-keyword">from</span> <span class="token-string">'vue'</span>
+<span class="token-keyword">import</span> { Reading } <span class="token-keyword">from</span> <span class="token-string">'@element-plus/icons-vue'</span>
+
+<span class="token-keyword">const</span> props = defineProps({
+  label: String,
+  value: [String, Number],
+  change: String,
+  trend: String,
+  icon: { type: Object, default: () => Reading }
+})
+
+<span class="token-keyword">const</span> changeClass = computed(() => ({
+  <span class="token-string">'text-success'</span>: props.trend === <span class="token-string">'up'</span>,
+  <span class="token-string">'text-danger'</span>: props.trend === <span class="token-string">'down'</span>
+}))
+<span class="token-tag">&lt;/script&gt;</span></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Components -->
+        <div class="content-section" id="form">
+            <div class="component-section">
+                <h2 class="section-title">输入框 Input</h2>
+                <div class="component-demo">
+                    <div style="max-width: 400px;">
+                        <input type="text" placeholder="请输入图书名称" style="width: 100%; padding: 10px 16px; border: 2px solid #e8e8e8; border-radius: 8px; margin-bottom: 16px; transition: var(--transition-all);">
+                        <input type="text" placeholder="带图标的输入框" style="width: 100%; padding: 10px 16px 10px 40px; border: 2px solid #e8e8e8; border-radius: 8px; background: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23909399%22%3E%3Cpath d=%22M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z%22/%3E%3C/svg%3E') no-repeat 12px center; background-size: 20px;">
+                    </div>
+                </div>
+                <div class="component-code">
+                    <span class="code-lang">Vue</span>
+                    <pre class="code-block"><span class="token-tag">&lt;template&gt;</span>
+  <span class="token-tag">&lt;el-form</span> <span class="token-attr">:model</span>=<span class="token-value">"form"</span> <span class="token-attr">label-width</span>=<span class="token-value">"100px"</span><span class="token-tag">&gt;</span>
+    <span class="token-tag">&lt;el-form-item</span> <span class="token-attr">label</span>=<span class="token-value">"图书名称"</span><span class="token-tag">&gt;</span>
+      <span class="token-tag">&lt;el-input</span>
+        <span class="token-attr">v-model</span>=<span class="token-value">"form.bookName"</span>
+        <span class="token-attr">placeholder</span>=<span class="token-value">"请输入图书名称"</span>
+        <span class="token-attr">clearable</span>
+      <span class="token-tag">/&gt;</span>
+    <span class="token-tag">&lt;/el-form-item&gt;</span>
+
+    <span class="token-tag">&lt;el-form-item</span> <span class="token-attr">label</span>=<span class="token-value">"ISBN"</span><span class="token-tag">&gt;</span>
+      <span class="token-tag">&lt;el-input</span>
+        <span class="token-attr">v-model</span>=<span class="token-value">"form.isbn"</span>
+        <span class="token-attr">placeholder</span>=<span class="token-value">"请输入ISBN编号"</span>
+        <span class="token-attr">:prefix-icon</span>=<span class="token-value">"Search"</span>
+      <span class="token-tag">/&gt;</span>
+    <span class="token-tag">&lt;/el-form-item&gt;</span>
+  <span class="token-tag">&lt;/el-form&gt;</span>
+<span class="token-tag">&lt;/template&gt;</span></pre>
+                </div>
+            </div>
+
+            <div class="component-section">
+                <h2 class="section-title">选择器 Select</h2>
+                <div class="component-demo">
+                    <select style="width: 300px; padding: 10px 16px; border: 2px solid #e8e8e8; border-radius: 8px; background: white; cursor: pointer;">
+                        <option>请选择分类</option>
+                        <option>文学类</option>
+                        <option>科技类</option>
+                        <option>历史类</option>
+                        <option>艺术类</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Display -->
+        <div class="content-section" id="data">
+            <div class="component-section">
+                <h2 class="section-title">表格 Table</h2>
+                <div class="component-demo">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: var(--bg-color);">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-light);">书名</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-light);">作者</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-light);">状态</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-light);">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="transition: var(--transition-all);">
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-light);">深度学习</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-light);">Ian Goodfellow</td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-light);"><span style="padding: 2px 8px; background: #5AD8A620; color: #5AD8A6; border-radius: 4px; font-size: 12px;">在库</span></td>
+                                <td style="padding: 12px; border-bottom: 1px solid var(--border-light);"><a href="#" style="color: var(--primary-color); text-decoration: none;">借阅</a></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="component-code">
+                    <span class="code-lang">Vue</span>
+                    <pre class="code-block"><span class="token-tag">&lt;template&gt;</span>
+  <span class="token-tag">&lt;el-table</span>
+    <span class="token-attr">:data</span>=<span class="token-value">"tableData"</span>
+    <span class="token-attr">stripe</span>
+    <span class="token-attr">style</span>=<span class="token-value">"width: 100%"</span>
+  <span class="token-tag">&gt;</span>
+    <span class="token-tag">&lt;el-table-column</span> <span class="token-attr">prop</span>=<span class="token-value">"name"</span> <span class="token-attr">label</span>=<span class="token-value">"书名"</span> <span class="token-tag">/&gt;</span>
+    <span class="token-tag">&lt;el-table-column</span> <span class="token-attr">prop</span>=<span class="token-value">"author"</span> <span class="token-attr">label</span>=<span class="token-value">"作者"</span> <span class="token-tag">/&gt;</span>
+    <span class="token-tag">&lt;el-table-column</span> <span class="token-attr">prop</span>=<span class="token-value">"status"</span> <span class="token-attr">label</span>=<span class="token-value">"状态"</span><span class="token-tag">&gt;</span>
+      <span class="token-tag">&lt;template</span> <span class="token-attr">#default</span>=<span class="token-value">"{ row }"</span><span class="token-tag">&gt;</span>
+        <span class="token-tag">&lt;el-tag</span> <span class="token-attr">:type</span>=<span class="token-value">"row.status === 'available' ? 'success' : 'info'"</span><span class="token-tag">&gt;</span>
+          {{ row.status === 'available' ? '在库' : '借出' }}
+        <span class="token-tag">&lt;/el-tag&gt;</span>
+      <span class="token-tag">&lt;/template&gt;</span>
+    <span class="token-tag">&lt;/el-table-column&gt;</span>
+    <span class="token-tag">&lt;el-table-column</span> <span class="token-attr">label</span>=<span class="token-value">"操作"</span><span class="token-tag">&gt;</span>
+      <span class="token-tag">&lt;template</span> <span class="token-attr">#default</span><span class="token-tag">&gt;</span>
+        <span class="token-tag">&lt;el-button</span> <span class="token-attr">link</span> <span class="token-attr">type</span>=<span class="token-value">"primary"</span><span class="token-tag">&gt;</span>借阅<span class="token-tag">&lt;/el-button&gt;</span>
+      <span class="token-tag">&lt;/template&gt;</span>
+    <span class="token-tag">&lt;/el-table-column&gt;</span>
+  <span class="token-tag">&lt;/el-table&gt;</span>
+<span class="token-tag">&lt;/template&gt;</span></pre>
+                </div>
+            </div>
+
+            <div class="component-section">
+                <h2 class="section-title">标签 Tag</h2>
+                <div class="component-demo">
+                    <span style="display: inline-block; padding: 4px 12px; background: rgba(102, 126, 234, 0.1); color: var(--primary-color); border-radius: 16px; font-size: 12px; margin: 4px;">文学</span>
+                    <span style="display: inline-block; padding: 4px 12px; background: rgba(90, 216, 166, 0.1); color: #5AD8A6; border-radius: 16px; font-size: 12px; margin: 4px;">在库</span>
+                    <span style="display: inline-block; padding: 4px 12px; background: rgba(246, 189, 22, 0.1); color: #F6BD16; border-radius: 16px; font-size: 12px; margin: 4px;">即将到期</span>
+                    <span style="display: inline-block; padding: 4px 12px; background: rgba(255, 107, 107, 0.1); color: #FF6B6B; border-radius: 16px; font-size: 12px; margin: 4px;">已逾期</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Components -->
+        <div class="content-section" id="feedback">
+            <div class="component-section">
+                <h2 class="section-title">消息提示 Message</h2>
+                <div class="component-demo">
+                    <button class="lib-button lib-button-primary" onclick="showMessage('success')">成功消息</button>
+                    <button class="lib-button" style="background: #F6BD16; color: white;" onclick="showMessage('warning')">警告消息</button>
+                    <button class="lib-button" style="background: #FF6B6B; color: white;" onclick="showMessage('error')">错误消息</button>
+                </div>
+                <div class="component-code">
+                    <span class="code-lang">Vue</span>
+                    <pre class="code-block"><span class="token-keyword">import</span> { ElMessage } <span class="token-keyword">from</span> <span class="token-string">'element-plus'</span>
+
+<span class="token-comment">// 成功消息</span>
+ElMessage.success(<span class="token-string">'图书借阅成功！'</span>)
+
+<span class="token-comment">// 警告消息</span>
+ElMessage.warning(<span class="token-string">'借阅期限即将到期'</span>)
+
+<span class="token-comment">// 错误消息</span>
+ElMessage.error(<span class="token-string">'操作失败，请重试'</span>)</pre>
+                </div>
+            </div>
+
+            <div class="component-section">
+                <h2 class="section-title">加载 Loading</h2>
+                <div class="component-demo">
+                    <div style="position: relative; padding: 40px; background: var(--bg-color); border-radius: 8px; text-align: center;">
+                        <div style="display: inline-block; width: 40px; height: 40px; border: 3px solid var(--primary-color); border-radius: 50%; border-top-color: transparent; animation: spin 1s linear infinite;"></div>
+                        <p style="margin-top: 16px; color: var(--text-secondary);">加载中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Layout Components -->
+        <div class="content-section" id="layout">
+            <div class="component-section">
+                <h2 class="section-title">栅格布局 Grid</h2>
+                <div class="component-demo">
+                    <div style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-bottom: 16px;">
+                        <div style="grid-column: span 12; background: var(--primary-gradient); color: white; padding: 16px; border-radius: 8px; text-align: center;">span 12</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-bottom: 16px;">
+                        <div style="grid-column: span 6; background: var(--primary-gradient); color: white; padding: 16px; border-radius: 8px; text-align: center;">span 6</div>
+                        <div style="grid-column: span 6; background: var(--primary-gradient); color: white; padding: 16px; border-radius: 8px; text-align: center;">span 6</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px;">
+                        <div style="grid-column: span 4; background: var(--primary-gradient); color: white; padding: 16px; border-radius: 8px; text-align: center;">span 4</div>
+                        <div style="grid-column: span 4; background: var(--primary-gradient); color: white; padding: 16px; border-radius: 8px; text-align: center;">span 4</div>
+                        <div style="grid-column: span 4; background: var(--primary-gradient); color: white; padding: 16px; border-radius: 8px; text-align: center;">span 4</div>
+                    </div>
+                </div>
+                <div class="component-code">
+                    <span class="code-lang">Vue</span>
+                    <pre class="code-block"><span class="token-tag">&lt;template&gt;</span>
+  <span class="token-tag">&lt;el-row</span> <span class="token-attr">:gutter</span>=<span class="token-value">"20"</span><span class="token-tag">&gt;</span>
+    <span class="token-tag">&lt;el-col</span> <span class="token-attr">:span</span>=<span class="token-value">"24"</span><span class="token-tag">&gt;</span>Full Width<span class="token-tag">&lt;/el-col&gt;</span>
+  <span class="token-tag">&lt;/el-row&gt;</span>
+
+  <span class="token-tag">&lt;el-row</span> <span class="token-attr">:gutter</span>=<span class="token-value">"20"</span><span class="token-tag">&gt;</span>
+    <span class="token-tag">&lt;el-col</span> <span class="token-attr">:span</span>=<span class="token-value">"12"</span><span class="token-tag">&gt;</span>Half Width<span class="token-tag">&lt;/el-col&gt;</span>
+    <span class="token-tag">&lt;el-col</span> <span class="token-attr">:span</span>=<span class="token-value">"12"</span><span class="token-tag">&gt;</span>Half Width<span class="token-tag">&lt;/el-col&gt;</span>
+  <span class="token-tag">&lt;/el-row&gt;</span>
+
+  <span class="token-tag">&lt;el-row</span> <span class="token-attr">:gutter</span>=<span class="token-value">"20"</span><span class="token-tag">&gt;</span>
+    <span class="token-tag">&lt;el-col</span> <span class="token-attr">:span</span>=<span class="token-value">"8"</span><span class="token-tag">&gt;</span>One Third<span class="token-tag">&lt;/el-col&gt;</span>
+    <span class="token-tag">&lt;el-col</span> <span class="token-attr">:span</span>=<span class="token-value">"8"</span><span class="token-tag">&gt;</span>One Third<span class="token-tag">&lt;/el-col&gt;</span>
+    <span class="token-tag">&lt;el-col</span> <span class="token-attr">:span</span>=<span class="token-value">"8"</span><span class="token-tag">&gt;</span>One Third<span class="token-tag">&lt;/el-col&gt;</span>
+  <span class="token-tag">&lt;/el-row&gt;</span>
+<span class="token-tag">&lt;/template&gt;</span></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Design Patterns -->
+        <div class="content-section" id="patterns">
+            <div class="component-section">
+                <h2 class="section-title">仪表盘布局</h2>
+                <div class="component-demo">
+                    <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%); padding: 24px; border-radius: 12px;">
+                        <!-- Stats Grid -->
+                        <div class="grid-3" style="margin-bottom: 24px;">
+                            <div class="lib-stat-card">
+                                <div>
+                                    <div style="color: var(--text-secondary); font-size: 14px;">总藏书</div>
+                                    <div style="font-size: 28px; font-weight: 700; margin: 8px 0;">12,345</div>
+                                </div>
+                                <div style="width: 48px; height: 48px; background: var(--primary-gradient); border-radius: 12px;"></div>
+                            </div>
+                            <div class="lib-stat-card">
+                                <div>
+                                    <div style="color: var(--text-secondary); font-size: 14px;">今日借阅</div>
+                                    <div style="font-size: 28px; font-weight: 700; margin: 8px 0;">234</div>
+                                </div>
+                                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #5AD8A6, #52c41a); border-radius: 12px;"></div>
+                            </div>
+                            <div class="lib-stat-card">
+                                <div>
+                                    <div style="color: var(--text-secondary); font-size: 14px;">活跃读者</div>
+                                    <div style="font-size: 28px; font-weight: 700; margin: 8px 0;">1,678</div>
+                                </div>
+                                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #5B8FF9, #1890ff); border-radius: 12px;"></div>
+                            </div>
+                        </div>
+                        <!-- Chart Area -->
+                        <div class="lib-card">
+                            <h3 style="margin-bottom: 20px;">借阅趋势</h3>
+                            <div style="height: 200px; background: var(--bg-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--text-placeholder);">
+                                图表区域
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="component-section">
+                <h2 class="section-title">响应式设计</h2>
+                <div class="component-demo">
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">调整浏览器窗口大小查看响应式效果</p>
+                    <div class="grid-3">
+                        <div class="lib-card" style="background: var(--primary-gradient); color: white;">
+                            <h4>移动端优先</h4>
+                            <p style="margin-top: 8px; font-size: 14px;">自适应布局</p>
+                        </div>
+                        <div class="lib-card" style="background: linear-gradient(135deg, #5AD8A6, #52c41a); color: white;">
+                            <h4>平板适配</h4>
+                            <p style="margin-top: 8px; font-size: 14px;">中等屏幕优化</p>
+                        </div>
+                        <div class="lib-card" style="background: linear-gradient(135deg, #5B8FF9, #1890ff); color: white;">
+                            <h4>桌面视图</h4>
+                            <p style="margin-top: 8px; font-size: 14px;">大屏完整体验</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+
+    <script>
+        // Tab switching
+        function switchTab(tabName) {
+            // Remove active class from all tabs and sections
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // Add active class to selected tab and section
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Mock message function
+        function showMessage(type) {
+            const messages = {
+                success: '✅ 操作成功！',
+                warning: '⚠️ 请注意检查！',
+                error: '❌ 操作失败！'
+            };
+
+            const colors = {
+                success: '#5AD8A6',
+                warning: '#F6BD16',
+                error: '#FF6B6B'
+            };
+
+            // Create message element
+            const messageEl = document.createElement('div');
+            messageEl.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                padding: 12px 24px;
+                background: white;
+                color: ${colors[type]};
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 9999;
+                animation: slideDown 0.3s ease;
+            `;
+            messageEl.textContent = messages[type];
+
+            document.body.appendChild(messageEl);
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                messageEl.style.animation = 'slideUp 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(messageEl);
+                }, 300);
+            }, 3000);
+        }
+
+        // Add animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideDown {
+                from {
+                    opacity: 0;
+                    transform: translate(-50%, -20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translate(-50%, 0);
+                }
+            }
+
+            @keyframes slideUp {
+                from {
+                    opacity: 1;
+                    transform: translate(-50%, 0);
+                }
+                to {
+                    opacity: 0;
+                    transform: translate(-50%, -20px);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

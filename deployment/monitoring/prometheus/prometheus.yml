@@ -1,0 +1,156 @@
+# GCRF Library Management System - Prometheus Configuration
+# Last Updated: 2025-11-01
+# Purpose: Monitor all services, infrastructure, and business metrics
+
+global:
+  scrape_interval: 15s      # 每15秒采集一次指标
+  evaluation_interval: 15s  # 每15秒评估一次告警规则
+  scrape_timeout: 10s
+
+  external_labels:
+    cluster: 'gcrf-library'
+    environment: 'production'
+
+# Alertmanager configuration (optional, for Phase 4 later)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093  # Uncomment when AlertManager is deployed
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "alerts/*.yml"
+  - "rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # ===========================================
+  # Prometheus self-monitoring
+  # ===========================================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          tier: 'monitoring'
+
+  # ===========================================
+  # Infrastructure Monitoring
+  # ===========================================
+
+  # Node Exporter - Server metrics (CPU, Memory, Disk, Network)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          instance: 'gcrf-server'
+          tier: 'infrastructure'
+
+  # PostgreSQL Exporter - Database metrics
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          database: 'gcrf-library'
+          tier: 'infrastructure'
+
+  # Redis Exporter - Cache metrics
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          cache: 'redis-master'
+          tier: 'infrastructure'
+
+  # ===========================================
+  # Backend Microservices (Spring Boot Actuator)
+  # ===========================================
+
+  # Gateway Service
+  - job_name: 'gateway-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['gateway-service:8080']
+        labels:
+          service: 'gateway'
+          tier: 'backend'
+          version: '1.0.0'
+
+  # Auth Service
+  - job_name: 'auth-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['auth-service:8081']
+        labels:
+          service: 'auth'
+          tier: 'backend'
+          version: '1.0.0'
+
+  # Book Service (future)
+  - job_name: 'book-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['book-service:8082']
+        labels:
+          service: 'book'
+          tier: 'backend'
+          version: '1.0.0'
+
+  # Reader Service (future)
+  - job_name: 'reader-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['reader-service:8084']
+        labels:
+          service: 'reader'
+          tier: 'backend'
+          version: '1.0.0'
+
+  # Circulation Service (future)
+  - job_name: 'circulation-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['circulation-service:8083']
+        labels:
+          service: 'circulation'
+          tier: 'backend'
+          version: '1.0.0'
+
+  # System Service (future)
+  - job_name: 'system-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['system-service:8085']
+        labels:
+          service: 'system'
+          tier: 'backend'
+          version: '1.0.0'
+
+  # Notification Service (future)
+  - job_name: 'notification-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['notification-service:8086']
+        labels:
+          service: 'notification'
+          tier: 'backend'
+          version: '1.0.0'
+
+  # ===========================================
+  # Service Discovery (Nacos - optional advanced feature)
+  # ===========================================
+  # Uncomment when ready to use Nacos service discovery
+  # - job_name: 'nacos-sd-gateway'
+  #   consul_sd_configs:
+  #     - server: 'nacos:8848'
+  #   relabel_configs:
+  #     - source_labels: [__meta_consul_service]
+  #       target_label: service
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus
+    retention.time: 15d      # 保留15天数据
+    retention.size: 10GB     # 最大10GB存储

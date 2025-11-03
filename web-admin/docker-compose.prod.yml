@@ -1,0 +1,237 @@
+version: '3.8'
+
+# Production Docker Compose Configuration
+# Uses environment variables from .env.prod file
+
+services:
+  # ===========================================
+  # Infrastructure Services
+  # ===========================================
+
+  postgres-primary:
+    image: postgres:15-alpine
+    container_name: gcrf-postgres-primary
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: ${DB_NAME_PREFIX}_system
+      TZ: ${TZ}
+    secrets:
+      - db_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "${DB_PORT}:5432"
+    networks:
+      - gcrf-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: gcrf-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+      ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - redis-data:/data
+    ports:
+      - "${REDIS_PORT}:6379"
+    networks:
+      - gcrf-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nacos:
+    image: nacos/nacos-server:v2.3.0
+    container_name: gcrf-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: embedded
+      NACOS_AUTH_ENABLE: true
+      NACOS_AUTH_TOKEN: ${JWT_SECRET}
+      NACOS_AUTH_IDENTITY_KEY: ${NACOS_USERNAME}
+      NACOS_AUTH_IDENTITY_VALUE: ${NACOS_PASSWORD}
+      TZ: ${TZ}
+    volumes:
+      - nacos-data:/home/nacos/data
+      - ./nacos/logs:/home/nacos/logs
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    networks:
+      - gcrf-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/v1/console/health/liveness"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ===========================================
+  # Application Services
+  # ===========================================
+
+  gateway-service:
+    image: ${DOCKER_REGISTRY}/gcrf-gateway-service:${IMAGE_TAG}
+    container_name: gcrf-gateway
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: ${GATEWAY_SERVER_PORT}
+      NACOS_SERVER_ADDR: nacos:8848
+      REDIS_HOST: redis
+      DB_HOST: postgres-primary
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+    secrets:
+      - jwt_secret
+      - db_password
+    ports:
+      - "${GATEWAY_SERVER_PORT}:${GATEWAY_SERVER_PORT}"
+    networks:
+      - gcrf-network
+    depends_on:
+      nacos:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${GATEWAY_SERVER_PORT}/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: ${RESOURCE_LIMIT_CPU}
+          memory: ${RESOURCE_LIMIT_MEMORY}
+        reservations:
+          cpus: ${RESOURCE_REQUEST_CPU}
+          memory: ${RESOURCE_REQUEST_MEMORY}
+
+  auth-service:
+    image: ${DOCKER_REGISTRY}/gcrf-auth-service:${IMAGE_TAG}
+    container_name: gcrf-auth
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: ${AUTH_SERVER_PORT}
+      NACOS_SERVER_ADDR: nacos:8848
+      REDIS_HOST: redis
+      DB_HOST: postgres-primary
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+    secrets:
+      - jwt_secret
+      - db_password
+    ports:
+      - "${AUTH_SERVER_PORT}:${AUTH_SERVER_PORT}"
+    networks:
+      - gcrf-network
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${AUTH_SERVER_PORT}/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: ${RESOURCE_LIMIT_CPU}
+          memory: ${RESOURCE_LIMIT_MEMORY}
+        reservations:
+          cpus: ${RESOURCE_REQUEST_CPU}
+          memory: ${RESOURCE_REQUEST_MEMORY}
+
+  # Add other services following the same pattern...
+
+  # ===========================================
+  # Frontend Service
+  # ===========================================
+
+  web-admin:
+    image: ${DOCKER_REGISTRY}/gcrf-web-admin:${IMAGE_TAG}
+    container_name: gcrf-web-admin
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      NGINX_ENVSUBST_TEMPLATE_SUFFIX: .template
+      API_GATEWAY_URL: http://gateway-service:${GATEWAY_SERVER_PORT}
+    ports:
+      - "3011:80"
+    networks:
+      - gcrf-network
+    depends_on:
+      - gateway-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512M"
+        reservations:
+          cpus: "0.25"
+          memory: "256M"
+
+# ===========================================
+# Networks
+# ===========================================
+
+networks:
+  gcrf-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ===========================================
+# Volumes
+# ===========================================
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  nacos-data:
+    driver: local
+
+# ===========================================
+# Secrets
+# ===========================================
+
+secrets:
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  db_password:
+    file: ./secrets/db_password.txt

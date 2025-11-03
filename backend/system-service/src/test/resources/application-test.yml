@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: system-service-test
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/system_service_test
+    username: postgres
+    password: gcrf_secure_2024
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 30000
+
+  redis:
+    host: localhost
+    port: 6379
+    database: 6
+    timeout: 3000
+
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: deletedAt
+      logic-delete-value: now()
+      logic-not-delete-value: "null"
+
+logging:
+  level:
+    com.gcrf.library.system: DEBUG
+    org.springframework: WARN

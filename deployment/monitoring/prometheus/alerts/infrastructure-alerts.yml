@@ -1,0 +1,364 @@
+# GCRF Library Management System - Infrastructure Alert Rules
+# Version: 1.0.0
+# Last Updated: 2025-11-01
+#
+# 基础设施告警规则 - 覆盖服务器、数据库、缓存等基础组件
+
+groups:
+  # ========================================
+  # 服务可用性告警
+  # ========================================
+  - name: service_availability
+    interval: 30s
+    rules:
+      # 微服务宕机告警
+      - alert: ServiceDown
+        expr: up{job=~"gateway-service|auth-service|book-service|circulation-service|reader-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "服务 {{ $labels.job }} 已宕机"
+          description: "{{ $labels.job }} ({{ $labels.instance }}) 在过去1分钟内无法访问\n当前状态: DOWN\n影响: 服务不可用"
+
+      # Exporter 宕机告警
+      - alert: ExporterDown
+        expr: up{job=~"node-exporter|postgres-exporter|redis-exporter"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: monitoring
+        annotations:
+          summary: "监控 Exporter {{ $labels.job }} 已宕机"
+          description: "{{ $labels.job }} ({{ $labels.instance }}) 在过去2分钟内无法访问\n当前状态: DOWN\n影响: 无法采集相关指标"
+
+      # Prometheus 自身告警
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: monitoring
+        annotations:
+          summary: "Prometheus 服务已宕机"
+          description: "Prometheus 监控系统在过去1分钟内无法访问\n影响: 所有监控和告警功能失效"
+
+  # ========================================
+  # 系统资源告警 (Node Exporter)
+  # ========================================
+  - name: system_resources
+    interval: 30s
+    rules:
+      # CPU 使用率告警
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+        annotations:
+          summary: "服务器 {{ $labels.instance }} CPU 使用率过高"
+          description: "CPU 使用率: {{ $value | humanize }}%\n阈值: 85%\n持续时间: 5分钟\n建议: 检查进程占用,考虑扩容"
+
+      - alert: CriticalCPUUsage
+        expr: |
+          100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: resource
+        annotations:
+          summary: "服务器 {{ $labels.instance }} CPU 使用率严重过高"
+          description: "CPU 使用率: {{ $value | humanize }}%\n阈值: 95%\n持续时间: 2分钟\n紧急: 系统可能失去响应"
+
+      # 内存使用率告警
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+        annotations:
+          summary: "服务器 {{ $labels.instance }} 内存使用率过高"
+          description: "内存使用率: {{ $value | humanize }}%\n阈值: 85%\n可用内存: {{ with query \"node_memory_MemAvailable_bytes{instance='\" }}{{ . | first | value | humanize1024 }}B{{ end }}\n建议: 检查内存泄漏,考虑扩容"
+
+      - alert: CriticalMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: resource
+        annotations:
+          summary: "服务器 {{ $labels.instance }} 内存使用率严重过高"
+          description: "内存使用率: {{ $value | humanize }}%\n阈值: 95%\n持续时间: 2分钟\n紧急: 可能触发 OOM Killer"
+
+      # 磁盘空间告警
+      - alert: HighDiskUsage
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+        annotations:
+          summary: "服务器 {{ $labels.instance }} 磁盘空间不足"
+          description: "挂载点: {{ $labels.mountpoint }}\n磁盘使用率: {{ $value | humanize }}%\n阈值: 80%\n建议: 清理日志或扩容磁盘"
+
+      - alert: CriticalDiskUsage
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+          category: resource
+        annotations:
+          summary: "服务器 {{ $labels.instance }} 磁盘空间严重不足"
+          description: "挂载点: {{ $labels.mountpoint }}\n磁盘使用率: {{ $value | humanize }}%\n阈值: 90%\n紧急: 可能导致服务写入失败"
+
+      # Inode 使用率告警
+      - alert: HighInodeUsage
+        expr: |
+          (1 - (node_filesystem_files_free{fstype!~"tmpfs|overlay"} / node_filesystem_files{fstype!~"tmpfs|overlay"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+        annotations:
+          summary: "服务器 {{ $labels.instance }} Inode 使用率过高"
+          description: "挂载点: {{ $labels.mountpoint }}\nInode 使用率: {{ $value | humanize }}%\n建议: 清理小文件"
+
+      # 磁盘 I/O 告警
+      - alert: HighDiskIOUtilization
+        expr: |
+          rate(node_disk_io_time_seconds_total[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "服务器 {{ $labels.instance }} 磁盘 I/O 使用率过高"
+          description: "设备: {{ $labels.device }}\nI/O 使用率: {{ $value | humanize }}%\n阈值: 80%\n建议: 检查磁盘负载,优化 I/O 密集型任务"
+
+      # 网络流量告警
+      - alert: HighNetworkTraffic
+        expr: |
+          rate(node_network_receive_bytes_total{device!~"lo|docker.*|veth.*"}[5m]) > 100 * 1024 * 1024
+        for: 10m
+        labels:
+          severity: info
+          category: network
+        annotations:
+          summary: "服务器 {{ $labels.instance }} 网络接收流量过高"
+          description: "网卡: {{ $labels.device }}\n接收速率: {{ $value | humanize1024 }}B/s\n持续时间: 10分钟"
+
+  # ========================================
+  # PostgreSQL 数据库告警
+  # ========================================
+  - name: postgresql_alerts
+    interval: 30s
+    rules:
+      # PostgreSQL 宕机
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "PostgreSQL 数据库不可用"
+          description: "PostgreSQL 实例 {{ $labels.instance }} 在过去1分钟内无法连接\n影响: 所有数据库操作失败"
+
+      # 连接数过高
+      - alert: PostgreSQLHighConnections
+        expr: |
+          (pg_stat_database_numbackends / pg_settings_max_connections) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL 连接数过高"
+          description: "数据库: {{ $labels.datname }}\n连接使用率: {{ $value | humanize }}%\n当前连接数: {{ with query \"pg_stat_database_numbackends{datname='\" }}{{ . | first | value }}{{ end }}\n最大连接数: {{ with query \"pg_settings_max_connections\" }}{{ . | first | value }}{{ end }}\n建议: 检查连接池配置"
+
+      - alert: PostgreSQLCriticalConnections
+        expr: |
+          (pg_stat_database_numbackends / pg_settings_max_connections) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "PostgreSQL 连接数接近上限"
+          description: "连接使用率: {{ $value | humanize }}%\n紧急: 新连接可能被拒绝"
+
+      # 死锁告警
+      - alert: PostgreSQLDeadlocks
+        expr: |
+          rate(pg_stat_database_deadlocks[5m]) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL 检测到死锁"
+          description: "数据库: {{ $labels.datname }}\n死锁速率: {{ $value | humanize }}/秒\n建议: 检查事务设计和锁等待"
+
+      # 缓存命中率低
+      - alert: PostgreSQLLowCacheHitRatio
+        expr: |
+          (pg_stat_database_blks_hit / (pg_stat_database_blks_hit + pg_stat_database_blks_read)) * 100 < 90
+        for: 10m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "PostgreSQL 缓存命中率过低"
+          description: "数据库: {{ $labels.datname }}\n缓存命中率: {{ $value | humanize }}%\n理想值: >95%\n建议: 增加 shared_buffers 或检查查询效率"
+
+      # 慢查询告警 (需要 pg_stat_statements 扩展)
+      - alert: PostgreSQLSlowQueries
+        expr: |
+          rate(pg_stat_database_tup_fetched[5m]) / rate(pg_stat_database_tup_returned[5m]) > 100
+        for: 10m
+        labels:
+          severity: info
+          category: performance
+        annotations:
+          summary: "PostgreSQL 可能存在慢查询"
+          description: "数据库: {{ $labels.datname }}\n获取/返回比率: {{ $value | humanize }}\n建议: 检查 pg_stat_statements 并优化慢查询"
+
+      # 复制延迟告警
+      - alert: PostgreSQLReplicationLag
+        expr: |
+          pg_replication_lag_seconds > 30
+        for: 2m
+        labels:
+          severity: warning
+          category: replication
+        annotations:
+          summary: "PostgreSQL 主从复制延迟过高"
+          description: "从库: {{ $labels.instance }}\n复制延迟: {{ $value | humanize }}秒\n理想值: <1秒\n建议: 检查网络和从库负载"
+
+      - alert: PostgreSQLReplicationDown
+        expr: |
+          pg_replication_is_replica == 1 AND pg_replication_lag_seconds > 300
+        for: 5m
+        labels:
+          severity: critical
+          category: replication
+        annotations:
+          summary: "PostgreSQL 主从复制中断"
+          description: "从库: {{ $labels.instance }}\n复制延迟: {{ $value | humanize }}秒\n紧急: 复制可能已中断"
+
+  # ========================================
+  # Redis 缓存告警
+  # ========================================
+  - name: redis_alerts
+    interval: 30s
+    rules:
+      # Redis 宕机
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: cache
+        annotations:
+          summary: "Redis 缓存服务不可用"
+          description: "Redis 实例 {{ $labels.instance }} 在过去1分钟内无法连接\n影响: 缓存功能失效,数据库压力增大"
+
+      # 内存使用率高
+      - alert: RedisHighMemoryUsage
+        expr: |
+          (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "Redis 内存使用率过高"
+          description: "实例: {{ $labels.instance }}\n内存使用率: {{ $value | humanize }}%\n已用内存: {{ with query \"redis_memory_used_bytes{instance='\" }}{{ . | first | value | humanize1024 }}B{{ end }}\n最大内存: {{ with query \"redis_memory_max_bytes{instance='\" }}{{ . | first | value | humanize1024 }}B{{ end }}\n建议: 清理过期数据或扩容"
+
+      - alert: RedisCriticalMemoryUsage
+        expr: |
+          (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: cache
+        annotations:
+          summary: "Redis 内存使用率接近上限"
+          description: "内存使用率: {{ $value | humanize }}%\n紧急: 可能触发淘汰策略或拒绝写入"
+
+      # 缓存命中率低
+      - alert: RedisLowCacheHitRate
+        expr: |
+          (redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total)) * 100 < 70
+        for: 10m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "Redis 缓存命中率过低"
+          description: "实例: {{ $labels.instance }}\n命中率: {{ $value | humanize }}%\n理想值: >90%\n建议: 优化缓存策略或增加缓存容量"
+
+      # 连接数过高
+      - alert: RedisHighConnections
+        expr: redis_connected_clients > 1000
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "Redis 连接数过高"
+          description: "实例: {{ $labels.instance }}\n当前连接数: {{ $value }}\n建议: 检查连接池配置和连接泄漏"
+
+      # 阻塞客户端
+      - alert: RedisBlockedClients
+        expr: redis_blocked_clients > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "Redis 存在阻塞客户端"
+          description: "实例: {{ $labels.instance }}\n阻塞客户端数: {{ $value }}\n建议: 检查慢查询和 BLPOP/BRPOP 操作"
+
+      # 主从复制断开
+      - alert: RedisMasterLinkDown
+        expr: redis_master_link_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: replication
+        annotations:
+          summary: "Redis 主从复制链接断开"
+          description: "从库: {{ $labels.instance }}\n状态: 主从链接断开\n影响: 数据同步中断"
+
+      # 持久化失败
+      - alert: RedisPersistenceFailure
+        expr: |
+          rate(redis_rdb_last_save_timestamp_seconds[5m]) == 0 AND redis_rdb_last_save_timestamp_seconds < (time() - 3600)
+        for: 10m
+        labels:
+          severity: warning
+          category: persistence
+        annotations:
+          summary: "Redis RDB 持久化超过1小时未执行"
+          description: "实例: {{ $labels.instance }}\n上次保存时间: {{ $value | humanizeDuration }}\n建议: 检查 RDB 配置和磁盘空间"
+
+      # 慢查询
+      - alert: RedisSlowlog
+        expr: |
+          rate(redis_slowlog_length[5m]) > 1
+        for: 5m
+        labels:
+          severity: info
+          category: performance
+        annotations:
+          summary: "Redis 检测到慢查询"
+          description: "实例: {{ $labels.instance }}\n慢查询速率: {{ $value | humanize }}/秒\n建议: 使用 SLOWLOG GET 查看详情"

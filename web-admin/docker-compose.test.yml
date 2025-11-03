@@ -1,0 +1,42 @@
+version: '3.8'
+
+# 测试环境配置 - 包含完整的Mock数据演示
+services:
+  web-admin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gcrf-library-web-admin:test
+    container_name: gcrf-web-admin-test
+    ports:
+      - "3011:80"
+    environment:
+      - TZ=Asia/Shanghai
+      - NODE_ENV=development
+      - VITE_APP_TITLE=国创睿峰智能图书馆管理系统(测试环境)
+    volumes:
+      # 挂载日志方便调试
+      - ./logs:/var/log/nginx
+    restart: unless-stopped
+    networks:
+      - gcrf-test-network
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.gcrf.service=web-admin"
+      - "com.gcrf.environment=test"
+      - "com.gcrf.version=1.0.0"
+      - "com.gcrf.description=GCRF Library Web Admin Test Environment"
+
+networks:
+  gcrf-test-network:
+    driver: bridge
+    name: gcrf-test-network
+
+volumes:
+  logs:
+    driver: local
