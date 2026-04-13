@@ -9,13 +9,13 @@ import request from '@/utils/request'
  * @param {number} params.pageNum - 页码
  * @param {number} params.pageSize - 每页数量
  * @param {string} params.keyword - 搜索关键词(图书名/读者名/借阅证号/图书条码)
- * @param {string} params.status - 记录状态 (borrowed/returned/renewed/overdue)
+ * @param {string} params.status - 记录状态 (BORROWED/RETURNED/OVERDUE/LOST)
  * @param {string} params.startDate - 开始日期
  * @param {string} params.endDate - 结束日期
  */
 export function getCirculationRecords(params) {
   return request({
-    url: '/api/v1/circulation/records',
+    url: '/api/v1/borrows',
     method: 'get',
     params
   })
@@ -27,7 +27,7 @@ export function getCirculationRecords(params) {
  */
 export function getCirculationRecordById(id) {
   return request({
-    url: `/api/v1/circulation/records/${id}`,
+    url: `/api/v1/borrows/${id}`,
     method: 'get'
   })
 }
@@ -41,7 +41,7 @@ export function getCirculationRecordById(id) {
  */
 export function borrowBook(data) {
   return request({
-    url: '/api/v1/circulation/borrow',
+    url: '/api/v1/borrows/borrow',
     method: 'post',
     data
   })
@@ -50,12 +50,13 @@ export function borrowBook(data) {
 /**
  * 还书
  * @param {Object} data - 还书数据
- * @param {number} data.recordId - 借阅记录ID
+ * @param {number} data.borrowId - 借阅记录ID
+ * @param {boolean} data.payFine - 是否支付罚金
  * @param {string} data.remark - 备注
  */
 export function returnBook(data) {
   return request({
-    url: '/api/v1/circulation/return',
+    url: '/api/v1/borrows/return',
     method: 'post',
     data
   })
@@ -64,12 +65,13 @@ export function returnBook(data) {
 /**
  * 续借
  * @param {Object} data - 续借数据
- * @param {number} data.recordId - 借阅记录ID
+ * @param {number} data.borrowId - 借阅记录ID
+ * @param {number} data.renewDays - 续借天数
  * @param {string} data.remark - 备注
  */
 export function renewBook(data) {
   return request({
-    url: '/api/v1/circulation/renew',
+    url: '/api/v1/borrows/renew',
     method: 'post',
     data
   })
@@ -81,11 +83,11 @@ export function renewBook(data) {
  * @param {number} params.pageNum - 页码
  * @param {number} params.pageSize - 每页数量
  * @param {string} params.keyword - 搜索关键词
- * @param {string} params.status - 预约状态 (pending/ready/picked/cancelled/expired)
+ * @param {string} params.status - 预约状态 (RESERVED/PICKED_UP/CANCELLED/EXPIRED)
  */
 export function getReservations(params) {
   return request({
-    url: '/api/v1/circulation/reservations',
+    url: '/api/v1/reserves',
     method: 'get',
     params
   })
@@ -100,7 +102,7 @@ export function getReservations(params) {
  */
 export function reserveBook(data) {
   return request({
-    url: '/api/v1/circulation/reserve',
+    url: '/api/v1/reserves/reserve',
     method: 'post',
     data
   })
@@ -108,15 +110,12 @@ export function reserveBook(data) {
 
 /**
  * 取消预约
- * @param {Object} data - 取消预约数据
- * @param {number} data.reservationId - 预约记录ID
- * @param {string} data.remark - 备注
+ * @param {number} reservationId - 预约记录ID
  */
-export function cancelReservation(data) {
+export function cancelReservation(reservationId) {
   return request({
-    url: '/api/v1/circulation/cancel-reservation',
-    method: 'post',
-    data
+    url: `/api/v1/reserves/${reservationId}/cancel`,
+    method: 'post'
   })
 }
 
@@ -128,7 +127,7 @@ export function cancelReservation(data) {
  */
 export function getCirculationStats(params) {
   return request({
-    url: '/api/v1/circulation/stats',
+    url: '/api/v1/analytics/circulation',
     method: 'get',
     params
   })
@@ -136,13 +135,13 @@ export function getCirculationStats(params) {
 
 /**
  * 批量还书
- * @param {Array<number>} recordIds - 借阅记录ID数组
+ * @param {Array<number>} borrowIds - 借阅记录ID数组
  */
-export function batchReturnBooks(recordIds) {
+export function batchReturnBooks(borrowIds) {
   return request({
-    url: '/api/v1/circulation/batch-return',
+    url: '/api/v1/borrows/batch-return',
     method: 'post',
-    data: { recordIds }
+    data: { borrowIds }
   })
 }
 
@@ -153,9 +152,9 @@ export function batchReturnBooks(recordIds) {
  */
 export function getReaderBorrowHistory(readerId, params) {
   return request({
-    url: `/api/v1/circulation/readers/${readerId}/history`,
+    url: `/api/v1/borrows`,
     method: 'get',
-    params
+    params: { ...params, readerId }
   })
 }
 
@@ -166,8 +165,63 @@ export function getReaderBorrowHistory(readerId, params) {
  */
 export function getBookCirculationHistory(bookId, params) {
   return request({
-    url: `/api/v1/circulation/books/${bookId}/history`,
+    url: `/api/v1/borrows`,
     method: 'get',
-    params
+    params: { ...params, bookId }
+  })
+}
+
+/**
+ * 根据图书条码查询借阅记录
+ * @param {string} barcode - 图书条码
+ */
+export function getBorrowRecordByBarcode(barcode) {
+  return request({
+    url: `/api/v1/borrows`,
+    method: 'get',
+    params: { barcode }
+  })
+}
+
+/**
+ * 取书（完成预约）
+ * @param {number} reservationId - 预约ID
+ */
+export function pickupReservation(reservationId) {
+  return request({
+    url: `/api/v1/reserves/${reservationId}/pickup`,
+    method: 'post'
+  })
+}
+
+/**
+ * 获取逾期借阅记录
+ */
+export function getOverdueBorrows() {
+  return request({
+    url: '/api/v1/borrows/overdue',
+    method: 'get'
+  })
+}
+
+/**
+ * 处理预约（确认取书）
+ * @param {number} reservationId - 预约ID
+ */
+export function processReservation(reservationId) {
+  return request({
+    url: `/api/v1/reserves/${reservationId}/pickup`,
+    method: 'post'
+  })
+}
+
+/**
+ * 发送预约通知
+ * @param {number} reservationId - 预约ID
+ */
+export function notifyReservation(reservationId) {
+  return request({
+    url: `/api/v1/reserves/${reservationId}/notify`,
+    method: 'post'
   })
 }
