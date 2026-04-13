@@ -2,7 +2,12 @@ package com.gcrf.library.reader.controller;
 
 import com.gcrf.library.common.result.PageResult;
 import com.gcrf.library.common.result.Result;
+import com.gcrf.library.reader.client.CirculationServiceClient;
+import com.gcrf.library.reader.client.dto.BorrowHistoryDTO;
 import com.gcrf.library.reader.dto.*;
+import com.gcrf.library.reader.dto.request.BorrowHistoryQueryRequest;
+import com.gcrf.library.reader.dto.request.FaceRecognitionRequest;
+import com.gcrf.library.reader.dto.response.FaceRecognitionVO;
 import com.gcrf.library.reader.dto.response.ReaderDetailVO;
 import com.gcrf.library.reader.dto.response.ReaderVO;
 import com.gcrf.library.reader.service.ReaderService;
@@ -28,6 +33,7 @@ import org.springframework.web.bind.annotation.*;
 public class ReaderController {
 
     private final ReaderService readerService;
+    private final CirculationServiceClient circulationServiceClient;
 
     /**
      * 分页查询读者列表
@@ -133,6 +139,82 @@ public class ReaderController {
     public Result<ReaderDetailVO> cancelCard(@PathVariable Long id) {
         log.info("注销借书卡: id={}", id);
         ReaderDetailVO result = readerService.cancelCard(id);
+        return Result.success(result);
+    }
+
+    /**
+     * 获取读者借阅历史
+     */
+    @Operation(summary = "获取读者借阅历史", description = "通过Feign调用流通服务获取读者借阅历史记录")
+    @Parameter(name = "id", description = "读者ID", required = true)
+    @GetMapping("/{id}/borrow-history")
+    public Result<PageResult<BorrowHistoryDTO>> getBorrowHistory(
+            @PathVariable Long id,
+            @Valid BorrowHistoryQueryRequest request) {
+        log.info("获取读者借阅历史: id={}, status={}", id, request.getStatus());
+
+        // 先验证读者是否存在
+        readerService.getReaderById(id);
+
+        // 调用流通服务获取借阅历史
+        Result<PageResult<BorrowHistoryDTO>> result = circulationServiceClient.getBorrowsByReaderId(
+                id, request.getStatus(), request.getPageNum(), request.getPageSize()
+        );
+
+        return result;
+    }
+
+    /**
+     * 人脸识别操作（占位接口）
+     * 支持操作类型：REGISTER-注册, UPDATE-更新, DELETE-删除
+     * 注意：当前为Mock实现，待Vision Service完成后集成
+     */
+    @Operation(summary = "人脸识别操作", description = "人脸注册/更新/删除接口（占位实现，待Vision Service完成）")
+    @Parameter(name = "id", description = "读者ID", required = true)
+    @PostMapping("/{id}/face")
+    public Result<FaceRecognitionVO> faceOperation(
+            @PathVariable Long id,
+            @Valid @RequestBody FaceRecognitionRequest request) {
+        log.info("人脸识别操作: readerId={}, operation={}", id, request.getOperation());
+
+        // 先验证读者是否存在
+        readerService.getReaderById(id);
+
+        // TODO: 待Vision Service实现后，调用Vision Service进行人脸识别
+        // 当前返回Mock数据
+        FaceRecognitionVO result = switch (request.getOperation().toUpperCase()) {
+            case "REGISTER" -> FaceRecognitionVO.mockRegisterSuccess(id);
+            case "UPDATE" -> FaceRecognitionVO.mockUpdateSuccess(id);
+            case "DELETE" -> FaceRecognitionVO.mockDeleteSuccess(id);
+            default -> {
+                log.warn("未知的人脸识别操作类型: {}", request.getOperation());
+                yield FaceRecognitionVO.builder()
+                        .readerId(id)
+                        .status("ERROR")
+                        .message("不支持的操作类型: " + request.getOperation())
+                        .build();
+            }
+        };
+
+        return Result.success(result);
+    }
+
+    /**
+     * 获取读者人脸注册状态（占位接口）
+     */
+    @Operation(summary = "获取人脸注册状态", description = "查询读者是否已注册人脸（占位实现，待Vision Service完成）")
+    @Parameter(name = "id", description = "读者ID", required = true)
+    @GetMapping("/{id}/face")
+    public Result<FaceRecognitionVO> getFaceStatus(@PathVariable Long id) {
+        log.info("查询人脸注册状态: readerId={}", id);
+
+        // 先验证读者是否存在
+        readerService.getReaderById(id);
+
+        // TODO: 待Vision Service实现后，查询真实的人脸注册状态
+        // 当前返回Mock数据（假设未注册）
+        FaceRecognitionVO result = FaceRecognitionVO.mockQueryResult(id, false);
+
         return Result.success(result);
     }
 

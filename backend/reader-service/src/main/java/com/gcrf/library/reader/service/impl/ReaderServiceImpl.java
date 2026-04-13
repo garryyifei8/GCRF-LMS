@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gcrf.library.common.exception.BusinessException;
 import com.gcrf.library.common.result.PageResult;
+import com.gcrf.library.common.result.Result;
+import com.gcrf.library.reader.client.CirculationServiceClient;
 import com.gcrf.library.reader.dto.*;
 import com.gcrf.library.reader.dto.response.ReaderDetailVO;
 import com.gcrf.library.reader.dto.response.ReaderVO;
@@ -32,6 +34,7 @@ import java.util.List;
 public class ReaderServiceImpl implements ReaderService {
 
     private final ReaderMapper readerMapper;
+    private final CirculationServiceClient circulationServiceClient;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -175,10 +178,18 @@ public class ReaderServiceImpl implements ReaderService {
             throw new BusinessException("读者不存在, id: " + id);
         }
 
-        // TODO: 检查是否有借阅记录（需要调用circulation-service）
-        // 暂时允许删除，后续集成circulation-service后再添加检查
+        // 检查是否有未归还的图书
+        try {
+            Result<Integer> result = circulationServiceClient.getCurrentBorrowCount(id);
+            if (result != null && result.getData() != null && result.getData() > 0) {
+                throw new BusinessException("该读者有 " + result.getData() + " 本未还图书，无法删除");
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("调用circulation-service失败，跳过借阅检查, readerId: {}, error: {}", id, e.getMessage());
+        }
 
-        // MyBatis-Plus会自动使用逻辑删除（因为@TableLogic注解）
         readerMapper.deleteById(id);
         log.info("删除读者成功, id: {}", id);
     }
@@ -233,10 +244,19 @@ public class ReaderServiceImpl implements ReaderService {
             throw new BusinessException("读者不存在, id: " + id);
         }
 
-        // TODO: 检查是否有未归还的图书（需要调用circulation-service）
-        // 暂时允许注销，后续集成circulation-service后再添加检查
+        // 检查是否有未归还的图书
+        try {
+            Result<Integer> result = circulationServiceClient.getCurrentBorrowCount(id);
+            if (result != null && result.getData() != null && result.getData() > 0) {
+                throw new BusinessException("该读者有 " + result.getData() + " 本未还图书，无法注销借书卡");
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("调用circulation-service失败，跳过借阅检查, readerId: {}, error: {}", id, e.getMessage());
+        }
 
-        reader.setStatus("EXPIRED"); // 使用EXPIRED状态表示注销
+        reader.setStatus("EXPIRED");
         readerMapper.updateById(reader);
         log.info("注销借书卡成功, id: {}", id);
 
