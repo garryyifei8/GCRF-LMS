@@ -8,6 +8,14 @@ spring:
     web-application-type: reactive
     allow-bean-definition-overriding: true
 
+  # Redis配置（用于限流和Token黑名单）
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:gcrf_redis_2024}
+      database: 0
+
   cloud:
     nacos:
       discovery:
@@ -52,14 +60,64 @@ spring:
             - Path=/api/v1/circulation/**
           # 不使用StripPrefix，保留完整路径 /api/v1/circulation/**
 
-      # 全局CORS配置
+        # 推荐服务路由
+        - id: recommend-service
+          uri: lb://recommend-service
+          predicates:
+            - Path=/api/v1/recommend/**
+          # 不使用StripPrefix，保留完整路径 /api/v1/recommend/**
+
+        # 智能问答服务路由
+        - id: chat-service
+          uri: lb://chat-service
+          predicates:
+            - Path=/api/v1/chat/**
+          # 不使用StripPrefix，保留完整路径 /api/v1/chat/**
+
+        # 流通服务 - 借阅管理（前端实际调用路径）
+        - id: circulation-borrows
+          uri: lb://circulation-service
+          predicates:
+            - Path=/api/v1/borrows/**
+
+        # 流通服务 - 预约管理
+        - id: circulation-reserves
+          uri: lb://circulation-service
+          predicates:
+            - Path=/api/v1/reserves/**
+
+        # 流通服务 - 罚款管理
+        - id: circulation-fines
+          uri: lb://circulation-service
+          predicates:
+            - Path=/api/v1/fines/**
+
+        # 系统管理服务
+        - id: system-service
+          uri: lb://system-service
+          predicates:
+            - Path=/api/v1/system/**
+
+        # 统计分析服务
+        - id: analytics-service
+          uri: lb://analytics-service
+          predicates:
+            - Path=/api/v1/analytics/**
+
+        # 库存管理（在 book-service 下）
+        - id: book-inventory
+          uri: lb://book-service
+          predicates:
+            - Path=/api/v1/inventory/**
+
+      # 全局CORS配置（由CorsConfig类处理，此处禁用以避免冲突）
       globalcors:
         cors-configurations:
           '[/**]':
             allowedOriginPatterns: "*"
             allowed-methods: "*"
             allowed-headers: "*"
-            allow-credentials: true
+            allow-credentials: false
 
 # Gateway白名单配置
 gateway:
@@ -68,6 +126,7 @@ gateway:
       - /api/v1/auth/login
       - /api/v1/auth/register
       - /api/v1/auth/health
+      - /api/v1/chat/**
       - /actuator/**
       - /doc.html
       - /swagger-ui.html
@@ -131,6 +190,14 @@ knife4j:
         service-name: circulation-service
         url: /v3/api-docs/circulation-service
         order: 4
+      - name: 推荐服务
+        service-name: recommend-service
+        url: /v3/api-docs/recommend-service
+        order: 5
+      - name: 智能问答服务
+        service-name: chat-service
+        url: /v3/api-docs/chat-service
+        order: 6
 
 # SpringDoc配置
 springdoc:
@@ -139,3 +206,117 @@ springdoc:
   swagger-ui:
     enabled: true
     path: /swagger-ui.html
+
+# ===========================================
+# 安全加固配置
+# ===========================================
+
+# API限流配置
+gateway:
+  rate-limit:
+    enabled: true
+    # 默认匿名用户限流（每分钟）
+    anonymous-requests-per-minute: 100
+    # 默认认证用户限流（每分钟）
+    authenticated-requests-per-minute: 1000
+    # Redis键前缀
+    redis-key-prefix: "gateway:ratelimit:"
+    # 限流窗口大小（秒）
+    window-size-seconds: 60
+    # 路径特定限流规则
+    paths:
+      # 登录接口 - 防止暴力破解
+      "/api/v1/auth/login":
+        requests-per-minute: 10
+        type: IP
+        enabled: true
+      # 注册接口 - 防止批量注册
+      "/api/v1/auth/register":
+        requests-per-minute: 5
+        type: IP
+        enabled: true
+      # Token刷新 - 防止滥用
+      "/api/v1/auth/refresh":
+        requests-per-minute: 30
+        type: USER
+        enabled: true
+
+  # CORS配置
+  cors:
+    enabled: true
+    allowed-origins:
+      - http://localhost:3011
+      - http://localhost:5173
+      - http://127.0.0.1:3011
+      - http://127.0.0.1:5173
+      # 生产环境添加实际域名
+      # - https://library.gcrf.com
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+      - OPTIONS
+    allowed-headers:
+      - Authorization
+      - Content-Type
+      - Accept
+      - Origin
+      - X-Requested-With
+      - X-User-Id
+      - X-Username
+      - X-Trace-Id
+    exposed-headers:
+      - X-RateLimit-Remaining
+      - X-RateLimit-Limit
+      - X-RateLimit-Reset
+      - X-Request-Id
+      - X-Trace-Id
+    allow-credentials: true
+    max-age: 3600
+
+  # 安全响应头配置
+  security:
+    headers:
+      enabled: true
+      # X-Frame-Options - 防止点击劫持
+      x-frame-options: DENY
+      # X-Content-Type-Options - 防止MIME嗅探
+      x-content-type-options: nosniff
+      # X-XSS-Protection - 兼容性XSS保护
+      x-xss-protection: "1; mode=block"
+      # Referrer-Policy - 控制Referrer发送
+      referrer-policy: strict-origin-when-cross-origin
+      # Cache-Control - 防止敏感数据缓存
+      cache-control: "no-store, no-cache, must-revalidate, proxy-revalidate"
+      # Content-Security-Policy配置
+      content-security-policy:
+        enabled: true
+        default-src: "'self'"
+        script-src: "'self' 'unsafe-inline' 'unsafe-eval'"
+        style-src: "'self' 'unsafe-inline'"
+        img-src: "'self' data: https:"
+        font-src: "'self' data:"
+        connect-src: "'self'"
+        frame-src: "'none'"
+        object-src: "'none'"
+        base-uri: "'self'"
+        form-action: "'self'"
+        upgrade-insecure-requests: true
+        block-all-mixed-content: true
+      # Strict-Transport-Security配置 (HSTS)
+      strict-transport-security:
+        enabled: true
+        max-age-seconds: 31536000
+        include-sub-domains: true
+        preload: false
+      # Permissions-Policy配置
+      permissions-policy:
+        enabled: true
+        camera: "()"
+        microphone: "()"
+        geolocation: "()"
+        payment: "()"
+        usb: "()"
+        fullscreen: "(self)"
