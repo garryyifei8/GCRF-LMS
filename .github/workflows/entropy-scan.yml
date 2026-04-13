@@ -1,0 +1,26 @@
+name: Entropy Scan
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday 9am UTC
+  workflow_dispatch:
+
+jobs:
+  todo-count:
+    name: TODO Tracking
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Count TODOs
+        run: |
+          echo "## TODO Count" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Pattern | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          TODO_COUNT=$(grep -r "TODO" --include="*.java" --include="*.vue" --include="*.js" backend/ web-admin/src/ | wc -l || echo 0)
+          FIXME_COUNT=$(grep -r "FIXME" --include="*.java" --include="*.vue" --include="*.js" backend/ web-admin/src/ | wc -l || echo 0)
+          HACK_COUNT=$(grep -r "HACK" --include="*.java" --include="*.vue" --include="*.js" backend/ web-admin/src/ | wc -l || echo 0)
+          echo "| TODO | $TODO_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| FIXME | $FIXME_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| HACK | $HACK_COUNT |" >> $GITHUB_STEP_SUMMARY
