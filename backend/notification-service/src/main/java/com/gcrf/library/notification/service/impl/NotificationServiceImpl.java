@@ -204,4 +204,49 @@ public class NotificationServiceImpl implements NotificationService {
 
         log.info("批量删除通知成功, userId: {}, count: {}", userId, notificationIds.size());
     }
+
+    @Override
+    public List<NotificationVO> getLatestNotifications(Long userId, Integer limit) {
+        LambdaQueryWrapper<Notification> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Notification::getUserId, userId)
+               .isNull(Notification::getDeletedAt)
+               .orderByDesc(Notification::getCreatedAt)
+               .last("LIMIT " + (limit != null ? limit : 10));
+
+        List<Notification> notifications = notificationMapper.selectList(wrapper);
+        return notifications.stream()
+                .map(NotificationVO::from)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchMarkAsRead(Long userId, List<Long> notificationIds) {
+        if (notificationIds == null || notificationIds.isEmpty()) {
+            return;
+        }
+
+        LambdaUpdateWrapper<Notification> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(Notification::getUserId, userId)
+               .in(Notification::getId, notificationIds)
+               .eq(Notification::getIsRead, false)
+               .isNull(Notification::getDeletedAt)
+               .set(Notification::getIsRead, true)
+               .set(Notification::getReadAt, LocalDateTime.now());
+
+        notificationMapper.update(null, wrapper);
+        log.info("批量标记通知已读, userId: {}, count: {}", userId, notificationIds.size());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void clearAllNotifications(Long userId) {
+        LambdaUpdateWrapper<Notification> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(Notification::getUserId, userId)
+               .isNull(Notification::getDeletedAt)
+               .set(Notification::getDeletedAt, LocalDateTime.now());
+
+        notificationMapper.update(null, wrapper);
+        log.info("清空用户所有通知, userId: {}", userId);
+    }
 }

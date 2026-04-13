@@ -53,4 +53,19 @@ public interface NotificationService {
      * 批量删除通知
      */
     void batchDeleteNotifications(Long userId, List<Long> notificationIds);
+
+    /**
+     * 获取用户最新通知
+     */
+    List<NotificationVO> getLatestNotifications(Long userId, Integer limit);
+
+    /**
+     * 批量标记通知为已读
+     */
+    void batchMarkAsRead(Long userId, List<Long> notificationIds);
+
+    /**
+     * 清空用户所有通知（软删除）
+     */
+    void clearAllNotifications(Long userId);
 }
