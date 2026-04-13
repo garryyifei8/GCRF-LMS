@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gcrf.library.common.exception.BusinessException;
 import com.gcrf.library.common.result.PageResult;
 import com.gcrf.library.notification.dto.request.TemplateCreateRequest;
+import com.gcrf.library.notification.dto.request.TemplateQueryRequest;
+import com.gcrf.library.notification.dto.request.TemplateUpdateRequest;
 import com.gcrf.library.notification.dto.response.NotificationTemplateVO;
 import com.gcrf.library.notification.entity.NotificationTemplate;
 import com.gcrf.library.notification.mapper.NotificationTemplateMapper;
@@ -171,6 +173,65 @@ public class NotificationTemplateServiceImpl implements NotificationTemplateServ
         template.setDeletedAt(LocalDateTime.now());
         templateMapper.updateById(template);
         log.info("删除模板成功, id: {}", templateId);
+    }
+
+    @Override
+    public PageResult<NotificationTemplateVO> queryTemplates(TemplateQueryRequest request) {
+        return queryTemplates(request.getPageNum(), request.getPageSize(), request.getTemplateType());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public NotificationTemplateVO updateTemplate(Long templateId, TemplateUpdateRequest request) {
+        NotificationTemplate template = templateMapper.selectOne(
+            new LambdaQueryWrapper<NotificationTemplate>()
+                .eq(NotificationTemplate::getId, templateId)
+                .isNull(NotificationTemplate::getDeletedAt)
+        );
+        if (template == null) {
+            throw new BusinessException("模板不存在, id: " + templateId);
+        }
+
+        if (StringUtils.hasText(request.getTemplateName())) {
+            template.setTemplateName(request.getTemplateName());
+        }
+        if (StringUtils.hasText(request.getTemplateType())) {
+            template.setTemplateType(request.getTemplateType());
+        }
+        if (StringUtils.hasText(request.getSubject())) {
+            template.setSubject(request.getSubject());
+        }
+        if (StringUtils.hasText(request.getContent())) {
+            template.setContent(request.getContent());
+        }
+        if (request.getVariables() != null && !request.getVariables().isEmpty()) {
+            template.setVariables(String.join(",", request.getVariables()));
+        }
+        if (StringUtils.hasText(request.getStatus())) {
+            template.setStatus(request.getStatus());
+        }
+
+        templateMapper.updateById(template);
+        log.info("更新通知模板成功, id: {}", templateId);
+        return NotificationTemplateVO.from(template);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public NotificationTemplateVO changeTemplateStatus(Long templateId, Boolean enabled) {
+        NotificationTemplate template = templateMapper.selectOne(
+            new LambdaQueryWrapper<NotificationTemplate>()
+                .eq(NotificationTemplate::getId, templateId)
+                .isNull(NotificationTemplate::getDeletedAt)
+        );
+        if (template == null) {
+            throw new BusinessException("模板不存在, id: " + templateId);
+        }
+
+        template.setStatus(enabled ? "ACTIVE" : "INACTIVE");
+        templateMapper.updateById(template);
+        log.info("修改模板状态, id: {}, enabled: {}", templateId, enabled);
+        return NotificationTemplateVO.from(template);
     }
 
     @Override
