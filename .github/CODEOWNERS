@@ -1,0 +1,15 @@
+# Default reviewer for all changes
+* @garryyifei8
+
+# Backend services
+backend/                @garryyifei8
+
+# Frontend
+web-admin/              @garryyifei8
+
+# Infrastructure
+deployment/             @garryyifei8
+.github/                @garryyifei8
+
+# Documentation
+docs/                   @garryyifei8
