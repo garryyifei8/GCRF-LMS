@@ -1,0 +1,4 @@
+com.gcrf.library.common.feign.config.FeignAutoConfiguration
+com.gcrf.library.common.feign.config.OkHttpConfiguration
+com.gcrf.library.common.feign.config.SentinelConfiguration
+com.gcrf.library.common.feign.config.SentinelRuleInitializer
