@@ -17,7 +17,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 借阅管理控制器
@@ -111,6 +113,34 @@ public class BorrowController {
         log.info("批量更新逾期状态");
         borrowService.updateOverdueStatus();
         return Result.success();
+    }
+
+    /**
+     * 批量还书
+     */
+    @Operation(summary = "批量还书", description = "批量归还图书，返回每本书的归还结果")
+    @PostMapping("/batch-return")
+    public Result<List<Map<String, Object>>> batchReturn(@RequestBody Map<String, Object> request) {
+        log.info("批量还书请求");
+        @SuppressWarnings("unchecked")
+        List<?> rawIds = (List<?>) request.get("borrowIds");
+        if (rawIds == null || rawIds.isEmpty()) {
+            return Result.success(List.of());
+        }
+
+        List<Map<String, Object>> results = new ArrayList<>();
+        for (Object rawId : rawIds) {
+            Long borrowId = Long.valueOf(rawId.toString());
+            try {
+                ReturnRequest returnRequest = new ReturnRequest();
+                returnRequest.setBorrowId(borrowId);
+                borrowService.returnBook(returnRequest);
+                results.add(Map.of("borrowId", borrowId, "success", true));
+            } catch (Exception e) {
+                results.add(Map.of("borrowId", borrowId, "success", false, "error", e.getMessage()));
+            }
+        }
+        return Result.success(results);
     }
 
     /**

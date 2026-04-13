@@ -71,4 +71,12 @@ public interface ReserveService {
      * @return 待通知预约记录列表
      */
     List<ReserveVO> getPendingNotifications();
+
+    /**
+     * 发送预约通知（更新通知状态）
+     *
+     * @param id 预约记录ID
+     * @return 预约详情
+     */
+    ReserveDetailVO notifyReserve(Long id);
 }

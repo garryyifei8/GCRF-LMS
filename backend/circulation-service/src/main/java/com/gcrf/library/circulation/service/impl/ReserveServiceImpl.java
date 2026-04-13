@@ -247,6 +247,30 @@ public class ReserveServiceImpl implements ReserveService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ReserveDetailVO notifyReserve(Long id) {
+        log.info("开始发送预约通知, id: {}", id);
+
+        Reserve reserve = reserveMapper.selectById(id);
+        if (reserve == null || reserve.getDeletedAt() != null) {
+            throw new BusinessException("预约记录不存在, id: " + id);
+        }
+
+        if (!"RESERVED".equals(reserve.getStatus())) {
+            throw new BusinessException("该预约记录状态不允许发送通知，当前状态: " + reserve.getStatus());
+        }
+
+        // 更新通知状态
+        reserve.setNotifySent(true);
+        reserve.setNotifySentDate(LocalDateTime.now());
+        reserve.setNotifyCount(reserve.getNotifyCount() + 1);
+        reserveMapper.updateById(reserve);
+
+        log.info("预约通知发送成功, reserveId: {}, notifyCount: {}", reserve.getReserveId(), reserve.getNotifyCount());
+        return convertToReserveDetailVO(reserve);
+    }
+
     /**
      * 生成预约编号（格式: RV-YYYYMMDD-0001）
      */

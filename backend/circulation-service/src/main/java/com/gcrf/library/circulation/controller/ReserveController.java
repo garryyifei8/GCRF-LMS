@@ -106,6 +106,18 @@ public class ReserveController {
     }
 
     /**
+     * 发送预约通知
+     */
+    @Operation(summary = "发送预约通知", description = "标记预约记录已发送通知，更新通知计数和时间")
+    @Parameter(name = "id", description = "预约记录ID", required = true)
+    @PostMapping("/{id}/notify")
+    public Result<ReserveDetailVO> notifyReserve(@PathVariable Long id) {
+        log.info("发送预约通知: id={}", id);
+        ReserveDetailVO result = reserveService.notifyReserve(id);
+        return Result.success(result);
+    }
+
+    /**
      * 获取待通知预约记录
      */
     @Operation(summary = "获取待通知预约记录", description = "查询需要发送通知的预约记录")
