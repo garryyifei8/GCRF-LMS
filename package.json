@@ -1,0 +1,26 @@
+{
+  "name": "gcrf-library-management-system",
+  "private": true,
+  "type": "module",
+  "description": "国创睿峰智能图书馆管理系统 - 工程化配置",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "web-admin/**/*.{vue,js,jsx,cjs,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "web-admin/**/*.{css,scss,json}": [
+      "prettier --write"
+    ],
+    "*.md": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.2"
+  }
+}
