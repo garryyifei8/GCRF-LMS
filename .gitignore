@@ -364,3 +364,7 @@ core.*
 
 # MCP Configuration with secrets
 .mcp.json
+
+# Playwright
+playwright-report/
+blob-report/
