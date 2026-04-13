@@ -27,7 +27,7 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/roles")
+@RequestMapping("/api/v1/system/roles")
 @RequiredArgsConstructor
 @Tag(name = "角色管理", description = "角色CRUD及权限分配")
 public class RoleController {

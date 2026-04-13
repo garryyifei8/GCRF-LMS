@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/login-logs")
+@RequestMapping("/api/v1/system/login-logs")
 @RequiredArgsConstructor
 @Tag(name = "登录日志", description = "登录日志查询")
 public class LoginLogController {

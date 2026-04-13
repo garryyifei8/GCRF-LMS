@@ -23,7 +23,7 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/menus")
+@RequestMapping("/api/v1/system/menus")
 @RequiredArgsConstructor
 @Tag(name = "菜单管理", description = "菜单树及CRUD操作")
 public class MenuController {

@@ -24,7 +24,7 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/permissions")
+@RequestMapping("/api/v1/system/permissions")
 @RequiredArgsConstructor
 @Tag(name = "权限管理", description = "权限CRUD")
 public class PermissionController {

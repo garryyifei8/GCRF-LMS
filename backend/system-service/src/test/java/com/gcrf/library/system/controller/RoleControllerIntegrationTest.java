@@ -109,7 +109,7 @@ class RoleControllerIntegrationTest {
     @Test
     void testQueryRoles_Success() throws Exception {
         // Act & Assert
-        mockMvc.perform(get("/api/v1/roles")
+        mockMvc.perform(get("/api/v1/system/roles")
                         .param("pageNum", "1")
                         .param("pageSize", "10"))
                 .andExpect(status().isOk())
@@ -123,7 +123,7 @@ class RoleControllerIntegrationTest {
     @Test
     void testQueryRoles_WithFilters() throws Exception {
         // Act & Assert - Filter by roleCode
-        mockMvc.perform(get("/api/v1/roles")
+        mockMvc.perform(get("/api/v1/system/roles")
                         .param("roleCode", "TEST_ROLE")
                         .param("pageNum", "1")
                         .param("pageSize", "10"))
@@ -136,7 +136,7 @@ class RoleControllerIntegrationTest {
     @Test
     void testQueryRoles_EmptyResult() throws Exception {
         // Act & Assert - Query non-existent role
-        mockMvc.perform(get("/api/v1/roles")
+        mockMvc.perform(get("/api/v1/system/roles")
                         .param("roleCode", "NONEXISTENT_ROLE")
                         .param("pageNum", "1")
                         .param("pageSize", "10"))
@@ -151,7 +151,7 @@ class RoleControllerIntegrationTest {
     @Test
     void testGetRoleById_Success() throws Exception {
         // Act & Assert
-        mockMvc.perform(get("/api/v1/roles/{id}", testRole.getId()))
+        mockMvc.perform(get("/api/v1/system/roles/{id}", testRole.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.id").value(testRole.getId()))
@@ -163,7 +163,7 @@ class RoleControllerIntegrationTest {
     @Test
     void testGetRoleById_NotFound() throws Exception {
         // Act & Assert
-        mockMvc.perform(get("/api/v1/roles/{id}", 999999L))
+        mockMvc.perform(get("/api/v1/system/roles/{id}", 999999L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(not(200)));
     }
@@ -182,7 +182,7 @@ class RoleControllerIntegrationTest {
         request.setStatus("ACTIVE");
 
         // Act & Assert
-        mockMvc.perform(post("/api/v1/roles")
+        mockMvc.perform(post("/api/v1/system/roles")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -199,7 +199,7 @@ class RoleControllerIntegrationTest {
         request.setRoleName("无效角色");
 
         // Act & Assert
-        mockMvc.perform(post("/api/v1/roles")
+        mockMvc.perform(post("/api/v1/system/roles")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -217,7 +217,7 @@ class RoleControllerIntegrationTest {
         request.setSortOrder(10);
 
         // Act & Assert
-        mockMvc.perform(put("/api/v1/roles/{id}", testRole.getId())
+        mockMvc.perform(put("/api/v1/system/roles/{id}", testRole.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -230,7 +230,7 @@ class RoleControllerIntegrationTest {
     @Test
     void testDeleteRole_Success() throws Exception {
         // Act & Assert - Delete role
-        mockMvc.perform(delete("/api/v1/roles/{id}", testRole.getId()))
+        mockMvc.perform(delete("/api/v1/system/roles/{id}", testRole.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
@@ -248,7 +248,7 @@ class RoleControllerIntegrationTest {
         request.setPermissionIds(Arrays.asList(testPermission.getId()));
 
         // Act & Assert
-        mockMvc.perform(post("/api/v1/roles/{id}/permissions", testRole.getId())
+        mockMvc.perform(post("/api/v1/system/roles/{id}/permissions", testRole.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -272,7 +272,7 @@ class RoleControllerIntegrationTest {
         rolePermissionMapper.insert(rolePermission);
 
         // Act & Assert
-        mockMvc.perform(get("/api/v1/roles/{id}/permissions", testRole.getId()))
+        mockMvc.perform(get("/api/v1/system/roles/{id}/permissions", testRole.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").isArray())

@@ -105,7 +105,7 @@ class MenuControllerIntegrationTest {
     @Test
     void testGetMenuTree_Success() throws Exception {
         // Act & Assert - Should return tree structure with parent and child
-        mockMvc.perform(get("/api/v1/menus/tree"))
+        mockMvc.perform(get("/api/v1/system/menus/tree"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").isArray());
@@ -115,7 +115,7 @@ class MenuControllerIntegrationTest {
     void testGetMenuTree_WithExistingData() throws Exception {
         // Act & Assert - Should return tree with the test menus from setUp()
         // Note: @Transactional ensures each test has the same setup data
-        mockMvc.perform(get("/api/v1/menus/tree"))
+        mockMvc.perform(get("/api/v1/system/menus/tree"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").isArray())
@@ -125,7 +125,7 @@ class MenuControllerIntegrationTest {
     @Test
     void testGetUserMenus_Success() throws Exception {
         // Act & Assert - Get menus for user ID 1
-        mockMvc.perform(get("/api/v1/menus/user-menus")
+        mockMvc.perform(get("/api/v1/system/menus/user-menus")
                         .param("userId", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
@@ -137,7 +137,7 @@ class MenuControllerIntegrationTest {
     @Test
     void testGetMenuById_Success() throws Exception {
         // Act & Assert
-        mockMvc.perform(get("/api/v1/menus/{id}", childMenu.getId()))
+        mockMvc.perform(get("/api/v1/system/menus/{id}", childMenu.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.id").value(childMenu.getId()))
@@ -151,7 +151,7 @@ class MenuControllerIntegrationTest {
     @Test
     void testGetMenuById_NotFound() throws Exception {
         // Act & Assert
-        mockMvc.perform(get("/api/v1/menus/{id}", 999999L))
+        mockMvc.perform(get("/api/v1/system/menus/{id}", 999999L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(not(200)));
     }
@@ -175,7 +175,7 @@ class MenuControllerIntegrationTest {
         request.setStatus("ACTIVE");
 
         // Act & Assert
-        mockMvc.perform(post("/api/v1/menus")
+        mockMvc.perform(post("/api/v1/system/menus")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -200,7 +200,7 @@ class MenuControllerIntegrationTest {
         request.setStatus("ACTIVE");
 
         // Act & Assert
-        mockMvc.perform(post("/api/v1/menus")
+        mockMvc.perform(post("/api/v1/system/menus")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -219,7 +219,7 @@ class MenuControllerIntegrationTest {
         request.setSortOrder(10);
 
         // Act & Assert
-        mockMvc.perform(put("/api/v1/menus/{id}", childMenu.getId())
+        mockMvc.perform(put("/api/v1/system/menus/{id}", childMenu.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -233,7 +233,7 @@ class MenuControllerIntegrationTest {
     void testDeleteMenu_Success() throws Exception {
         // Arrange - Delete the child menu (leaf node, no children)
         // Act & Assert
-        mockMvc.perform(delete("/api/v1/menus/{id}", childMenu.getId()))
+        mockMvc.perform(delete("/api/v1/system/menus/{id}", childMenu.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
@@ -245,7 +245,7 @@ class MenuControllerIntegrationTest {
     void testDeleteMenu_HasChildren() throws Exception {
         // Arrange - Try to delete parent menu which has children
         // Act & Assert - Should fail because parentMenu has childMenu
-        mockMvc.perform(delete("/api/v1/menus/{id}", parentMenu.getId()))
+        mockMvc.perform(delete("/api/v1/system/menus/{id}", parentMenu.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(not(200)));  // Should fail
     }

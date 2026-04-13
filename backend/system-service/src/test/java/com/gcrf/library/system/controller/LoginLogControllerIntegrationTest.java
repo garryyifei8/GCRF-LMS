@@ -99,7 +99,7 @@ class LoginLogControllerIntegrationTest {
     @Test
     void testQueryLogs_Success() throws Exception {
         // Act & Assert
-        mockMvc.perform(get("/api/v1/login-logs")
+        mockMvc.perform(get("/api/v1/system/login-logs")
                         .param("pageNum", "1")
                         .param("pageSize", "10"))
                 .andExpect(status().isOk())
@@ -113,7 +113,7 @@ class LoginLogControllerIntegrationTest {
     @Test
     void testQueryLogs_WithFilters() throws Exception {
         // Act & Assert - Filter by userId, loginType, and status
-        mockMvc.perform(get("/api/v1/login-logs")
+        mockMvc.perform(get("/api/v1/system/login-logs")
                         .param("userId", "2001")
                         .param("loginType", "WEB")
                         .param("status", "SUCCESS")
@@ -133,7 +133,7 @@ class LoginLogControllerIntegrationTest {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
         // Act & Assert - Filter by date range
-        mockMvc.perform(get("/api/v1/login-logs")
+        mockMvc.perform(get("/api/v1/system/login-logs")
                         .param("createdStart", startDate.format(formatter))
                         .param("createdEnd", endDate.format(formatter))
                         .param("pageNum", "1")
@@ -147,7 +147,7 @@ class LoginLogControllerIntegrationTest {
     @Test
     void testQueryLogs_ByUsername() throws Exception {
         // Act & Assert - Filter by username
-        mockMvc.perform(get("/api/v1/login-logs")
+        mockMvc.perform(get("/api/v1/system/login-logs")
                         .param("username", "inttest_admin")
                         .param("pageNum", "1")
                         .param("pageSize", "10"))
@@ -160,7 +160,7 @@ class LoginLogControllerIntegrationTest {
     @Test
     void testQueryLogs_Pagination() throws Exception {
         // Act & Assert - Test pagination with pageSize=1
-        mockMvc.perform(get("/api/v1/login-logs")
+        mockMvc.perform(get("/api/v1/system/login-logs")
                         .param("pageNum", "1")
                         .param("pageSize", "1"))
                 .andExpect(status().isOk())
@@ -173,7 +173,7 @@ class LoginLogControllerIntegrationTest {
     @Test
     void testQueryLogs_StatusFilter() throws Exception {
         // Act & Assert - Filter by FAILURE status
-        mockMvc.perform(get("/api/v1/login-logs")
+        mockMvc.perform(get("/api/v1/system/login-logs")
                         .param("status", "FAILURE")
                         .param("pageNum", "1")
                         .param("pageSize", "10"))

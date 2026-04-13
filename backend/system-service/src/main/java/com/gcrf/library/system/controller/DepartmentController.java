@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @Tag(name = "部门管理", description = "部门信息管理相关接口")
 @RestController
-@RequestMapping("/api/departments")
+@RequestMapping("/api/v1/system/departments")
 @RequiredArgsConstructor
 public class DepartmentController {
 

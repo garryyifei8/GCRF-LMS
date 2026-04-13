@@ -63,7 +63,7 @@ class OperationLogControllerIntegrationTest {
         testLog1.setOperationType("CREATE");
         testLog1.setBusinessType("ROLE");
         testLog1.setRequestMethod("RoleController.createRole");
-        testLog1.setRequestUrl("/api/v1/roles");
+        testLog1.setRequestUrl("/api/v1/system/roles");
         testLog1.setHttpMethod("POST");
         testLog1.setRequestParams("{\"roleCode\":\"TEST_ROLE\"}");
         testLog1.setResponseResult("{\"code\":200}");
@@ -86,7 +86,7 @@ class OperationLogControllerIntegrationTest {
         testLog2.setOperationType("UPDATE");
         testLog2.setBusinessType("PERMISSION");
         testLog2.setRequestMethod("PermissionController.updatePermission");
-        testLog2.setRequestUrl("/api/v1/permissions/1");
+        testLog2.setRequestUrl("/api/v1/system/permissions/1");
         testLog2.setHttpMethod("PUT");
         testLog2.setRequestParams("{\"permissionName\":\"Updated\"}");
         testLog2.setResponseResult("{\"code\":200}");
@@ -108,7 +108,7 @@ class OperationLogControllerIntegrationTest {
     @Test
     void testQueryLogs_Success() throws Exception {
         // Act & Assert
-        mockMvc.perform(get("/api/v1/operation-logs")
+        mockMvc.perform(get("/api/v1/system/operation-logs")
                         .param("pageNum", "1")
                         .param("pageSize", "10"))
                 .andExpect(status().isOk())
@@ -122,7 +122,7 @@ class OperationLogControllerIntegrationTest {
     @Test
     void testQueryLogs_WithFilters() throws Exception {
         // Act & Assert - Filter by userId and operationType
-        mockMvc.perform(get("/api/v1/operation-logs")
+        mockMvc.perform(get("/api/v1/system/operation-logs")
                         .param("userId", "1001")
                         .param("operationType", "CREATE")
                         .param("pageNum", "1")
@@ -141,7 +141,7 @@ class OperationLogControllerIntegrationTest {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
         // Act & Assert - Filter by date range
-        mockMvc.perform(get("/api/v1/operation-logs")
+        mockMvc.perform(get("/api/v1/system/operation-logs")
                         .param("createdStart", startDate.format(formatter))
                         .param("createdEnd", endDate.format(formatter))
                         .param("pageNum", "1")
@@ -155,7 +155,7 @@ class OperationLogControllerIntegrationTest {
     @Test
     void testQueryLogs_ByUsername() throws Exception {
         // Act & Assert - Filter by username
-        mockMvc.perform(get("/api/v1/operation-logs")
+        mockMvc.perform(get("/api/v1/system/operation-logs")
                         .param("username", "inttest_user1")
                         .param("pageNum", "1")
                         .param("pageSize", "10"))
@@ -168,7 +168,7 @@ class OperationLogControllerIntegrationTest {
     @Test
     void testQueryLogs_Pagination() throws Exception {
         // Act & Assert - Test pagination with pageSize=1
-        mockMvc.perform(get("/api/v1/operation-logs")
+        mockMvc.perform(get("/api/v1/system/operation-logs")
                         .param("pageNum", "1")
                         .param("pageSize", "1"))
                 .andExpect(status().isOk())
@@ -181,7 +181,7 @@ class OperationLogControllerIntegrationTest {
     @Test
     void testQueryLogs_EmptyResult() throws Exception {
         // Act & Assert - Query with non-matching filter
-        mockMvc.perform(get("/api/v1/operation-logs")
+        mockMvc.perform(get("/api/v1/system/operation-logs")
                         .param("username", "nonexistent_user")
                         .param("pageNum", "1")
                         .param("pageSize", "10"))

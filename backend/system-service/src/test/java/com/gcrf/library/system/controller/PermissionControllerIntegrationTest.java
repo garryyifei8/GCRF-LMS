@@ -83,7 +83,7 @@ class PermissionControllerIntegrationTest {
     @Test
     void testQueryPermissions_Success() throws Exception {
         // Act & Assert
-        mockMvc.perform(get("/api/v1/permissions")
+        mockMvc.perform(get("/api/v1/system/permissions")
                         .param("pageNum", "1")
                         .param("pageSize", "10"))
                 .andExpect(status().isOk())
@@ -97,7 +97,7 @@ class PermissionControllerIntegrationTest {
     @Test
     void testListAllPermissions_Success() throws Exception {
         // Act & Assert
-        mockMvc.perform(get("/api/v1/permissions/all"))
+        mockMvc.perform(get("/api/v1/system/permissions/all"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").isArray())
@@ -109,7 +109,7 @@ class PermissionControllerIntegrationTest {
     @Test
     void testGetPermissionById_Success() throws Exception {
         // Act & Assert
-        mockMvc.perform(get("/api/v1/permissions/{id}", testPermission.getId()))
+        mockMvc.perform(get("/api/v1/system/permissions/{id}", testPermission.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.id").value(testPermission.getId()))
@@ -122,7 +122,7 @@ class PermissionControllerIntegrationTest {
     @Test
     void testGetPermissionById_NotFound() throws Exception {
         // Act & Assert
-        mockMvc.perform(get("/api/v1/permissions/{id}", 999999L))
+        mockMvc.perform(get("/api/v1/system/permissions/{id}", 999999L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(not(200)));
     }
@@ -143,7 +143,7 @@ class PermissionControllerIntegrationTest {
         request.setStatus("ACTIVE");
 
         // Act & Assert
-        mockMvc.perform(post("/api/v1/permissions")
+        mockMvc.perform(post("/api/v1/system/permissions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -164,7 +164,7 @@ class PermissionControllerIntegrationTest {
         request.setPermissionGroup("test");
 
         // Act & Assert
-        mockMvc.perform(post("/api/v1/permissions")
+        mockMvc.perform(post("/api/v1/system/permissions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -183,7 +183,7 @@ class PermissionControllerIntegrationTest {
         request.setSortOrder(10);
 
         // Act & Assert
-        mockMvc.perform(put("/api/v1/permissions/{id}", testPermission.getId())
+        mockMvc.perform(put("/api/v1/system/permissions/{id}", testPermission.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -196,7 +196,7 @@ class PermissionControllerIntegrationTest {
     @Test
     void testDeletePermission_Success() throws Exception {
         // Act & Assert - Delete permission
-        mockMvc.perform(delete("/api/v1/permissions/{id}", testPermission.getId()))
+        mockMvc.perform(delete("/api/v1/system/permissions/{id}", testPermission.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
