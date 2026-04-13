@@ -8,7 +8,7 @@
   },
   "lint-staged": {
     "web-admin/**/*.{vue,js,jsx,cjs,mjs}": [
-      "eslint --fix",
+      "npx --prefix web-admin eslint --fix",
       "prettier --write"
     ],
     "web-admin/**/*.{css,scss,json}": [
