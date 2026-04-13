@@ -14,6 +14,7 @@ import com.gcrf.library.reader.service.ReaderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.Map;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -216,6 +217,61 @@ public class ReaderController {
         FaceRecognitionVO result = FaceRecognitionVO.mockQueryResult(id, false);
 
         return Result.success(result);
+    }
+
+    /**
+     * 批量删除读者
+     */
+    @Operation(summary = "批量删除读者", description = "根据ID列表批量删除读者（逻辑删除）")
+    @DeleteMapping("/batch")
+    public Result<Void> batchDeleteReaders(@RequestParam String ids) {
+        log.info("批量删除读者: ids={}", ids);
+        String[] idArray = ids.split(",");
+        for (String id : idArray) {
+            readerService.deleteReader(Long.parseLong(id.trim()));
+        }
+        return Result.success();
+    }
+
+    /**
+     * 办理/更新借阅证
+     */
+    @Operation(summary = "办理/更新借阅证", description = "为读者办理或更新借阅证")
+    @PostMapping("/{id}/card")
+    public Result<ReaderDetailVO> issueCard(@PathVariable Long id, @RequestBody Map<String, Object> data) {
+        log.info("办理/更新借阅证: id={}", id);
+        ReaderDetailVO reader = readerService.activateCard(id);
+        return Result.success(reader);
+    }
+
+    /**
+     * 更新读者状态
+     */
+    @Operation(summary = "更新读者状态", description = "更新读者状态（active/suspended）")
+    @PutMapping("/{id}/status")
+    public Result<ReaderDetailVO> updateReaderStatus(@PathVariable Long id, @RequestBody Map<String, String> data) {
+        log.info("更新读者状态: id={}, status={}", id, data.get("status"));
+        String status = data.get("status");
+        ReaderDetailVO reader;
+        if ("suspended".equalsIgnoreCase(status)) {
+            reader = readerService.suspendCard(id);
+        } else if ("active".equalsIgnoreCase(status)) {
+            reader = readerService.activateCard(id);
+        } else {
+            throw new com.gcrf.library.common.exception.BusinessException("不支持的状态: " + status);
+        }
+        return Result.success(reader);
+    }
+
+    /**
+     * 根据借阅证号查询读者
+     */
+    @Operation(summary = "根据借阅证号查询读者", description = "根据借阅证号查询读者详细信息")
+    @GetMapping("/card/{cardNumber}")
+    public Result<ReaderDetailVO> getReaderByCardNumber(@PathVariable String cardNumber) {
+        log.info("根据借阅证号查询读者: cardNumber={}", cardNumber);
+        ReaderDetailVO reader = readerService.getReaderByReaderId(cardNumber);
+        return Result.success(reader);
     }
 
     /**
