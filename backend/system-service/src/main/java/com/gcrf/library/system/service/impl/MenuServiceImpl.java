@@ -2,6 +2,8 @@ package com.gcrf.library.system.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.gcrf.library.common.exception.BusinessException;
+import com.gcrf.library.common.result.Result;
+import com.gcrf.library.system.client.AuthServiceClient;
 import com.gcrf.library.system.dto.request.MenuCreateRequest;
 import com.gcrf.library.system.dto.request.MenuUpdateRequest;
 import com.gcrf.library.system.dto.response.MenuTreeVO;
@@ -36,6 +38,7 @@ public class MenuServiceImpl implements MenuService {
 
     private final MenuMapper menuMapper;
     private final RoleMenuMapper roleMenuMapper;
+    private final AuthServiceClient authServiceClient;
 
     @Override
     public List<MenuTreeVO> getMenuTree() {
@@ -52,14 +55,24 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public List<MenuTreeVO> getUserMenus(Long userId) {
-        // 注意: 这里假设有user_roles表来查询用户的角色ID
-        // 由于系统设计中用户管理不在system-service，这里简化处理
-        // 实际应该从auth-service或通过Feign调用获取用户角色
+        // 从auth-service获取用户角色ID列表
+        List<Long> roleIds;
+        try {
+            Result<List<Long>> result = authServiceClient.getUserRoleIds(userId);
+            if (result == null || result.getData() == null || result.getData().isEmpty()) {
+                log.warn("用户无角色, userId: {}", userId);
+                return List.of();
+            }
+            roleIds = result.getData();
+        } catch (Exception e) {
+            log.warn("调用auth-service获取用户角色失败, userId: {}, error: {}", userId, e.getMessage());
+            return List.of();
+        }
 
-        // 查询用户的所有角色关联的菜单ID
-        // 这里使用简化版本: 查询所有菜单(实际项目中需要根据userId查询role_menus)
+        // 根据角色ID查询关联的菜单ID
         List<RoleMenu> roleMenus = roleMenuMapper.selectList(
             new LambdaQueryWrapper<RoleMenu>()
+                .in(RoleMenu::getRoleId, roleIds)
         );
 
         if (roleMenus.isEmpty()) {
@@ -78,16 +91,12 @@ public class MenuServiceImpl implements MenuService {
         List<Menu> visibleMenus = menus.stream()
                 .filter(m -> m.getDeletedAt() == null)
                 .filter(m -> Boolean.TRUE.equals(m.getIsVisible()))
-                .sorted((m1, m2) -> {
-                    int sort = Integer.compare(
-                        m1.getSortOrder() != null ? m1.getSortOrder() : 0,
-                        m2.getSortOrder() != null ? m2.getSortOrder() : 0
-                    );
-                    return sort;
-                })
+                .sorted((m1, m2) -> Integer.compare(
+                    m1.getSortOrder() != null ? m1.getSortOrder() : 0,
+                    m2.getSortOrder() != null ? m2.getSortOrder() : 0
+                ))
                 .collect(Collectors.toList());
 
-        // 构建树形结构
         return buildMenuTree(visibleMenus, null);
     }
 
