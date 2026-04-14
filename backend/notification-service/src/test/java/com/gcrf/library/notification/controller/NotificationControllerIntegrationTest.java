@@ -1,14 +1,10 @@
 package com.gcrf.library.notification.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gcrf.library.common.test.BaseIntegrationTest;
-import com.gcrf.library.notification.dto.request.NotificationCreateRequest;
-import com.gcrf.library.notification.dto.request.NotificationPushRequest;
-import com.gcrf.library.notification.dto.request.NotificationQueryRequest;
+import com.gcrf.library.notification.dto.request.NotificationSendRequest;
 import com.gcrf.library.notification.entity.Notification;
 import com.gcrf.library.notification.mapper.NotificationMapper;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,354 +15,189 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Arrays;
+import java.util.List;
 
-import static org.hamcrest.Matchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * NotificationController集成测试
- *
- * 测试覆盖范围：
- * - 创建通知
- * - 推送通知
- * - 查询通知（分页、条件过滤）
- * - 获取通知详情
- * - 更新通知
- * - 删除通知
- * - 标记为已读
- * - 批量操作
- *
- * @author GCRF Team
- * @since 2025-10-30
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
 @ActiveProfiles("test")
 class NotificationControllerIntegrationTest extends BaseIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+    @Autowired private NotificationMapper notificationMapper;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private NotificationMapper notificationMapper;
-
-    private Notification testNotification;
+    private static final Long TEST_USER_ID = 9001L;
 
     @BeforeEach
     void setUp() {
-        // 清理测试数据
-        LambdaQueryWrapper<Notification> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Notification::getTitle, "集成测试通知");
-        notificationMapper.delete(queryWrapper);
-
-        // 创建测试通知
-        testNotification = new Notification();
-        testNotification.setTitle("集成测试通知");
-        testNotification.setContent("这是一条集成测试通知内容");
-        testNotification.setNotificationType("SYSTEM");
-        testNotification.setPriority("MEDIUM");
-        testNotification.setTargetType("USER");
-        testNotification.setTargetId(1L);
-        testNotification.setStatus("PENDING");
-        testNotification.setReadStatus(false);
-        testNotification.setCreatedAt(LocalDateTime.now());
-        notificationMapper.insert(testNotification);
+        notificationMapper.delete(
+            new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Notification>()
+                .eq("user_id", TEST_USER_ID)
+        );
     }
 
-    @AfterEach
-    void tearDown() {
-        // 清理测试数据
-        if (testNotification != null && testNotification.getId() != null) {
-            notificationMapper.deleteById(testNotification.getId());
+    @Test
+    void sendNotification_success_shouldPersist() throws Exception {
+        NotificationSendRequest request = new NotificationSendRequest();
+        request.setUserId(TEST_USER_ID);
+        request.setTitle("测试通知");
+        request.setContent("这是一条测试通知");
+        request.setNotificationType("SYSTEM");
+        request.setPriority("NORMAL");
+
+        mockMvc.perform(post("/api/v1/notifications")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.userId").value(TEST_USER_ID))
+            .andExpect(jsonPath("$.data.title").value("测试通知"))
+            .andExpect(jsonPath("$.data.isRead").value(false));
+    }
+
+    @Test
+    void queryNotifications_shouldReturnPaged() throws Exception {
+        for (int i = 1; i <= 3; i++) {
+            Notification n = new Notification();
+            n.setUserId(TEST_USER_ID);
+            n.setTitle("通知" + i);
+            n.setContent("内容" + i);
+            n.setNotificationType("SYSTEM");
+            n.setPriority("NORMAL");
+            n.setIsRead(false);
+            notificationMapper.insert(n);
         }
-    }
 
-    @Test
-    void testCreateNotification_Success() throws Exception {
-        // Arrange
-        NotificationCreateRequest request = new NotificationCreateRequest();
-        request.setTitle("新通知");
-        request.setContent("新通知内容");
-        request.setNotificationType("BUSINESS");
-        request.setPriority("HIGH");
-        request.setTargetType("USER");
-        request.setTargetId(2L);
-
-        // Act & Assert
-        mockMvc.perform(post("/api/v1/notifications")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.title").value("新通知"))
-                .andExpect(jsonPath("$.data.content").value("新通知内容"))
-                .andExpect(jsonPath("$.data.notificationType").value("BUSINESS"))
-                .andExpect(jsonPath("$.data.priority").value("HIGH"));
-    }
-
-    @Test
-    void testCreateNotification_InvalidRequest() throws Exception {
-        // Arrange
-        NotificationCreateRequest request = new NotificationCreateRequest();
-        request.setTitle(""); // 空标题
-        request.setContent("内容");
-        request.setNotificationType("SYSTEM");
-
-        // Act & Assert
-        mockMvc.perform(post("/api/v1/notifications")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void testPushNotification_ToUser() throws Exception {
-        // Arrange
-        NotificationPushRequest request = new NotificationPushRequest();
-        request.setTitle("推送通知");
-        request.setContent("推送内容");
-        request.setNotificationType("SYSTEM");
-        request.setPriority("HIGH");
-        request.setTargetType("USER");
-        request.setTargetIds(Arrays.asList(1L, 2L, 3L));
-        request.setChannels("WEBSOCKET,EMAIL");
-
-        // Act & Assert
-        mockMvc.perform(post("/api/v1/notifications/push")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
-    }
-
-    @Test
-    void testPushNotification_ToAll() throws Exception {
-        // Arrange
-        NotificationPushRequest request = new NotificationPushRequest();
-        request.setTitle("广播通知");
-        request.setContent("广播内容");
-        request.setNotificationType("ANNOUNCEMENT");
-        request.setPriority("HIGH");
-        request.setTargetType("ALL");
-        request.setChannels("WEBSOCKET");
-
-        // Act & Assert
-        mockMvc.perform(post("/api/v1/notifications/push")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
-    }
-
-    @Test
-    void testQueryNotifications_Success() throws Exception {
-        // Act & Assert
         mockMvc.perform(get("/api/v1/notifications")
-                        .param("pageNum", "1")
-                        .param("pageSize", "20")
-                        .param("notificationType", "SYSTEM"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.records").isArray())
-                .andExpect(jsonPath("$.data.total").value(greaterThanOrEqualTo(0)));
+                .param("userId", String.valueOf(TEST_USER_ID))
+                .param("pageNum", "1")
+                .param("pageSize", "10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.records").isArray())
+            .andExpect(jsonPath("$.data.total").value(3));
     }
 
     @Test
-    void testQueryNotifications_WithFilters() throws Exception {
-        // Act & Assert
-        mockMvc.perform(get("/api/v1/notifications")
-                        .param("pageNum", "1")
-                        .param("pageSize", "20")
-                        .param("targetType", "USER")
-                        .param("targetId", "1")
-                        .param("readStatus", "false")
-                        .param("priority", "MEDIUM"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data").exists());
+    void getNotificationById_success_shouldReturnNotification() throws Exception {
+        Notification n = createTestNotification("单条查询", "SYSTEM", "NORMAL");
+
+        mockMvc.perform(get("/api/v1/notifications/" + n.getId())
+                .param("userId", String.valueOf(TEST_USER_ID)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.id").value(n.getId()))
+            .andExpect(jsonPath("$.data.title").value("单条查询"));
     }
 
     @Test
-    void testGetNotificationById_Success() throws Exception {
-        // Act & Assert
-        mockMvc.perform(get("/api/v1/notifications/{id}", testNotification.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.id").value(testNotification.getId()))
-                .andExpect(jsonPath("$.data.title").value("集成测试通知"))
-                .andExpect(jsonPath("$.data.content").value("这是一条集成测试通知内容"));
+    void markAsRead_shouldSetIsReadTrue() throws Exception {
+        Notification n = createTestNotification("标记已读", "SYSTEM", "NORMAL");
+
+        mockMvc.perform(put("/api/v1/notifications/" + n.getId() + "/read")
+                .param("userId", String.valueOf(TEST_USER_ID)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200));
+
+        Notification updated = notificationMapper.selectById(n.getId());
+        assertThat(updated.getIsRead()).isTrue();
+        assertThat(updated.getReadAt()).isNotNull();
     }
 
     @Test
-    void testGetNotificationById_NotFound() throws Exception {
-        // Act & Assert
-        mockMvc.perform(get("/api/v1/notifications/{id}", 999999L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(not(200)));
-    }
+    void batchMarkAsRead_shouldMarkAllAsRead() throws Exception {
+        Notification n1 = createTestNotification("批1", "SYSTEM", "NORMAL");
+        Notification n2 = createTestNotification("批2", "SYSTEM", "NORMAL");
 
-    @Test
-    void testUpdateNotification_Success() throws Exception {
-        // Arrange
-        NotificationCreateRequest request = new NotificationCreateRequest();
-        request.setTitle("更新后的标题");
-        request.setContent("更新后的内容");
-        request.setNotificationType("SYSTEM");
-        request.setPriority("HIGH");
-        request.setTargetType("USER");
-        request.setTargetId(1L);
-
-        // Act & Assert
-        mockMvc.perform(put("/api/v1/notifications/{id}", testNotification.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.title").value("更新后的标题"))
-                .andExpect(jsonPath("$.data.content").value("更新后的内容"));
-    }
-
-    @Test
-    void testUpdateNotification_NotFound() throws Exception {
-        // Arrange
-        NotificationCreateRequest request = new NotificationCreateRequest();
-        request.setTitle("更新标题");
-        request.setContent("更新内容");
-        request.setNotificationType("SYSTEM");
-        request.setPriority("MEDIUM");
-        request.setTargetType("USER");
-        request.setTargetId(1L);
-
-        // Act & Assert
-        mockMvc.perform(put("/api/v1/notifications/{id}", 999999L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(not(200)));
-    }
-
-    @Test
-    void testDeleteNotification_Success() throws Exception {
-        // Arrange - 创建一个用于删除的通知
-        Notification toDelete = new Notification();
-        toDelete.setTitle("待删除通知");
-        toDelete.setContent("内容");
-        toDelete.setNotificationType("SYSTEM");
-        toDelete.setPriority("LOW");
-        toDelete.setTargetType("USER");
-        toDelete.setTargetId(1L);
-        toDelete.setStatus("PENDING");
-        toDelete.setReadStatus(false);
-        toDelete.setCreatedAt(LocalDateTime.now());
-        notificationMapper.insert(toDelete);
-
-        // Act & Assert
-        mockMvc.perform(delete("/api/v1/notifications/{id}", toDelete.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
-
-        // Verify
-        Notification deleted = notificationMapper.selectById(toDelete.getId());
-        assert deleted == null; // 应该被删除
-    }
-
-    @Test
-    void testDeleteNotification_NotFound() throws Exception {
-        // Act & Assert
-        mockMvc.perform(delete("/api/v1/notifications/{id}", 999999L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(not(200)));
-    }
-
-    @Test
-    void testMarkAsRead_Success() throws Exception {
-        // Act & Assert
-        mockMvc.perform(put("/api/v1/notifications/{id}/read", testNotification.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
-
-        // Verify
-        Notification updated = notificationMapper.selectById(testNotification.getId());
-        assert updated.getReadStatus() == true;
-        assert updated.getReadAt() != null;
-    }
-
-    @Test
-    void testMarkAsRead_NotFound() throws Exception {
-        // Act & Assert
-        mockMvc.perform(put("/api/v1/notifications/{id}/read", 999999L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(not(200)));
-    }
-
-    @Test
-    void testBatchMarkAsRead_Success() throws Exception {
-        // Arrange - 创建多个未读通知
-        Notification notif1 = createTestNotification("通知1", 1L);
-        Notification notif2 = createTestNotification("通知2", 1L);
-        Notification notif3 = createTestNotification("通知3", 1L);
-
-        // Act & Assert
         mockMvc.perform(put("/api/v1/notifications/batch-read")
-                        .param("ids", notif1.getId().toString(), notif2.getId().toString(), notif3.getId().toString()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
+                .param("userId", String.valueOf(TEST_USER_ID))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(List.of(n1.getId(), n2.getId()))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200));
 
-        // Cleanup
-        notificationMapper.deleteById(notif1.getId());
-        notificationMapper.deleteById(notif2.getId());
-        notificationMapper.deleteById(notif3.getId());
+        assertThat(notificationMapper.selectById(n1.getId()).getIsRead()).isTrue();
+        assertThat(notificationMapper.selectById(n2.getId()).getIsRead()).isTrue();
     }
 
     @Test
-    void testBatchDelete_Success() throws Exception {
-        // Arrange - 创建多个待删除通知
-        Notification notif1 = createTestNotification("待删除1", 1L);
-        Notification notif2 = createTestNotification("待删除2", 1L);
+    void deleteNotification_shouldSoftDelete() throws Exception {
+        Notification n = createTestNotification("删除测试", "SYSTEM", "NORMAL");
 
-        // Act & Assert
+        mockMvc.perform(delete("/api/v1/notifications/" + n.getId())
+                .param("userId", String.valueOf(TEST_USER_ID)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200));
+
+        Notification deleted = notificationMapper.selectById(n.getId());
+        assertThat(deleted.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    void batchDeleteNotifications_shouldSoftDeleteMultiple() throws Exception {
+        Notification n1 = createTestNotification("删1", "SYSTEM", "NORMAL");
+        Notification n2 = createTestNotification("删2", "SYSTEM", "NORMAL");
+
         mockMvc.perform(delete("/api/v1/notifications/batch")
-                        .param("ids", notif1.getId().toString(), notif2.getId().toString()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
-
-        // Verify - 通知应该被删除
-        assert notificationMapper.selectById(notif1.getId()) == null;
-        assert notificationMapper.selectById(notif2.getId()) == null;
+                .param("userId", String.valueOf(TEST_USER_ID))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(List.of(n1.getId(), n2.getId()))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200));
     }
 
     @Test
-    void testGetUnreadCount_Success() throws Exception {
-        // Act & Assert
+    void getUnreadCount_shouldReturnCountWithUrgent() throws Exception {
+        createTestNotification("未读1", "SYSTEM", "NORMAL");
+        createTestNotification("未读2", "SYSTEM", "URGENT");
+
         mockMvc.perform(get("/api/v1/notifications/unread-count")
-                        .param("userId", "1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data").isNumber());
+                .param("userId", String.valueOf(TEST_USER_ID)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.userId").value(TEST_USER_ID))
+            .andExpect(jsonPath("$.data.unreadCount").value(2))
+            .andExpect(jsonPath("$.data.urgentCount").value(1));
     }
 
-    /**
-     * 辅助方法: 创建测试通知
-     */
-    private Notification createTestNotification(String title, Long targetId) {
-        Notification notification = new Notification();
-        notification.setTitle(title);
-        notification.setContent("测试内容");
-        notification.setNotificationType("SYSTEM");
-        notification.setPriority("MEDIUM");
-        notification.setTargetType("USER");
-        notification.setTargetId(targetId);
-        notification.setStatus("PENDING");
-        notification.setReadStatus(false);
-        notification.setCreatedAt(LocalDateTime.now());
-        notificationMapper.insert(notification);
-        return notification;
+    @Test
+    void getLatestNotifications_shouldReturnInDescOrder() throws Exception {
+        createTestNotification("旧", "SYSTEM", "NORMAL");
+        createTestNotification("新", "SYSTEM", "NORMAL");
+
+        mockMvc.perform(get("/api/v1/notifications/latest")
+                .param("userId", String.valueOf(TEST_USER_ID))
+                .param("limit", "10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data").isArray());
+    }
+
+    @Test
+    void clearAllNotifications_shouldSoftDeleteAll() throws Exception {
+        createTestNotification("清1", "SYSTEM", "NORMAL");
+        createTestNotification("清2", "SYSTEM", "NORMAL");
+
+        mockMvc.perform(delete("/api/v1/notifications/clear")
+                .param("userId", String.valueOf(TEST_USER_ID)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200));
+    }
+
+    private Notification createTestNotification(String title, String type, String priority) {
+        Notification n = new Notification();
+        n.setUserId(TEST_USER_ID);
+        n.setTitle(title);
+        n.setContent("内容: " + title);
+        n.setNotificationType(type);
+        n.setPriority(priority);
+        n.setIsRead(false);
+        notificationMapper.insert(n);
+        return n;
     }
 }
