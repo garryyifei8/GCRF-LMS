@@ -18,6 +18,7 @@
         <module>common/common-web</module>
         <module>common/common-security</module>
         <module>common/common-mybatis</module>
+        <module>common/common-feign</module>
         <module>gateway-service</module>
         <module>auth-service</module>
         <module>book-service</module>
@@ -25,11 +26,12 @@
         <module>reader-service</module>
         <module>system-service</module>
         <module>notification-service</module>
-        <!-- TODO: Add remaining services as they are implemented
         <module>recommend-service</module>
+        <module>chat-service</module>
+        <module>analytics-service</module>
+        <!-- TODO: Add remaining services as they are implemented
         <module>nlp-service</module>
         <module>vision-service</module>
-        <module>analytics-service</module>
         <module>file-service</module>
         <module>search-service</module>
         -->
@@ -151,6 +153,12 @@
             <dependency>
                 <groupId>com.gcrf.library</groupId>
                 <artifactId>common-mybatis</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.gcrf.library</groupId>
+                <artifactId>common-feign</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
@@ -310,6 +318,17 @@
                 <groupId>com.alibaba</groupId>
                 <artifactId>transmittable-thread-local</artifactId>
                 <version>${transmittable-thread-local.version}</version>
+            </dependency>
+
+            <!-- Flyway -->
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-core</artifactId>
+            </dependency>
+
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-database-postgresql</artifactId>
             </dependency>
         </dependencies>
     </dependencyManagement>
