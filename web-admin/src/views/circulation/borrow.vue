@@ -46,7 +46,13 @@
                   {{ readerInfo.cardNo }}
                 </el-descriptions-item>
                 <el-descriptions-item label="已借图书">
-                  <span :class="readerInfo.borrowedCount >= readerInfo.maxBorrow ? 'text-danger' : 'text-primary'">
+                  <span
+                    :class="
+                      readerInfo.borrowedCount >= readerInfo.maxBorrow
+                        ? 'text-danger'
+                        : 'text-primary'
+                    "
+                  >
                     {{ readerInfo.borrowedCount }} / {{ readerInfo.maxBorrow }}
                   </span>
                 </el-descriptions-item>
@@ -61,7 +67,10 @@
               </el-descriptions>
 
               <!-- 当前借阅图书列表 -->
-              <div v-if="readerInfo.currentBorrows && readerInfo.currentBorrows.length > 0" class="mt-md">
+              <div
+                v-if="readerInfo.currentBorrows && readerInfo.currentBorrows.length > 0"
+                class="mt-md"
+              >
                 <div class="section-title">当前借阅</div>
                 <el-table :data="readerInfo.currentBorrows" size="small" stripe>
                   <el-table-column prop="title" label="书名" show-overflow-tooltip />
@@ -102,20 +111,18 @@
                 <el-icon><Barcode /></el-icon>
               </template>
               <template #append>
-                <el-button :icon="Plus" :disabled="!readerInfo || readerInfo.status !== 'normal'" @click="addBook">
+                <el-button
+                  :icon="Plus"
+                  :disabled="!readerInfo || readerInfo.status !== 'normal'"
+                  @click="addBook"
+                >
                   添加
                 </el-button>
               </template>
             </el-input>
 
             <!-- 提示信息 -->
-            <el-alert
-              v-if="!readerInfo"
-              type="warning"
-              :closable="false"
-              class="mt-md"
-              show-icon
-            >
+            <el-alert v-if="!readerInfo" type="warning" :closable="false" class="mt-md" show-icon>
               <template #title>请先扫描读者证</template>
             </el-alert>
 
@@ -161,7 +168,9 @@
               </el-table-column>
               <el-table-column label="操作" width="80" fixed="right">
                 <template #default="{ $index }">
-                  <el-button type="danger" link :icon="Delete" @click="removeBook($index)">移除</el-button>
+                  <el-button type="danger" link :icon="Delete" @click="removeBook($index)"
+                    >移除</el-button
+                  >
                 </template>
               </el-table-column>
             </el-table>
@@ -186,6 +195,9 @@
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
+import { getReaderByCardNumber } from '@/api/readers'
+import { getBookByBarcode } from '@/api/books'
+import { borrowBook } from '@/api/circulation'
 
 // 读者信息
 const readerCardNo = ref('')
@@ -210,63 +222,37 @@ const searchReader = async () => {
   }
 
   try {
-    // TODO: 调用API查询读者信息
-    // const res = await request.get(`/api/readers/card/${readerCardNo.value}`)
+    const res = await getReaderByCardNumber(readerCardNo.value)
 
-    // Mock数据
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // 模拟学生读者
-    if (readerCardNo.value.startsWith('S')) {
-      readerInfo.value = {
-        id: 1001,
-        name: '张三',
-        type: 'student',
-        grade: '高一(1)班',
-        cardNo: readerCardNo.value,
-        borrowedCount: 2,
-        maxBorrow: 5,
-        borrowDays: 30,
-        status: 'normal',
-        currentBorrows: [
-          {
-            title: '三体',
-            borrowDate: '2025-10-01',
-            dueDate: '2025-10-31'
-          },
-          {
-            title: '活着',
-            borrowDate: '2025-10-05',
-            dueDate: '2025-11-04'
-          }
-        ]
-      }
-    }
-    // 模拟教师读者
-    else if (readerCardNo.value.startsWith('T')) {
-      readerInfo.value = {
-        id: 2001,
-        name: '李老师',
-        type: 'teacher',
-        department: '语文组',
-        cardNo: readerCardNo.value,
-        borrowedCount: 3,
-        maxBorrow: 10,
-        borrowDays: 60,
-        status: 'normal',
-        currentBorrows: []
-      }
-    } else {
+    if (res.code !== 200 || !res.data) {
       ElMessage.error('读者证号不存在')
       readerInfo.value = null
       return
+    }
+
+    const reader = res.data
+
+    // 映射后端字段到前端字段
+    readerInfo.value = {
+      id: reader.readerId || reader.id,
+      name: reader.realName,
+      type: reader.readerType,
+      grade: reader.grade,
+      department: reader.department,
+      cardNo: reader.cardNumber,
+      borrowedCount: reader.currentBorrowCount || 0,
+      maxBorrow: reader.maxBorrowCount || 5,
+      borrowDays: reader.borrowDays || 30,
+      status: reader.status === 'active' ? 'normal' : reader.status,
+      currentBorrows: reader.currentBorrows || []
     }
 
     ElMessage.success('读者信息加载成功')
     // 清空之前的借阅清单
     borrowList.value = []
   } catch (error) {
-    ElMessage.error('查询读者信息失败')
+    console.error('查询读者信息失败:', error)
+    ElMessage.error(error.message || '查询读者信息失败')
     readerInfo.value = null
   }
 }
@@ -285,40 +271,43 @@ const addBook = async () => {
   }
 
   // 检查是否已在清单中
-  if (borrowList.value.some(item => item.barcode === bookBarcode.value)) {
+  if (borrowList.value.some((item) => item.barcode === bookBarcode.value)) {
     ElMessage.warning('该图书已在借阅清单中')
     bookBarcode.value = ''
     return
   }
 
   try {
-    // TODO: 调用API查询图书信息
-    // const res = await request.get(`/api/books/barcode/${bookBarcode.value}`)
+    const res = await getBookByBarcode(bookBarcode.value)
 
-    // Mock数据
-    await new Promise(resolve => setTimeout(resolve, 300))
-
-    const book = {
-      id: Math.random().toString(36).substr(2, 9),
-      title: bookBarcode.value.includes('001') ? '人工智能基础' :
-             bookBarcode.value.includes('002') ? 'Python编程' :
-             '数据结构与算法',
-      author: '张三',
-      isbn: '978-7-' + Math.random().toString().substr(2, 9),
-      barcode: bookBarcode.value,
-      status: 'available'
+    if (res.code !== 200 || !res.data) {
+      ElMessage.error('图书条码不存在')
+      return
     }
 
-    if (book.status !== 'available') {
+    const bookData = res.data
+
+    // 检查图书状态
+    if (bookData.status !== 'available' && bookData.availableCopies <= 0) {
       ElMessage.error('该图书不可借阅')
       return
+    }
+
+    const book = {
+      id: bookData.bookId || bookData.id,
+      title: bookData.title,
+      author: bookData.author,
+      isbn: bookData.isbn,
+      barcode: bookBarcode.value,
+      status: bookData.status
     }
 
     borrowList.value.push(book)
     ElMessage.success(`《${book.title}》已添加到借阅清单`)
     bookBarcode.value = ''
   } catch (error) {
-    ElMessage.error('图书信息查询失败')
+    console.error('图书信息查询失败:', error)
+    ElMessage.error(error.message || '图书信息查询失败')
   }
 }
 
@@ -333,10 +322,12 @@ const removeBook = (index) => {
 const clearBorrowList = () => {
   ElMessageBox.confirm('确定要清空借阅清单吗？', '提示', {
     type: 'warning'
-  }).then(() => {
-    borrowList.value = []
-    ElMessage.success('已清空借阅清单')
-  }).catch(() => {})
+  })
+    .then(() => {
+      borrowList.value = []
+      ElMessage.success('已清空借阅清单')
+    })
+    .catch(() => {})
 }
 
 // 确认借出
@@ -349,27 +340,56 @@ const confirmBorrow = async () => {
   try {
     submitting.value = true
 
-    // TODO: 调用API提交借阅
-    // const res = await request.post('/api/circulation/borrow', {
-    //   readerId: readerInfo.value.id,
-    //   books: borrowList.value.map(b => ({ bookId: b.id, barcode: b.barcode })),
-    //   dueDate: dueDate.value
-    // })
+    // 为每本图书调用借阅API
+    const successCount = []
+    const failedBooks = []
 
-    // Mock延迟
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    for (const book of borrowList.value) {
+      try {
+        const res = await borrowBook({
+          readerId: readerInfo.value.id,
+          bookId: book.id,
+          remark: ''
+        })
 
-    ElMessage.success(`成功借出 ${borrowList.value.length} 本图书`)
+        if (res.code === 200) {
+          successCount.push(book.title)
+        } else {
+          failedBooks.push({ title: book.title, reason: res.message })
+        }
+      } catch (error) {
+        failedBooks.push({ title: book.title, reason: error.message || '未知错误' })
+      }
+    }
 
-    // 更新读者已借数量
-    readerInfo.value.borrowedCount += borrowList.value.length
+    // 显示结果
+    if (failedBooks.length === 0) {
+      ElMessage.success(`成功借出 ${successCount.length} 本图书`)
 
-    // 清空借阅清单
-    borrowList.value = []
-    bookBarcode.value = ''
+      // 更新读者已借数量
+      readerInfo.value.borrowedCount += successCount.length
 
+      // 清空借阅清单
+      borrowList.value = []
+      bookBarcode.value = ''
+    } else {
+      const successMsg = successCount.length > 0 ? `成功借出 ${successCount.length} 本，` : ''
+      const failedMsg = `${failedBooks.length} 本失败`
+      ElMessage.warning(`${successMsg}${failedMsg}`)
+
+      // 从借阅清单中移除成功的图书
+      borrowList.value = borrowList.value.filter((book) =>
+        failedBooks.some((fb) => fb.title === book.title)
+      )
+
+      // 更新读者已借数量
+      if (successCount.length > 0) {
+        readerInfo.value.borrowedCount += successCount.length
+      }
+    }
   } catch (error) {
-    ElMessage.error('借出失败，请重试')
+    console.error('借出失败:', error)
+    ElMessage.error(error.message || '借出失败，请重试')
   } finally {
     submitting.value = false
   }

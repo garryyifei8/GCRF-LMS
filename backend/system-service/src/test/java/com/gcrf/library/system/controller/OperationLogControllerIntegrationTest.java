@@ -1,6 +1,7 @@
 package com.gcrf.library.system.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.gcrf.library.common.test.BaseIntegrationTest;
 import com.gcrf.library.system.entity.OperationLog;
 import com.gcrf.library.system.mapper.OperationLogMapper;
 import org.junit.jupiter.api.AfterEach;
@@ -39,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional  // Rollback after each test
-class OperationLogControllerIntegrationTest {
+class OperationLogControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

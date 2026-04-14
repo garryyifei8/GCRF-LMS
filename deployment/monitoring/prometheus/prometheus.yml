@@ -1,27 +1,36 @@
 # GCRF Library Management System - Prometheus Configuration
-# Last Updated: 2025-11-01
+# Last Updated: 2025-12-01
 # Purpose: Monitor all services, infrastructure, and business metrics
 
 global:
-  scrape_interval: 15s      # 每15秒采集一次指标
-  evaluation_interval: 15s  # 每15秒评估一次告警规则
+  scrape_interval: 15s      # Scrape metrics every 15 seconds
+  evaluation_interval: 15s  # Evaluate alert rules every 15 seconds
   scrape_timeout: 10s
 
   external_labels:
     cluster: 'gcrf-library'
     environment: 'production'
 
-# Alertmanager configuration (optional, for Phase 4 later)
+# AlertManager configuration - sends alerts to AlertManager
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: []
-          # - alertmanager:9093  # Uncomment when AlertManager is deployed
+        - targets:
+            - alertmanager:9093
+      timeout: 10s
+      api_version: v2
+      path_prefix: /
+      scheme: http
 
-# Load rules once and periodically evaluate them
+# Load alert and recording rules
+# Rules are evaluated at the global evaluation_interval
 rule_files:
+  # Existing alert rules (legacy location)
   - "alerts/*.yml"
-  - "rules/*.yml"
+  # New organized rules
+  - "rules/service-alerts.yml"
+  - "rules/infrastructure-alerts.yml"
+  - "rules/business-alerts.yml"
 
 # Scrape configurations
 scrape_configs:

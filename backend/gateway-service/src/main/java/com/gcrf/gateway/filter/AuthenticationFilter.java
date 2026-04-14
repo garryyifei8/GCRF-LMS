@@ -1,8 +1,9 @@
 package com.gcrf.gateway.filter;
 
+import com.gcrf.gateway.service.TokenBlacklistService;
 import com.gcrf.library.common.utils.JwtUtil;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -24,6 +25,7 @@ import java.util.List;
  * <ul>
  *   <li>检查请求路径是否在白名单中</li>
  *   <li>验证JWT token有效性</li>
+ *   <li>检查token是否在黑名单中（已注销）</li>
  *   <li>提取用户信息并传递给下游服务</li>
  * </ul>
  *
@@ -32,10 +34,11 @@ import java.util.List;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class AuthenticationFilter implements GlobalFilter, Ordered {
 
-    @Autowired
-    private JwtUtil jwtUtil;
+    private final JwtUtil jwtUtil;
+    private final TokenBlacklistService tokenBlacklistService;
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
@@ -73,6 +76,12 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         String token = authHeader.substring(7);
 
         try {
+            // 检查token是否在黑名单中（已注销）
+            if (tokenBlacklistService.isBlacklisted(token)) {
+                log.warn("JWT token已被注销: path={}", path);
+                return unauthorized(exchange.getResponse(), "Token has been revoked");
+            }
+
             // 验证token
             if (!jwtUtil.validateToken(token)) {
                 log.warn("JWT token验证失败: path={}", path);

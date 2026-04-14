@@ -1,0 +1,34 @@
+# GCRF Library Management System - Security Definitions
+# 安全认证定义
+# 版本: 1.0.0
+
+components:
+  securitySchemes:
+    # JWT Bearer Token认证
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Token认证,格式: `Bearer {token}`
+        
+        获取Token:
+        1. POST /api/v1/auth/login (用户名密码登录)
+        2. 响应中获取 data.token
+        3. 在后续请求Header中添加: `Authorization: Bearer {token}`
+        
+        Token有效期: 24小时
+        刷新Token: POST /api/v1/auth/refresh
+
+    # API Key认证 (可选,用于服务间调用)
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API Key认证 (用于服务间调用)
+        格式: `X-API-Key: {api_key}`
+
+# 全局默认使用JWT认证
+security:
+  - BearerAuth: []

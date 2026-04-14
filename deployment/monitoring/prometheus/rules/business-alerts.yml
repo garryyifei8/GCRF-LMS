@@ -1,0 +1,577 @@
+# GCRF Library Management System - Business Alert Rules
+# Version: 1.0.0
+# Last Updated: 2025-12-01
+#
+# Purpose: Monitor business-critical operations and library-specific metrics
+# These rules focus on library management system operations: borrowing, returns, reservations
+
+groups:
+  # ========================================
+  # Circulation Service Alerts (Borrowing/Returns)
+  # ========================================
+  - name: circulation_alerts
+    interval: 1m
+    rules:
+      # High borrow failure rate
+      - alert: HighBorrowFailureRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job="circulation-service",
+              uri=~"/api/v1/circulation/borrow.*",
+              status=~"4..|5.."
+            }[10m]))
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job="circulation-service",
+              uri=~"/api/v1/circulation/borrow.*"
+            }[10m]))
+          ) * 100 > 10
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          team: development
+          service: circulation
+        annotations:
+          summary: "High book borrowing failure rate"
+          description: |
+            Failure Rate: {{ printf "%.1f" $value }}%
+            Threshold: 10%
+            Duration: 10 minutes
+            Impact: Readers unable to borrow books
+            Possible Causes: Inventory sync issues, database problems, validation errors
+            Action: Check circulation-service logs for error details
+
+      # Critical borrow failure rate
+      - alert: CriticalBorrowFailureRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job="circulation-service",
+              uri=~"/api/v1/circulation/borrow.*",
+              status=~"5.."
+            }[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job="circulation-service",
+              uri=~"/api/v1/circulation/borrow.*"
+            }[5m]))
+          ) * 100 > 25
+        for: 5m
+        labels:
+          severity: critical
+          category: business
+          team: development
+          service: circulation
+        annotations:
+          summary: "Critical book borrowing failure rate"
+          description: |
+            Server Error Rate: {{ printf "%.1f" $value }}%
+            Threshold: 25%
+            Duration: 5 minutes
+            Impact: Major disruption to borrowing operations
+            Action: Immediate investigation required
+
+      # Return processing errors
+      - alert: HighReturnFailureRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job="circulation-service",
+              uri=~"/api/v1/circulation/return.*",
+              status=~"4..|5.."
+            }[10m]))
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job="circulation-service",
+              uri=~"/api/v1/circulation/return.*"
+            }[10m]))
+          ) * 100 > 10
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          team: development
+          service: circulation
+        annotations:
+          summary: "High book return failure rate"
+          description: |
+            Failure Rate: {{ printf "%.1f" $value }}%
+            Threshold: 10%
+            Impact: Readers unable to return books
+            Possible Causes: Fine calculation errors, database issues
+
+      # Slow borrow processing
+      - alert: SlowBorrowProcessing
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket{
+              job="circulation-service",
+              uri=~"/api/v1/circulation/borrow.*"
+            }[5m])) by (le)
+          ) > 3
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+          team: development
+          service: circulation
+        annotations:
+          summary: "Slow book borrowing processing"
+          description: |
+            P95 Processing Time: {{ printf "%.2f" $value }}s
+            Threshold: 3s
+            Impact: Poor user experience at checkout
+            Recommendation: Check database queries, inventory lookups
+
+  # ========================================
+  # Reservation/Hold Alerts
+  # ========================================
+  - name: reservation_alerts
+    interval: 1m
+    rules:
+      # Reservation timeout - books not picked up
+      - alert: ReservationTimeoutHigh
+        expr: |
+          (
+            gcrf_reservations_expired_total
+            /
+            gcrf_reservations_created_total
+          ) * 100 > 30
+        for: 24h
+        labels:
+          severity: info
+          category: business
+          team: operations
+        annotations:
+          summary: "High reservation expiry rate"
+          description: |
+            Expiry Rate: {{ printf "%.1f" $value }}%
+            Threshold: 30%
+            Duration: 24 hours
+            Impact: Books held but not picked up, affecting availability
+            Recommendation: Review reservation hold period, send more reminders
+
+      # Pending reservations not processed
+      - alert: ReservationProcessingBacklog
+        expr: |
+          gcrf_reservations_pending > 100
+        for: 2h
+        labels:
+          severity: warning
+          category: business
+          team: operations
+        annotations:
+          summary: "Large backlog of pending reservations"
+          description: |
+            Pending Reservations: {{ $value }}
+            Threshold: 100
+            Duration: 2 hours
+            Impact: Readers waiting for book availability notifications
+            Action: Check reservation processing job status
+
+      # Reservation failure rate
+      - alert: HighReservationFailureRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job="circulation-service",
+              uri=~"/api/v1/reservations.*",
+              method="POST",
+              status=~"4..|5.."
+            }[10m]))
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job="circulation-service",
+              uri=~"/api/v1/reservations.*",
+              method="POST"
+            }[10m]))
+          ) * 100 > 15
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          team: development
+        annotations:
+          summary: "High reservation failure rate"
+          description: |
+            Failure Rate: {{ printf "%.1f" $value }}%
+            Threshold: 15%
+            Impact: Readers unable to reserve books
+            Action: Check reservation service logs
+
+  # ========================================
+  # Overdue Book Alerts
+  # ========================================
+  - name: overdue_alerts
+    interval: 5m
+    rules:
+      # Many overdue books
+      - alert: HighOverdueCount
+        expr: |
+          gcrf_books_overdue_total > 500
+        for: 24h
+        labels:
+          severity: info
+          category: business
+          team: operations
+        annotations:
+          summary: "High number of overdue books"
+          description: |
+            Overdue Books: {{ $value }}
+            Threshold: 500
+            Impact: Reduced book availability, increased fine revenue but poor UX
+            Action: Review reminder notification effectiveness
+
+      # Overdue rate increasing
+      - alert: OverdueRateIncreasing
+        expr: |
+          (
+            gcrf_books_overdue_total - gcrf_books_overdue_total offset 7d
+          ) / gcrf_books_overdue_total offset 7d * 100 > 20
+        for: 24h
+        labels:
+          severity: warning
+          category: business
+          team: operations
+        annotations:
+          summary: "Overdue book rate increasing significantly"
+          description: |
+            Week-over-Week Increase: {{ printf "%.1f" $value }}%
+            Threshold: 20%
+            Recommendation: Review notification system, consider policy changes
+
+      # Overdue notifications failing
+      - alert: OverdueNotificationFailure
+        expr: |
+          (
+            sum(rate(gcrf_notifications_failed_total{type="overdue"}[1h]))
+            /
+            sum(rate(gcrf_notifications_sent_total{type="overdue"}[1h]))
+          ) * 100 > 10
+        for: 1h
+        labels:
+          severity: warning
+          category: business
+          team: development
+        annotations:
+          summary: "Overdue notifications failing"
+          description: |
+            Notification Failure Rate: {{ printf "%.1f" $value }}%
+            Threshold: 10%
+            Impact: Readers not receiving overdue reminders
+            Action: Check notification-service and email/SMS providers
+
+  # ========================================
+  # Fine Management Alerts
+  # ========================================
+  - name: fine_alerts
+    interval: 5m
+    rules:
+      # Fine calculation errors
+      - alert: FineCalculationErrors
+        expr: |
+          sum(rate(http_server_requests_seconds_count{
+            job="circulation-service",
+            uri=~"/api/v1/fines.*",
+            status=~"5.."
+          }[10m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          team: development
+        annotations:
+          summary: "Fine calculation errors occurring"
+          description: |
+            Error Rate: {{ printf "%.2f" $value }}/s
+            Impact: Incorrect fines may be charged
+            Action: Check fine calculation logic and database
+
+      # High unpaid fine amount
+      - alert: HighUnpaidFines
+        expr: |
+          gcrf_fines_unpaid_total_amount > 10000
+        for: 7d
+        labels:
+          severity: info
+          category: business
+          team: operations
+        annotations:
+          summary: "High total unpaid fines"
+          description: |
+            Total Unpaid: {{ $value }} CNY
+            Threshold: 10,000 CNY
+            Impact: Revenue collection issue
+            Recommendation: Review collection procedures
+
+  # ========================================
+  # Book Inventory Alerts
+  # ========================================
+  - name: inventory_alerts
+    interval: 5m
+    rules:
+      # Low book availability
+      - alert: LowBookAvailability
+        expr: |
+          (
+            sum(gcrf_books_available_total)
+            /
+            sum(gcrf_books_total)
+          ) * 100 < 20
+        for: 1h
+        labels:
+          severity: warning
+          category: business
+          team: operations
+        annotations:
+          summary: "Low overall book availability"
+          description: |
+            Availability Rate: {{ printf "%.1f" $value }}%
+            Threshold: 20%
+            Duration: 1 hour
+            Impact: Many readers unable to find available books
+            Recommendation: Review return reminders, consider procurement
+
+      # Inventory sync errors
+      - alert: InventorySyncErrors
+        expr: |
+          sum(rate(gcrf_inventory_sync_errors_total[10m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          team: development
+        annotations:
+          summary: "Inventory sync errors occurring"
+          description: |
+            Error Rate: {{ printf "%.2f" $value }}/s
+            Impact: Book availability may be incorrect
+            Action: Check inventory sync job logs
+
+      # Book search failures
+      - alert: BookSearchFailures
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job="book-service",
+              uri=~"/api/v1/books/search.*",
+              status=~"5.."
+            }[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job="book-service",
+              uri=~"/api/v1/books/search.*"
+            }[5m]))
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: business
+          team: development
+        annotations:
+          summary: "Book search service errors"
+          description: |
+            Error Rate: {{ printf "%.1f" $value }}%
+            Impact: Readers unable to search for books
+            Action: Check Elasticsearch connection and book-service
+
+  # ========================================
+  # Reader Service Alerts
+  # ========================================
+  - name: reader_alerts
+    interval: 1m
+    rules:
+      # Reader registration failures
+      - alert: ReaderRegistrationFailures
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job="reader-service",
+              uri=~"/api/v1/readers.*",
+              method="POST",
+              status=~"4..|5.."
+            }[10m]))
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job="reader-service",
+              uri=~"/api/v1/readers.*",
+              method="POST"
+            }[10m]))
+          ) * 100 > 10
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          team: development
+        annotations:
+          summary: "Reader registration failure rate high"
+          description: |
+            Failure Rate: {{ printf "%.1f" $value }}%
+            Impact: New readers unable to register
+            Action: Check validation rules and database
+
+      # Reader card generation failures
+      - alert: ReaderCardGenerationFailures
+        expr: |
+          sum(rate(gcrf_reader_card_generation_errors_total[10m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          team: development
+        annotations:
+          summary: "Reader card generation errors"
+          description: |
+            Error Rate: {{ printf "%.2f" $value }}/s
+            Impact: New readers not receiving cards
+            Action: Check card generation service
+
+  # ========================================
+  # Authentication Alerts
+  # ========================================
+  - name: auth_alerts
+    interval: 1m
+    rules:
+      # High login failure rate
+      - alert: HighLoginFailureRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job="auth-service",
+              uri=~"/api/v1/auth/login.*",
+              status=~"401|403"
+            }[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job="auth-service",
+              uri=~"/api/v1/auth/login.*"
+            }[5m]))
+          ) * 100 > 50
+        for: 10m
+        labels:
+          severity: warning
+          category: security
+          team: security
+        annotations:
+          summary: "High login failure rate"
+          description: |
+            Failure Rate: {{ printf "%.1f" $value }}%
+            Threshold: 50%
+            Duration: 10 minutes
+            Possible Causes: Brute force attack, mass password expiry
+            Action: Check for attack patterns, review failed IPs
+
+      # Login service errors
+      - alert: LoginServiceErrors
+        expr: |
+          sum(rate(http_server_requests_seconds_count{
+            job="auth-service",
+            uri=~"/api/v1/auth/login.*",
+            status=~"5.."
+          }[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: critical
+          category: business
+          team: development
+        annotations:
+          summary: "Login service experiencing errors"
+          description: |
+            Error Rate: {{ printf "%.2f" $value }}/s
+            Impact: Users unable to login
+            Action: Check auth-service logs immediately
+
+      # Token refresh failures
+      - alert: TokenRefreshFailures
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job="auth-service",
+              uri=~"/api/v1/auth/refresh.*",
+              status=~"5.."
+            }[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job="auth-service",
+              uri=~"/api/v1/auth/refresh.*"
+            }[5m]))
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: business
+          team: development
+        annotations:
+          summary: "Token refresh failures occurring"
+          description: |
+            Failure Rate: {{ printf "%.1f" $value }}%
+            Impact: Users may be forced to re-login frequently
+            Action: Check JWT configuration and Redis cache
+
+  # ========================================
+  # Notification Service Alerts
+  # ========================================
+  - name: notification_alerts
+    interval: 1m
+    rules:
+      # Email notification failures
+      - alert: EmailNotificationFailures
+        expr: |
+          (
+            sum(rate(gcrf_notifications_failed_total{channel="email"}[10m]))
+            /
+            sum(rate(gcrf_notifications_sent_total{channel="email"}[10m]))
+          ) * 100 > 10
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          team: development
+        annotations:
+          summary: "Email notification failures"
+          description: |
+            Failure Rate: {{ printf "%.1f" $value }}%
+            Threshold: 10%
+            Impact: Readers not receiving email notifications
+            Action: Check SMTP configuration and provider status
+
+      # SMS notification failures
+      - alert: SMSNotificationFailures
+        expr: |
+          (
+            sum(rate(gcrf_notifications_failed_total{channel="sms"}[10m]))
+            /
+            sum(rate(gcrf_notifications_sent_total{channel="sms"}[10m]))
+          ) * 100 > 15
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          team: development
+        annotations:
+          summary: "SMS notification failures"
+          description: |
+            Failure Rate: {{ printf "%.1f" $value }}%
+            Threshold: 15%
+            Impact: Readers not receiving SMS notifications
+            Action: Check SMS provider balance and API status
+
+      # Notification queue backlog
+      - alert: NotificationQueueBacklog
+        expr: |
+          gcrf_notification_queue_size > 1000
+        for: 30m
+        labels:
+          severity: warning
+          category: business
+          team: development
+        annotations:
+          summary: "Large notification queue backlog"
+          description: |
+            Queue Size: {{ $value }}
+            Threshold: 1000
+            Duration: 30 minutes
+            Impact: Delayed notifications to readers
+            Action: Check notification-service processing capacity

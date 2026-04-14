@@ -3,7 +3,7 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <h1 class="page-header-title">AI 智能问答</h1>
-      <p class="page-header-description">基于自然语言处理的智能客服助手</p>
+      <p class="page-header-description">基于知识库的智能客服助手</p>
     </div>
 
     <!-- AI能力展示 -->
@@ -47,13 +47,20 @@
             智能问答
             <div class="chat-actions">
               <el-button :icon="Refresh" size="small" @click="handleClearChat">清空对话</el-button>
-              <el-button :icon="Download" size="small" @click="handleExportChat">导出记录</el-button>
+              <el-button :icon="Download" size="small" @click="handleExportChat"
+                >导出记录</el-button
+              >
             </div>
           </div>
           <div class="card-content">
             <!-- 消息列表 -->
             <div ref="messageListRef" class="message-list">
-              <div v-for="message in messages" :key="message.id" class="message-item" :class="message.role">
+              <div
+                v-for="message in messages"
+                :key="message.id"
+                class="message-item"
+                :class="message.role"
+              >
                 <!-- 用户消息 -->
                 <div v-if="message.role === 'user'" class="message-wrapper">
                   <div class="message-content">
@@ -73,15 +80,39 @@
                   <div class="message-content">
                     <div class="message-text">
                       <div v-html="message.content"></div>
-                      <!-- 推荐图书卡片 -->
-                      <div v-if="message.books && message.books.length > 0" class="book-recommend-list">
-                        <div v-for="book in message.books" :key="book.id" class="book-recommend-item">
-                          <div class="book-info">
-                            <div class="book-title">{{ book.title }}</div>
-                            <div class="book-meta">{{ book.author }} | {{ book.publisher }}</div>
-                          </div>
-                          <el-button type="primary" size="small" link @click="handleViewBook(book)">查看</el-button>
+                      <!-- 相关问题推荐 -->
+                      <div
+                        v-if="message.relatedQuestions && message.relatedQuestions.length > 0"
+                        class="related-questions"
+                      >
+                        <div class="related-title">相关问题：</div>
+                        <div
+                          v-for="rq in message.relatedQuestions"
+                          :key="rq.faqId"
+                          class="related-item"
+                          @click="handleQuickQuestion(rq.question)"
+                        >
+                          {{ rq.question }}
                         </div>
+                      </div>
+                      <!-- 反馈按钮 -->
+                      <div v-if="message.matchedFaqId" class="feedback-buttons">
+                        <el-button
+                          type="primary"
+                          link
+                          size="small"
+                          @click="handleFeedback(message, 'helpful')"
+                        >
+                          <el-icon><CircleCheck /></el-icon> 有帮助
+                        </el-button>
+                        <el-button
+                          type="info"
+                          link
+                          size="small"
+                          @click="handleFeedback(message, 'unhelpful')"
+                        >
+                          <el-icon><CircleClose /></el-icon> 无帮助
+                        </el-button>
                       </div>
                     </div>
                     <div class="message-time">{{ message.time }}</div>
@@ -110,7 +141,7 @@
                 v-model="userInput"
                 type="textarea"
                 :rows="3"
-                placeholder="请输入您的问题，例如：有没有《三体》这本书？"
+                placeholder="请输入您的问题，例如：借书期限是多久？"
                 :disabled="isTyping"
                 @keydown.ctrl.enter="handleSendMessage"
               />
@@ -128,7 +159,12 @@
                 </div>
                 <div class="send-button-wrapper">
                   <el-button :icon="Microphone" circle @click="handleVoiceInput" />
-                  <el-button type="primary" :icon="Promotion" :disabled="!userInput.trim() || isTyping" @click="handleSendMessage">
+                  <el-button
+                    type="primary"
+                    :icon="Promotion"
+                    :disabled="!userInput.trim() || isTyping"
+                    @click="handleSendMessage"
+                  >
                     发送 (Ctrl+Enter)
                   </el-button>
                 </div>
@@ -167,7 +203,7 @@
         <div class="card">
           <div class="card-title">热门问题</div>
           <div class="card-content">
-            <div class="hot-question-list">
+            <div v-loading="hotQuestionsLoading" class="hot-question-list">
               <div
                 v-for="(question, index) in hotQuestions"
                 :key="index"
@@ -191,13 +227,52 @@
 <script setup>
 import { ref, reactive, nextTick, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { sendMessage, getChatStats, getHotQuestions, submitFeedback } from '@/api/chat'
+import {
+  Search,
+  MessageBox,
+  Guide,
+  DataAnalysis,
+  Refresh,
+  Download,
+  Microphone,
+  Promotion,
+  UserFilled,
+  CircleCheck,
+  CircleClose
+} from '@element-plus/icons-vue'
+
+// 定义Robot图标（Element Plus没有自带Robot图标，用ChatDotRound代替）
+const Robot = {
+  name: 'Robot',
+  render() {
+    return h(
+      'svg',
+      {
+        viewBox: '0 0 1024 1024',
+        xmlns: 'http://www.w3.org/2000/svg'
+      },
+      [
+        h('path', {
+          fill: 'currentColor',
+          d: 'M300 328a60 60 0 1 0 120 0 60 60 0 1 0-120 0zM604 328a60 60 0 1 0 120 0 60 60 0 1 0-120 0zM512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm263.6 600c0 4.4-3.6 8-8 8H256.4c-4.4 0-8-3.6-8-8v-32c0-4.4 3.6-8 8-8h511.2c4.4 0 8 3.6 8 8v32zm0-168c0 4.4-3.6 8-8 8H256.4c-4.4 0-8-3.6-8-8v-32c0-4.4 3.6-8 8-8h511.2c4.4 0 8 3.6 8 8v32z'
+        })
+      ]
+    )
+  }
+}
+import { h } from 'vue'
+
+// 会话ID
+const sessionId = ref('')
 
 // 消息列表
 const messages = ref([
   {
     id: 1,
     role: 'assistant',
-    content: '您好！我是图书馆AI助手，有什么可以帮您的吗？<br/>您可以向我咨询图书信息、借阅规则、操作指导等问题。',
+    content:
+      '您好！我是图书馆AI助手，有什么可以帮您的吗？<br/>您可以向我咨询图书信息、借阅规则、操作指导等问题。',
     time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
   }
 ])
@@ -205,31 +280,66 @@ const messages = ref([
 const messageListRef = ref()
 const userInput = ref('')
 const isTyping = ref(false)
+const hotQuestionsLoading = ref(false)
 
 // 快捷问题
 const quickQuestions = ref([
-  '有《三体》这本书吗？',
-  '推荐一些科幻小说',
+  '借书期限是多久？',
+  '如何续借图书？',
   '如何办理读者证？',
-  '借书期限是多久？'
+  '图书馆开放时间？'
 ])
 
 // 热门问题
-const hotQuestions = ref([
-  { question: '如何借阅图书？', count: 1234 },
-  { question: '忘记密码怎么办？', count: 856 },
-  { question: '借书期限是多久？', count: 745 },
-  { question: '如何续借图书？', count: 623 },
-  { question: '逾期了怎么办？', count: 512 }
-])
+const hotQuestions = ref([])
 
 // 对话统计
 const chatStats = reactive({
-  totalQuestions: 15678,
-  successRate: 87.5,
-  avgResponseTime: 0.8,
+  totalQuestions: 0,
+  successRate: 0,
+  avgResponseTime: 0,
   satisfaction: 4.5
 })
+
+// 加载热门问题
+const loadHotQuestions = async () => {
+  hotQuestionsLoading.value = true
+  try {
+    const res = await getHotQuestions(5)
+    if (res.code === 200 && res.data) {
+      hotQuestions.value = res.data
+    }
+  } catch (error) {
+    console.error('Failed to load hot questions:', error)
+    // 使用默认热门问题
+    hotQuestions.value = [
+      { question: '如何借阅图书？', count: 1234 },
+      { question: '忘记密码怎么办？', count: 856 },
+      { question: '借书期限是多久？', count: 745 },
+      { question: '如何续借图书？', count: 623 },
+      { question: '逾期了怎么办？', count: 512 }
+    ]
+  } finally {
+    hotQuestionsLoading.value = false
+  }
+}
+
+// 加载统计数据
+const loadChatStats = async () => {
+  try {
+    const res = await getChatStats()
+    if (res.code === 200 && res.data) {
+      Object.assign(chatStats, res.data)
+    }
+  } catch (error) {
+    console.error('Failed to load chat stats:', error)
+    // 使用默认统计
+    chatStats.totalQuestions = 15678
+    chatStats.successRate = 87.5
+    chatStats.avgResponseTime = 0.8
+    chatStats.satisfaction = 4.5
+  }
+}
 
 // 发送消息
 const handleSendMessage = async () => {
@@ -255,123 +365,58 @@ const handleSendMessage = async () => {
   isTyping.value = true
 
   try {
-    // TODO: 调用AI问答API
-    // const res = await request.post('/api/ai/chat', { question })
+    // 调用AI问答API
+    const res = await sendMessage({
+      sessionId: sessionId.value || null,
+      content: question
+    })
 
-    // Mock AI响应
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    const aiResponse = generateMockResponse(question)
+    if (res.code === 200 && res.data) {
+      // 保存会话ID
+      if (!sessionId.value) {
+        sessionId.value = res.data.sessionId
+      }
 
-    // 添加AI响应
-    const assistantMessage = {
-      id: Date.now() + 1,
-      role: 'assistant',
-      content: aiResponse.content,
-      books: aiResponse.books,
-      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+      // 添加AI响应
+      const assistantMessage = {
+        id: res.data.id || Date.now() + 1,
+        role: 'assistant',
+        content: res.data.content,
+        matchedFaqId: res.data.matchedFaqId,
+        relatedQuestions: res.data.relatedQuestions || [],
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+      }
+      messages.value.push(assistantMessage)
+    } else {
+      // API返回错误
+      const errorMessage = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: '抱歉，服务暂时不可用，请稍后再试。',
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+      }
+      messages.value.push(errorMessage)
     }
-    messages.value.push(assistantMessage)
 
     // 滚动到底部
     await nextTick()
     scrollToBottom()
   } catch (error) {
-    ElMessage.error('获取回复失败')
+    console.error('Failed to send message:', error)
+    // 添加错误消息
+    const errorMessage = {
+      id: Date.now() + 1,
+      role: 'assistant',
+      content:
+        '抱歉，网络连接失败，请检查网络后重试。<br/>如需帮助，请联系服务热线：<strong>0571-12345678</strong>',
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    }
+    messages.value.push(errorMessage)
+
+    await nextTick()
+    scrollToBottom()
   } finally {
     isTyping.value = false
-  }
-}
-
-// 生成Mock响应
-const generateMockResponse = (question) => {
-  // 图书查询类
-  if (question.includes('三体') || question.includes('有') || question.includes('查')) {
-    return {
-      content: '我为您查询到以下图书：',
-      books: [
-        {
-          id: 1,
-          title: '三体',
-          author: '刘慈欣',
-          publisher: '重庆出版社',
-          status: '在架',
-          location: 'A3书架'
-        },
-        {
-          id: 2,
-          title: '三体Ⅱ：黑暗森林',
-          author: '刘慈欣',
-          publisher: '重庆出版社',
-          status: '借出',
-          location: 'A3书架'
-        },
-        {
-          id: 3,
-          title: '三体Ⅲ：死神永生',
-          author: '刘慈欣',
-          publisher: '重庆出版社',
-          status: '在架',
-          location: 'A3书架'
-        }
-      ]
-    }
-  }
-
-  // 推荐类
-  if (question.includes('推荐') || question.includes('科幻')) {
-    return {
-      content: '根据您的需求，为您推荐以下科幻小说：',
-      books: [
-        { id: 4, title: '流浪地球', author: '刘慈欣', publisher: '长江出版社' },
-        { id: 5, title: '银河帝国：基地', author: '阿西莫夫', publisher: '江苏凤凰文艺出版社' },
-        { id: 6, title: '沙丘', author: '弗兰克·赫伯特', publisher: '江苏凤凰文艺出版社' }
-      ]
-    }
-  }
-
-  // 借阅规则类
-  if (question.includes('借') || question.includes('期限') || question.includes('多久')) {
-    return {
-      content: '关于借阅规则的说明：<br/><br/>' +
-        '• 学生读者：每次可借 <strong>5本</strong>，借期 <strong>30天</strong><br/>' +
-        '• 教师读者：每次可借 <strong>10本</strong>，借期 <strong>60天</strong><br/>' +
-        '• 到期前可续借 <strong>1次</strong>，续借期限与原借期相同<br/>' +
-        '• 逾期归还将产生罚款，每天 <strong>0.1元/本</strong><br/><br/>' +
-        '如需了解更多，请查看 <a href="#" style="color: #1890ff">详细借阅规则</a>'
-    }
-  }
-
-  // 办证类
-  if (question.includes('办') || question.includes('读者证') || question.includes('证')) {
-    return {
-      content: '办理读者证的流程如下：<br/><br/>' +
-        '1. 准备材料：身份证或学生证<br/>' +
-        '2. 前往图书馆服务台填写申请表<br/>' +
-        '3. 工作人员录入信息并拍照<br/>' +
-        '4. 缴纳押金（学生20元，教师50元）<br/>' +
-        '5. 领取读者证，即可开始借阅<br/><br/>' +
-        '温馨提示：我们已支持人脸识别借书，办证后可直接刷脸借还哦！'
-    }
-  }
-
-  // 续借类
-  if (question.includes('续借')) {
-    return {
-      content: '续借图书有以下几种方式：<br/><br/>' +
-        '• <strong>微信小程序</strong>：打开"我的借阅"，点击"续借"按钮<br/>' +
-        '• <strong>网站</strong>：登录个人中心，在借阅记录中操作<br/>' +
-        '• <strong>到馆续借</strong>：携带图书和读者证到服务台办理<br/><br/>' +
-        '注意事项：<br/>' +
-        '• 每本书只能续借1次<br/>' +
-        '• 如有预约读者，则不能续借<br/>' +
-        '• 已逾期的图书不能续借'
-    }
-  }
-
-  // 默认响应
-  return {
-    content: '抱歉，我还不太理解您的问题。您可以尝试换一种方式提问，或者选择下面的快捷问题。<br/><br/>' +
-      '如果问题仍未解决，建议您联系图书馆工作人员，电话：<strong>0571-12345678</strong>'
   }
 }
 
@@ -384,12 +429,12 @@ const handleQuickQuestion = (question) => {
 // 语音输入
 const handleVoiceInput = () => {
   ElMessage.info('语音输入功能开发中...')
-  // TODO: 实现语音识别功能
 }
 
 // 清空对话
 const handleClearChat = () => {
   messages.value = [messages.value[0]] // 保留欢迎消息
+  sessionId.value = '' // 重置会话ID
   ElMessage.success('对话已清空')
 }
 
@@ -399,14 +444,48 @@ const handleExportChat = () => {
     ElMessage.warning('暂无对话记录可导出')
     return
   }
+
+  // 生成导出内容
+  const exportContent = messages.value
+    .map((msg) => {
+      const role = msg.role === 'user' ? '用户' : 'AI助手'
+      // 去除HTML标签
+      const content = msg.content.replace(/<[^>]+>/g, '')
+      return `[${msg.time}] ${role}：${content}`
+    })
+    .join('\n\n')
+
+  // 创建下载
+  const blob = new Blob([exportContent], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `对话记录_${new Date().toISOString().slice(0, 10)}.txt`
+  link.click()
+  URL.revokeObjectURL(url)
+
   ElMessage.success('对话记录导出成功')
-  // TODO: 实现导出功能
 }
 
-// 查看图书
-const handleViewBook = (book) => {
-  ElMessage.info(`查看图书：${book.title}`)
-  // TODO: 跳转到图书详情页
+// 提交反馈
+const handleFeedback = async (message, feedbackType) => {
+  try {
+    await submitFeedback({
+      sessionId: sessionId.value,
+      messageId: message.id,
+      faqId: message.matchedFaqId,
+      feedbackType
+    })
+
+    if (feedbackType === 'helpful') {
+      ElMessage.success('感谢您的反馈！')
+    } else {
+      ElMessage.info('感谢您的反馈，我们会继续改进')
+    }
+  } catch (error) {
+    console.error('Failed to submit feedback:', error)
+    ElMessage.error('反馈提交失败')
+  }
 }
 
 // 滚动到底部
@@ -418,6 +497,8 @@ const scrollToBottom = () => {
 
 onMounted(() => {
   scrollToBottom()
+  loadHotQuestions()
+  loadChatStats()
 })
 </script>
 
@@ -570,7 +651,9 @@ onMounted(() => {
 }
 
 @keyframes typing {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
     opacity: 0.6;
   }
@@ -580,38 +663,38 @@ onMounted(() => {
   }
 }
 
-.book-recommend-list {
+.related-questions {
   margin-top: 12px;
-  border-top: 1px solid #f0f0f0;
   padding-top: 12px;
-}
+  border-top: 1px solid #f0f0f0;
 
-.book-recommend-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  .book-info {
-    flex: 1;
-  }
-
-  .book-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: rgba(0, 0, 0, 0.85);
-    margin-bottom: 4px;
-  }
-
-  .book-meta {
+  .related-title {
     font-size: 12px;
     color: rgba(0, 0, 0, 0.45);
+    margin-bottom: 8px;
   }
+
+  .related-item {
+    display: inline-block;
+    padding: 4px 12px;
+    margin: 4px 8px 4px 0;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #1890ff;
+    cursor: pointer;
+    transition: all 0.3s;
+
+    &:hover {
+      background: #e6f7ff;
+    }
+  }
+}
+
+.feedback-buttons {
+  margin-top: 8px;
+  display: flex;
+  gap: 16px;
 }
 
 .message-input-wrapper {

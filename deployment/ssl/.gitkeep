@@ -1,0 +1,9 @@
+# This directory stores SSL certificates
+# Do NOT commit actual certificate files to git
+# Use generate-ssl-cert.sh to create certificates
+
+# Required files:
+# - fullchain.pem  (Certificate + intermediate)
+# - privkey.pem    (Private key)
+# - chain.pem      (Certificate chain)
+# - dhparam.pem    (DH parameters)

@@ -1,5 +1,6 @@
 package com.gcrf.library.auth.integration;
 
+import com.gcrf.library.common.test.BaseIntegrationTest;
 import com.gcrf.library.common.utils.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -43,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         "jwt.secret=gcrf-library-management-system-jwt-secret-key-2025",
         "jwt.expiration=7200000"
 })
-class JwtTokenFlowIntegrationTest {
+class JwtTokenFlowIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private JwtUtil jwtUtil;

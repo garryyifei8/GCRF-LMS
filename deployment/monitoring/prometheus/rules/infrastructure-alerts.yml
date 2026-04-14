@@ -1,0 +1,600 @@
+# GCRF Library Management System - Infrastructure Alert Rules
+# Version: 1.0.0
+# Last Updated: 2025-12-01
+#
+# Purpose: Monitor infrastructure components including servers, databases, and cache
+# These rules focus on system-level metrics from Node Exporter and database exporters
+
+groups:
+  # ========================================
+  # CPU Usage Alerts
+  # ========================================
+  - name: cpu_alerts
+    interval: 30s
+    rules:
+      # CPU usage > 80% (warning)
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+          team: infrastructure
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            CPU Usage: {{ printf "%.1f" $value }}%
+            Threshold: 80%
+            Duration: 5 minutes
+            Recommendation: Check process list with 'top' command, consider scaling
+
+      # CPU usage > 90% (critical)
+      - alert: CriticalCPUUsage
+        expr: |
+          100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 3m
+        labels:
+          severity: critical
+          category: resource
+          team: infrastructure
+        annotations:
+          summary: "Critical CPU usage on {{ $labels.instance }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            CPU Usage: {{ printf "%.1f" $value }}%
+            Threshold: 90%
+            Duration: 3 minutes
+            Impact: System may become unresponsive
+            Action: Immediate investigation required
+
+      # CPU load average high
+      - alert: HighLoadAverage
+        expr: |
+          node_load15 / count without (cpu) (node_cpu_seconds_total{mode="idle"}) > 2
+        for: 15m
+        labels:
+          severity: warning
+          category: resource
+          team: infrastructure
+        annotations:
+          summary: "High load average on {{ $labels.instance }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            Load Average (15m): {{ printf "%.2f" $value }} per CPU core
+            Threshold: 2.0 per core
+            Duration: 15 minutes
+
+  # ========================================
+  # Memory Usage Alerts
+  # ========================================
+  - name: memory_alerts
+    interval: 30s
+    rules:
+      # Memory usage > 85% (warning)
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+          team: infrastructure
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            Memory Usage: {{ printf "%.1f" $value }}%
+            Threshold: 85%
+            Duration: 5 minutes
+            Available: {{ with query "node_memory_MemAvailable_bytes" }}{{ . | first | value | humanize1024 }}B{{ end }}
+            Total: {{ with query "node_memory_MemTotal_bytes" }}{{ . | first | value | humanize1024 }}B{{ end }}
+            Recommendation: Check for memory leaks, consider scaling
+
+      # Memory usage > 95% (critical)
+      - alert: CriticalMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: resource
+          team: infrastructure
+        annotations:
+          summary: "Critical memory usage on {{ $labels.instance }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            Memory Usage: {{ printf "%.1f" $value }}%
+            Threshold: 95%
+            Duration: 2 minutes
+            Impact: OOM Killer may terminate processes
+            Action: Immediate investigation required
+
+      # OOM killer invoked
+      - alert: OOMKillerInvoked
+        expr: |
+          increase(node_vmstat_oom_kill[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: resource
+          team: infrastructure
+        annotations:
+          summary: "OOM Killer invoked on {{ $labels.instance }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            Event: OOM Killer has terminated process(es)
+            Impact: Services may be unexpectedly terminated
+            Action: Check dmesg for killed process, investigate memory consumption
+
+  # ========================================
+  # Disk Usage Alerts
+  # ========================================
+  - name: disk_alerts
+    interval: 1m
+    rules:
+      # Disk usage > 80% (warning)
+      - alert: HighDiskUsage
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"})) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          category: resource
+          team: infrastructure
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            Mount Point: {{ $labels.mountpoint }}
+            Disk Usage: {{ printf "%.1f" $value }}%
+            Threshold: 80%
+            Device: {{ $labels.device }}
+            Recommendation: Clean up logs, temporary files, or expand disk
+
+      # Disk usage > 90% (critical)
+      - alert: CriticalDiskUsage
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"})) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          category: resource
+          team: infrastructure
+        annotations:
+          summary: "Critical disk usage on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            Mount Point: {{ $labels.mountpoint }}
+            Disk Usage: {{ printf "%.1f" $value }}%
+            Threshold: 90%
+            Impact: Write operations may fail
+            Action: Immediate disk cleanup required
+
+      # Disk will fill in 24 hours
+      - alert: DiskWillFillSoon
+        expr: |
+          predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"}[6h], 24*3600) < 0
+          AND
+          node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} > 0
+        for: 30m
+        labels:
+          severity: warning
+          category: resource
+          team: infrastructure
+        annotations:
+          summary: "Disk will fill in 24 hours on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            Mount Point: {{ $labels.mountpoint }}
+            Prediction: Based on current growth rate, disk will be full in ~24 hours
+            Action: Plan for cleanup or disk expansion
+
+      # High disk I/O utilization
+      - alert: HighDiskIOUtilization
+        expr: |
+          rate(node_disk_io_time_seconds_total[5m]) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          category: performance
+          team: infrastructure
+        annotations:
+          summary: "High disk I/O utilization on {{ $labels.instance }}:{{ $labels.device }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            Device: {{ $labels.device }}
+            I/O Utilization: {{ printf "%.1f" $value }}%
+            Threshold: 80%
+            Duration: 10 minutes
+            Recommendation: Check for I/O intensive processes
+
+      # Inode usage high
+      - alert: HighInodeUsage
+        expr: |
+          (1 - (node_filesystem_files_free{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_files{fstype!~"tmpfs|overlay|squashfs"})) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          category: resource
+          team: infrastructure
+        annotations:
+          summary: "High inode usage on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            Mount Point: {{ $labels.mountpoint }}
+            Inode Usage: {{ printf "%.1f" $value }}%
+            Threshold: 80%
+            Recommendation: Delete small files or empty directories
+
+  # ========================================
+  # Network Alerts
+  # ========================================
+  - name: network_alerts
+    interval: 30s
+    rules:
+      # Network interface down
+      - alert: NetworkInterfaceDown
+        expr: |
+          node_network_up{device!~"lo|docker.*|veth.*|br-.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: network
+          team: infrastructure
+        annotations:
+          summary: "Network interface down on {{ $labels.instance }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            Interface: {{ $labels.device }}
+            Status: DOWN
+            Duration: 2 minutes
+            Impact: Network connectivity affected
+
+      # High network bandwidth usage
+      - alert: HighNetworkBandwidth
+        expr: |
+          rate(node_network_receive_bytes_total{device!~"lo|docker.*|veth.*"}[5m]) > 100 * 1024 * 1024
+        for: 10m
+        labels:
+          severity: info
+          category: network
+          team: infrastructure
+        annotations:
+          summary: "High network receive bandwidth on {{ $labels.instance }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            Interface: {{ $labels.device }}
+            Receive Rate: {{ $value | humanize1024 }}B/s
+            Threshold: 100MB/s
+            Duration: 10 minutes
+
+      # Network errors
+      - alert: NetworkErrors
+        expr: |
+          rate(node_network_receive_errs_total[5m]) > 0.1 OR rate(node_network_transmit_errs_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: network
+          team: infrastructure
+        annotations:
+          summary: "Network errors detected on {{ $labels.instance }}"
+          description: |
+            Instance: {{ $labels.instance }}
+            Interface: {{ $labels.device }}
+            Error Rate: > 0.1/s
+            Recommendation: Check cable connections and network hardware
+
+  # ========================================
+  # PostgreSQL Alerts
+  # ========================================
+  - name: postgresql_alerts
+    interval: 30s
+    rules:
+      # PostgreSQL down
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+          team: dba
+        annotations:
+          summary: "PostgreSQL is down"
+          description: |
+            Instance: {{ $labels.instance }}
+            Status: Database is unreachable
+            Duration: 1 minute
+            Impact: All database operations failing
+            Action: Check PostgreSQL process and logs
+
+      # High connection usage
+      - alert: PostgreSQLHighConnections
+        expr: |
+          (sum(pg_stat_activity_count) by (instance) / pg_settings_max_connections) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+          team: dba
+        annotations:
+          summary: "PostgreSQL connection usage is high"
+          description: |
+            Instance: {{ $labels.instance }}
+            Connection Usage: {{ printf "%.1f" $value }}%
+            Threshold: 80%
+            Recommendation: Check for connection leaks, increase max_connections if needed
+
+      # Connection pool exhaustion
+      - alert: PostgreSQLConnectionPoolExhausted
+        expr: |
+          (sum(pg_stat_activity_count) by (instance) / pg_settings_max_connections) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: database
+          team: dba
+        annotations:
+          summary: "PostgreSQL connections nearly exhausted"
+          description: |
+            Instance: {{ $labels.instance }}
+            Connection Usage: {{ printf "%.1f" $value }}%
+            Impact: New connections will be rejected
+            Action: Terminate idle connections, investigate connection leaks
+
+      # Deadlocks detected
+      - alert: PostgreSQLDeadlocks
+        expr: |
+          rate(pg_stat_database_deadlocks[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          category: database
+          team: dba
+        annotations:
+          summary: "PostgreSQL deadlocks detected"
+          description: |
+            Database: {{ $labels.datname }}
+            Deadlock Rate: {{ printf "%.2f" $value }}/s
+            Impact: Transaction conflicts causing failures
+            Recommendation: Review transaction isolation levels and lock order
+
+      # Low cache hit ratio
+      - alert: PostgreSQLLowCacheHitRatio
+        expr: |
+          (
+            sum(pg_stat_database_blks_hit) by (datname)
+            /
+            (sum(pg_stat_database_blks_hit) by (datname) + sum(pg_stat_database_blks_read) by (datname))
+          ) * 100 < 90
+        for: 15m
+        labels:
+          severity: warning
+          category: performance
+          team: dba
+        annotations:
+          summary: "PostgreSQL cache hit ratio is low"
+          description: |
+            Database: {{ $labels.datname }}
+            Cache Hit Ratio: {{ printf "%.1f" $value }}%
+            Target: > 95%
+            Recommendation: Increase shared_buffers, optimize queries
+
+      # Replication lag
+      - alert: PostgreSQLReplicationLag
+        expr: |
+          pg_replication_lag > 30
+        for: 5m
+        labels:
+          severity: warning
+          category: replication
+          team: dba
+        annotations:
+          summary: "PostgreSQL replication lag is high"
+          description: |
+            Instance: {{ $labels.instance }}
+            Replication Lag: {{ $value }}s
+            Threshold: 30s
+            Impact: Replica may serve stale data
+            Recommendation: Check network and replica performance
+
+      # Long running queries
+      - alert: PostgreSQLLongRunningQueries
+        expr: |
+          pg_stat_activity_max_tx_duration{state="active"} > 300
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+          team: dba
+        annotations:
+          summary: "PostgreSQL long running query detected"
+          description: |
+            Instance: {{ $labels.instance }}
+            Query Duration: {{ $value }}s
+            Threshold: 5 minutes
+            Recommendation: Check pg_stat_activity for the query and consider terminating
+
+  # ========================================
+  # Redis Alerts
+  # ========================================
+  - name: redis_alerts
+    interval: 30s
+    rules:
+      # Redis down
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: cache
+          team: infrastructure
+        annotations:
+          summary: "Redis is down"
+          description: |
+            Instance: {{ $labels.instance }}
+            Status: Redis is unreachable
+            Duration: 1 minute
+            Impact: Cache operations failing, increased database load
+            Action: Check Redis process and logs
+
+      # High memory usage
+      - alert: RedisHighMemoryUsage
+        expr: |
+          (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+          team: infrastructure
+        annotations:
+          summary: "Redis memory usage is high"
+          description: |
+            Instance: {{ $labels.instance }}
+            Memory Usage: {{ printf "%.1f" $value }}%
+            Used: {{ with query "redis_memory_used_bytes" }}{{ . | first | value | humanize1024 }}B{{ end }}
+            Max: {{ with query "redis_memory_max_bytes" }}{{ . | first | value | humanize1024 }}B{{ end }}
+            Recommendation: Clean up old keys, increase maxmemory
+
+      # Memory near limit
+      - alert: RedisCriticalMemoryUsage
+        expr: |
+          (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: cache
+          team: infrastructure
+        annotations:
+          summary: "Redis memory near limit"
+          description: |
+            Instance: {{ $labels.instance }}
+            Memory Usage: {{ printf "%.1f" $value }}%
+            Impact: Eviction policy will be triggered
+            Action: Immediate memory management required
+
+      # Low cache hit ratio
+      - alert: RedisLowHitRatio
+        expr: |
+          (
+            rate(redis_keyspace_hits_total[5m])
+            /
+            (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))
+          ) * 100 < 70
+        for: 15m
+        labels:
+          severity: warning
+          category: performance
+          team: development
+        annotations:
+          summary: "Redis cache hit ratio is low"
+          description: |
+            Instance: {{ $labels.instance }}
+            Hit Ratio: {{ printf "%.1f" $value }}%
+            Target: > 90%
+            Recommendation: Review caching strategy, TTL settings
+
+      # High client connections
+      - alert: RedisHighConnections
+        expr: redis_connected_clients > 1000
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+          team: infrastructure
+        annotations:
+          summary: "Redis has too many connections"
+          description: |
+            Instance: {{ $labels.instance }}
+            Connected Clients: {{ $value }}
+            Threshold: 1000
+            Recommendation: Check for connection leaks, use connection pooling
+
+      # Replication broken
+      - alert: RedisMasterLinkDown
+        expr: redis_master_link_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: replication
+          team: infrastructure
+        annotations:
+          summary: "Redis replication link is down"
+          description: |
+            Instance: {{ $labels.instance }}
+            Status: Replica disconnected from master
+            Impact: Data synchronization stopped
+            Action: Check network connectivity and master status
+
+      # Rejected connections
+      - alert: RedisRejectedConnections
+        expr: |
+          increase(redis_rejected_connections_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+          team: infrastructure
+        annotations:
+          summary: "Redis rejecting connections"
+          description: |
+            Instance: {{ $labels.instance }}
+            Event: Connections being rejected
+            Reason: Likely maxclients limit reached
+            Recommendation: Increase maxclients or reduce client connections
+
+  # ========================================
+  # Exporter Health Alerts
+  # ========================================
+  - name: exporter_health
+    interval: 30s
+    rules:
+      # Node exporter down
+      - alert: NodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: monitoring
+          team: infrastructure
+        annotations:
+          summary: "Node Exporter is down"
+          description: |
+            Instance: {{ $labels.instance }}
+            Status: Node Exporter unreachable
+            Impact: Server metrics not being collected
+            Action: Check node_exporter process
+
+      # PostgreSQL exporter down
+      - alert: PostgresExporterDown
+        expr: up{job="postgres-exporter"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: monitoring
+          team: infrastructure
+        annotations:
+          summary: "PostgreSQL Exporter is down"
+          description: |
+            Instance: {{ $labels.instance }}
+            Status: PostgreSQL Exporter unreachable
+            Impact: Database metrics not being collected
+            Action: Check postgres_exporter process
+
+      # Redis exporter down
+      - alert: RedisExporterDown
+        expr: up{job="redis-exporter"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: monitoring
+          team: infrastructure
+        annotations:
+          summary: "Redis Exporter is down"
+          description: |
+            Instance: {{ $labels.instance }}
+            Status: Redis Exporter unreachable
+            Impact: Cache metrics not being collected
+            Action: Check redis_exporter process

@@ -1,0 +1,1121 @@
+openapi: 3.0.3
+info:
+  title: GCRF Library Management System - Auth Service API
+  description: |
+    **认证服务 API**
+
+    提供用户认证和授权功能，包括:
+    - 用户登录/注销
+    - JWT令牌管理
+    - 令牌验证和刷新
+    - 用户信息管理
+
+    **技术栈**:
+    - Spring Boot 3.2.2 + Spring Security
+    - JWT (HS512 algorithm)
+    - Redis (令牌黑名单)
+
+    **服务端口**: 8081
+  version: 1.0.0
+  contact:
+    name: GCRF Development Team
+    email: dev@gcrf.com
+
+servers:
+  - url: http://localhost:8081
+    description: Auth Service (Development)
+  - url: http://localhost:8080/auth-service
+    description: Via API Gateway (Development)
+
+tags:
+  - name: Authentication
+    description: 用户认证相关接口
+  - name: Token Management
+    description: 令牌管理
+  - name: User Management
+    description: 用户管理
+  - name: Health Check
+    description: 健康检查
+
+paths:
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: 用户登录
+      description: |
+        通过用户名和密码登录系统
+
+        **返回内容**:
+        - access_token: 访问令牌 (24小时有效)
+        - refresh_token: 刷新令牌 (7天有效)
+        - user_info: 用户基本信息
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "登录成功"
+                  data:
+                    $ref: '#/components/schemas/LoginResponse'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          description: 用户名或密码错误
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "用户名或密码错误"
+                  timestamp:
+                    type: integer
+                    format: int64
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: 用户注销
+      description: |
+        注销当前登录用户
+
+        **操作**:
+        - 将令牌加入黑名单 (Redis)
+        - 令牌在有效期内无法再使用
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 注销成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "注销成功"
+                  data:
+                    type: object
+                    nullable: true
+                  timestamp:
+                    type: integer
+                    format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - Token Management
+      summary: 刷新令牌
+      description: |
+        使用refresh_token刷新access_token
+
+        **注意**:
+        - 刷新后旧token立即失效
+        - 返回新的access_token和refresh_token
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: 刷新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "令牌刷新成功"
+                  data:
+                    $ref: '#/components/schemas/LoginResponse'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '401':
+          description: 刷新令牌无效或已过期
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 401
+                  message:
+                    type: string
+                    example: "刷新令牌无效或已过期，请重新登录"
+                  timestamp:
+                    type: integer
+                    format: int64
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/validate:
+    get:
+      tags:
+        - Token Management
+      summary: 验证令牌
+      description: |
+        验证JWT令牌的有效性
+
+        **使用场景**:
+        - Gateway验证令牌
+        - 微服务间验证令牌
+      operationId: validateToken
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 令牌有效
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "令牌有效"
+                  data:
+                    type: boolean
+                    example: true
+                  timestamp:
+                    type: integer
+                    format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/current-user:
+    get:
+      tags:
+        - Token Management
+      summary: 获取当前用户ID
+      description: |
+        从令牌中解析当前登录用户的ID
+
+        **使用场景**:
+        - 微服务间获取当前用户
+        - Gateway路由前获取用户信息
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    type: integer
+                    format: int64
+                    example: 1
+                  timestamp:
+                    type: integer
+                    format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/info:
+    get:
+      tags:
+        - User Management
+      summary: 获取用户详细信息
+      description: |
+        根据令牌获取当前用户的详细信息
+
+        **返回内容**:
+        - 用户基本信息
+        - 角色列表
+        - 权限列表
+      operationId: getUserInfo
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    $ref: '#/components/schemas/UserInfoResponse'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "用户不存在"
+                  timestamp:
+                    type: integer
+                    format: int64
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/register:
+    post:
+      tags:
+        - User Management
+      summary: 用户注册
+      description: |
+        注册新用户
+
+        **注意**:
+        - 用户名唯一
+        - 邮箱唯一
+        - 手机号唯一
+        - 密码强度要求: 8-20位，包含字母和数字
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "注册成功"
+                  data:
+                    $ref: '#/components/schemas/UserInfoResponse'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          description: 注册失败 (用户名/邮箱/手机号已存在)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "用户名已存在"
+                  timestamp:
+                    type: integer
+                    format: int64
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/users:
+    get:
+      tags:
+        - User Management
+      summary: 查询用户列表
+      description: |
+        分页查询用户列表
+
+        **权限要求**: 管理员
+      operationId: queryUsers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: pageNum
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: keyword
+          in: query
+          description: 搜索关键词 (用户名/邮箱/手机号)
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: 状态筛选
+          schema:
+            type: string
+            enum:
+              - ACTIVE
+              - INACTIVE
+              - LOCKED
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        format: int64
+                      pageNum:
+                        type: integer
+                      pageSize:
+                        type: integer
+                      pages:
+                        type: integer
+                      records:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/UserVO'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - User Management
+      summary: 创建用户
+      description: |
+        创建新用户
+
+        **权限要求**: 管理员
+      operationId: createUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    $ref: '#/components/schemas/UserInfoResponse'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/users/{id}:
+    get:
+      tags:
+        - User Management
+      summary: 查询用户详情
+      description: |
+        根据用户ID查询详情
+
+        **权限要求**: 管理员或本人
+      operationId: getUserById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    $ref: '#/components/schemas/UserInfoResponse'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - User Management
+      summary: 更新用户
+      description: |
+        更新用户信息
+
+        **权限要求**: 管理员或本人
+      operationId: updateUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    $ref: '#/components/schemas/UserInfoResponse'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - User Management
+      summary: 删除用户
+      description: |
+        删除用户 (逻辑删除)
+
+        **权限要求**: 管理员
+      operationId: deleteUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    type: object
+                    nullable: true
+                  timestamp:
+                    type: integer
+                    format: int64
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/users/{id}/reset-password:
+    post:
+      tags:
+        - User Management
+      summary: 重置用户密码
+      description: |
+        重置用户密码
+
+        **权限要求**: 管理员或本人
+      operationId: resetPassword
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: 重置成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "密码重置成功"
+                  data:
+                    type: object
+                    nullable: true
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          description: 旧密码错误
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "旧密码错误"
+                  timestamp:
+                    type: integer
+                    format: int64
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/health:
+    get:
+      tags:
+        - Health Check
+      summary: 健康检查
+      description: 检查认证服务是否正常运行
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: 服务正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    type: string
+                    example: "Auth Service is running"
+                  timestamp:
+                    type: integer
+                    format: int64
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: 用户名
+          example: "admin"
+          minLength: 3
+          maxLength: 50
+        password:
+          type: string
+          description: 密码
+          example: "Admin@123"
+          format: password
+          minLength: 6
+          maxLength: 100
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: 访问令牌 (24小时有效)
+          example: "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxIiwiaWF0IjoxNjk4NzY1NDMyLCJleHAiOjE2OTg4NTE4MzJ9..."
+        refreshToken:
+          type: string
+          description: 刷新令牌 (7天有效)
+          example: "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxIiwiaWF0IjoxNjk4NzY1NDMyLCJleHAiOjE2OTk0MzYyMzJ9..."
+        tokenType:
+          type: string
+          description: 令牌类型
+          example: "Bearer"
+        expiresIn:
+          type: integer
+          description: 过期时间 (秒)
+          example: 86400
+        userInfo:
+          $ref: '#/components/schemas/UserInfoResponse'
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: 刷新令牌
+          example: "eyJhbGciOiJIUzUxMiJ9..."
+
+    UserInfoResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: "admin"
+        email:
+          type: string
+          example: "admin@gcrf.com"
+        phone:
+          type: string
+          example: "13800138000"
+          nullable: true
+        realName:
+          type: string
+          description: 真实姓名
+          example: "管理员"
+          nullable: true
+        avatar:
+          type: string
+          description: 头像URL
+          example: "http://minio:9000/library/avatars/1.jpg"
+          nullable: true
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+            - LOCKED
+          example: "ACTIVE"
+        roles:
+          type: array
+          description: 角色列表
+          items:
+            type: string
+          example: ["ADMIN", "LIBRARIAN"]
+        permissions:
+          type: array
+          description: 权限列表
+          items:
+            type: string
+          example: ["system:user:query", "system:user:add"]
+        lastLoginTime:
+          type: string
+          format: date-time
+          example: "2025-11-04T10:30:00Z"
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-10-12T10:30:00Z"
+
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - password
+        - email
+      properties:
+        username:
+          type: string
+          description: 用户名 (唯一)
+          example: "john_doe"
+          minLength: 3
+          maxLength: 50
+          pattern: '^[a-zA-Z0-9_]+$'
+        password:
+          type: string
+          description: 密码 (8-20位，包含字母和数字)
+          example: "Password@123"
+          format: password
+          minLength: 8
+          maxLength: 20
+          pattern: '^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,20}$'
+        email:
+          type: string
+          description: 邮箱 (唯一)
+          example: "john@example.com"
+          format: email
+          maxLength: 100
+        phone:
+          type: string
+          description: 手机号 (唯一)
+          example: "13800138000"
+          pattern: '^1[3-9]\d{9}$'
+          nullable: true
+        realName:
+          type: string
+          description: 真实姓名
+          example: "张三"
+          maxLength: 50
+          nullable: true
+
+    UserVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: "admin"
+        email:
+          type: string
+          example: "admin@gcrf.com"
+        phone:
+          type: string
+          example: "13800138000"
+          nullable: true
+        realName:
+          type: string
+          example: "管理员"
+          nullable: true
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+            - LOCKED
+          example: "ACTIVE"
+        lastLoginTime:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    UserCreateRequest:
+      type: object
+      required:
+        - username
+        - password
+        - email
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 20
+        email:
+          type: string
+          format: email
+          maxLength: 100
+        phone:
+          type: string
+          pattern: '^1[3-9]\d{9}$'
+          nullable: true
+        realName:
+          type: string
+          maxLength: 50
+          nullable: true
+        roleIds:
+          type: array
+          description: 角色ID列表
+          items:
+            type: integer
+            format: int64
+          nullable: true
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 100
+        phone:
+          type: string
+          pattern: '^1[3-9]\d{9}$'
+          nullable: true
+        realName:
+          type: string
+          maxLength: 50
+          nullable: true
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+            - LOCKED
+        roleIds:
+          type: array
+          description: 角色ID列表
+          items:
+            type: integer
+            format: int64
+          nullable: true
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - oldPassword
+        - newPassword
+      properties:
+        oldPassword:
+          type: string
+          description: 旧密码
+          format: password
+          minLength: 6
+        newPassword:
+          type: string
+          description: 新密码 (8-20位，包含字母和数字)
+          format: password
+          minLength: 8
+          maxLength: 20
+          pattern: '^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,20}$'
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 400
+              message:
+                type: string
+                example: "参数验证失败"
+              timestamp:
+                type: integer
+                format: int64
+
+    Unauthorized:
+      description: 未认证或认证失败
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 401
+              message:
+                type: string
+                example: "未提供认证令牌"
+              timestamp:
+                type: integer
+                format: int64
+
+    Forbidden:
+      description: 无权限访问
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 403
+              message:
+                type: string
+                example: "无权限执行此操作"
+              timestamp:
+                type: integer
+                format: int64
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 404
+              message:
+                type: string
+                example: "用户不存在"
+              timestamp:
+                type: integer
+                format: int64
+
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 500
+              message:
+                type: string
+                example: "服务器内部错误"
+              timestamp:
+                type: integer
+                format: int64

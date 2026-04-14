@@ -2,6 +2,7 @@ package com.gcrf.library.reader.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gcrf.library.common.test.BaseIntegrationTest;
 import com.gcrf.library.reader.dto.ReaderCreateRequest;
 import com.gcrf.library.reader.dto.ReaderUpdateRequest;
 import com.gcrf.library.reader.entity.Reader;
@@ -15,6 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -45,8 +47,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
+@Transactional
 @ActiveProfiles("test")
-class ReaderControllerIntegrationTest {
+class ReaderControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

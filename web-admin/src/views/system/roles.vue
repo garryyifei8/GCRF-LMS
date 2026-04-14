@@ -12,7 +12,9 @@
         <div class="card">
           <div class="card-header">
             <span>角色列表</span>
-            <el-button type="primary" size="small" :icon="Plus" @click="handleAdd">新增角色</el-button>
+            <el-button type="primary" size="small" :icon="Plus" @click="handleAdd"
+              >新增角色</el-button
+            >
           </div>
           <div class="card-content">
             <el-table
@@ -29,8 +31,12 @@
               </el-table-column>
               <el-table-column label="操作" width="140" align="center">
                 <template #default="{ row }">
-                  <el-button type="primary" link :icon="Edit" @click="handleEdit(row)">编辑</el-button>
-                  <el-button type="danger" link :icon="Delete" @click="handleDelete(row)">删除</el-button>
+                  <el-button type="primary" link :icon="Edit" @click="handleEdit(row)"
+                    >编辑</el-button
+                  >
+                  <el-button type="danger" link :icon="Delete" @click="handleDelete(row)"
+                    >删除</el-button
+                  >
                 </template>
               </el-table-column>
             </el-table>
@@ -108,6 +114,15 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, Edit, Delete, Check } from '@element-plus/icons-vue'
+import {
+  getRoles,
+  createRole,
+  updateRole,
+  deleteRole,
+  assignPermissions,
+  getPermissionTree
+} from '@/api/system'
 
 // 角色列表
 const loading = ref(false)
@@ -116,54 +131,7 @@ const currentRole = ref(null)
 
 // 权限树
 const permissionTreeRef = ref(null)
-const permissionTree = ref([
-  {
-    id: 'books',
-    label: '图书管理',
-    icon: 'Reading',
-    children: [
-      { id: 'books:list', label: '图书列表' },
-      { id: 'books:add', label: '新增图书' },
-      { id: 'books:edit', label: '编辑图书' },
-      { id: 'books:delete', label: '删除图书' },
-      { id: 'books:catalog', label: '图书编目' }
-    ]
-  },
-  {
-    id: 'readers',
-    label: '读者管理',
-    icon: 'User',
-    children: [
-      { id: 'readers:list', label: '读者列表' },
-      { id: 'readers:add', label: '新增读者' },
-      { id: 'readers:edit', label: '编辑读者' },
-      { id: 'readers:delete', label: '删除读者' },
-      { id: 'readers:import', label: '批量导入' }
-    ]
-  },
-  {
-    id: 'circulation',
-    label: '流通管理',
-    icon: 'Tickets',
-    children: [
-      { id: 'circulation:borrow', label: '图书借出' },
-      { id: 'circulation:return', label: '图书归还' },
-      { id: 'circulation:records', label: '流通记录' },
-      { id: 'circulation:reservations', label: '预约管理' }
-    ]
-  },
-  {
-    id: 'system',
-    label: '系统管理',
-    icon: 'Setting',
-    children: [
-      { id: 'system:users', label: '用户管理' },
-      { id: 'system:roles', label: '角色管理' },
-      { id: 'system:config', label: '系统配置' },
-      { id: 'system:backup', label: '数据备份' }
-    ]
-  }
-])
+const permissionTree = ref([])
 
 // 对话框
 const dialogVisible = ref(false)
@@ -185,90 +153,140 @@ const roleFormRules = {
   name: [{ required: true, message: '请输入角色名称', trigger: 'blur' }]
 }
 
+// 加载权限树
+const loadPermissionTree = async () => {
+  try {
+    const response = await getPermissionTree()
+    if (response.code === 200 && response.data) {
+      permissionTree.value = response.data
+    } else {
+      // 如果API未实现，使用默认权限树
+      permissionTree.value = [
+        {
+          id: 'books',
+          label: '图书管理',
+          icon: 'Reading',
+          children: [
+            { id: 'books:list', label: '图书列表' },
+            { id: 'books:add', label: '新增图书' },
+            { id: 'books:edit', label: '编辑图书' },
+            { id: 'books:delete', label: '删除图书' },
+            { id: 'books:catalog', label: '图书编目' }
+          ]
+        },
+        {
+          id: 'readers',
+          label: '读者管理',
+          icon: 'User',
+          children: [
+            { id: 'readers:list', label: '读者列表' },
+            { id: 'readers:add', label: '新增读者' },
+            { id: 'readers:edit', label: '编辑读者' },
+            { id: 'readers:delete', label: '删除读者' },
+            { id: 'readers:import', label: '批量导入' }
+          ]
+        },
+        {
+          id: 'circulation',
+          label: '流通管理',
+          icon: 'Tickets',
+          children: [
+            { id: 'circulation:borrow', label: '图书借出' },
+            { id: 'circulation:return', label: '图书归还' },
+            { id: 'circulation:records', label: '流通记录' },
+            { id: 'circulation:reservations', label: '预约管理' }
+          ]
+        },
+        {
+          id: 'system',
+          label: '系统管理',
+          icon: 'Setting',
+          children: [
+            { id: 'system:users', label: '用户管理' },
+            { id: 'system:roles', label: '角色管理' },
+            { id: 'system:config', label: '系统配置' },
+            { id: 'system:backup', label: '数据备份' }
+          ]
+        }
+      ]
+    }
+  } catch (error) {
+    console.error('Failed to load permission tree:', error)
+    // 使用默认权限树
+    permissionTree.value = [
+      {
+        id: 'books',
+        label: '图书管理',
+        icon: 'Reading',
+        children: [
+          { id: 'books:list', label: '图书列表' },
+          { id: 'books:add', label: '新增图书' },
+          { id: 'books:edit', label: '编辑图书' },
+          { id: 'books:delete', label: '删除图书' },
+          { id: 'books:catalog', label: '图书编目' }
+        ]
+      },
+      {
+        id: 'readers',
+        label: '读者管理',
+        icon: 'User',
+        children: [
+          { id: 'readers:list', label: '读者列表' },
+          { id: 'readers:add', label: '新增读者' },
+          { id: 'readers:edit', label: '编辑读者' },
+          { id: 'readers:delete', label: '删除读者' },
+          { id: 'readers:import', label: '批量导入' }
+        ]
+      },
+      {
+        id: 'circulation',
+        label: '流通管理',
+        icon: 'Tickets',
+        children: [
+          { id: 'circulation:borrow', label: '图书借出' },
+          { id: 'circulation:return', label: '图书归还' },
+          { id: 'circulation:records', label: '流通记录' },
+          { id: 'circulation:reservations', label: '预约管理' }
+        ]
+      },
+      {
+        id: 'system',
+        label: '系统管理',
+        icon: 'Setting',
+        children: [
+          { id: 'system:users', label: '用户管理' },
+          { id: 'system:roles', label: '角色管理' },
+          { id: 'system:config', label: '系统配置' },
+          { id: 'system:backup', label: '数据备份' }
+        ]
+      }
+    ]
+  }
+}
+
 // 加载角色列表
 const loadRoleList = async () => {
   loading.value = true
   try {
-    // TODO: 调用API获取角色列表
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    const response = await getRoles({
+      pageNum: 1,
+      pageSize: 100 // 不分页，获取所有角色
+    })
 
-    roleList.value = [
-      {
-        id: 1,
-        code: 'admin',
-        name: '超级管理员',
-        userCount: 2,
-        permissions: [
-          'books',
-          'books:list',
-          'books:add',
-          'books:edit',
-          'books:delete',
-          'books:catalog',
-          'readers',
-          'readers:list',
-          'readers:add',
-          'readers:edit',
-          'readers:delete',
-          'readers:import',
-          'circulation',
-          'circulation:borrow',
-          'circulation:return',
-          'circulation:records',
-          'circulation:reservations',
-          'system',
-          'system:users',
-          'system:roles',
-          'system:config',
-          'system:backup'
-        ],
-        sort: 1
-      },
-      {
-        id: 2,
-        code: 'manager',
-        name: '管理员',
-        userCount: 5,
-        permissions: [
-          'books',
-          'books:list',
-          'books:add',
-          'books:edit',
-          'books:catalog',
-          'readers',
-          'readers:list',
-          'readers:add',
-          'readers:edit',
-          'circulation',
-          'circulation:borrow',
-          'circulation:return',
-          'circulation:records',
-          'circulation:reservations'
-        ],
-        sort: 2
-      },
-      {
-        id: 3,
-        code: 'librarian',
-        name: '图书管理员',
-        userCount: 10,
-        permissions: [
-          'books',
-          'books:list',
-          'circulation',
-          'circulation:borrow',
-          'circulation:return',
-          'circulation:records'
-        ],
-        sort: 3
+    if (response.code === 200 && response.data) {
+      roleList.value = response.data.records || []
+
+      // 自动选择第一个角色
+      if (roleList.value.length > 0 && !currentRole.value) {
+        currentRole.value = roleList.value[0]
       }
-    ]
-
-    if (roleList.value.length > 0) {
-      currentRole.value = roleList.value[0]
+    } else {
+      roleList.value = []
     }
   } catch (error) {
+    console.error('Failed to load role list:', error)
     ElMessage.error('加载角色列表失败')
+    roleList.value = []
   } finally {
     loading.value = false
   }
@@ -299,10 +317,20 @@ const handleDelete = (row) => {
     type: 'warning'
   })
     .then(async () => {
-      // TODO: 调用API删除角色
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      ElMessage.success('删除成功')
-      loadRoleList()
+      try {
+        await deleteRole(row.id)
+        ElMessage.success('删除成功')
+
+        // 如果删除的是当前选中的角色，清空选择
+        if (currentRole.value?.id === row.id) {
+          currentRole.value = null
+        }
+
+        await loadRoleList()
+      } catch (error) {
+        console.error('Failed to delete role:', error)
+        ElMessage.error('删除失败')
+      }
     })
     .catch(() => {})
 }
@@ -312,33 +340,62 @@ const handleSubmit = async () => {
   try {
     await roleFormRef.value.validate()
 
-    // TODO: 调用API保存角色
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    loading.value = true
 
-    ElMessage.success(isEdit.value ? '编辑成功' : '添加成功')
-    dialogVisible.value = false
-    loadRoleList()
-  } catch (error) {
-    if (error !== false) {
-      ElMessage.error('操作失败')
+    // 准备提交数据
+    const submitData = {
+      code: roleForm.code,
+      name: roleForm.name,
+      sort: roleForm.sort,
+      remark: roleForm.remark
     }
+
+    // 调用API
+    if (isEdit.value) {
+      await updateRole(roleForm.id, submitData)
+      ElMessage.success('编辑成功')
+    } else {
+      await createRole(submitData)
+      ElMessage.success('添加成功')
+    }
+
+    dialogVisible.value = false
+    await loadRoleList()
+  } catch (error) {
+    console.error('Failed to submit role:', error)
+    if (error !== false) {
+      ElMessage.error(isEdit.value ? '编辑失败' : '添加失败')
+    }
+  } finally {
+    loading.value = false
   }
 }
 
 // 保存权限
 const handleSavePermissions = async () => {
+  if (!currentRole.value) {
+    ElMessage.warning('请先选择角色')
+    return
+  }
+
   const checkedKeys = permissionTreeRef.value.getCheckedKeys()
   const halfCheckedKeys = permissionTreeRef.value.getHalfCheckedKeys()
   const permissions = [...checkedKeys, ...halfCheckedKeys]
 
   try {
-    // TODO: 调用API保存权限
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    loading.value = true
 
+    await assignPermissions(currentRole.value.id, permissions)
+
+    // 更新本地数据
     currentRole.value.permissions = permissions
+
     ElMessage.success('权限保存成功')
   } catch (error) {
+    console.error('Failed to save permissions:', error)
     ElMessage.error('保存失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -353,7 +410,12 @@ const resetForm = () => {
 }
 
 // 初始化
-loadRoleList()
+const init = async () => {
+  await loadPermissionTree()
+  await loadRoleList()
+}
+
+init()
 </script>
 
 <style lang="scss" scoped>

@@ -97,12 +97,7 @@
       width="600px"
       @close="handleDialogClose"
     >
-      <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="formRules"
-        label-width="100px"
-      >
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
         <el-form-item label="部门编码" prop="deptCode">
           <el-input
             v-model="formData.deptCode"
@@ -150,12 +145,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Edit, Delete } from '@element-plus/icons-vue'
-import {
-  getDepartmentList,
-  createDepartment,
-  updateDepartment,
-  deleteDepartment
-} from '@/api/department'
+import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from '@/api/system'
 
 // 查询参数
 const queryParams = reactive({
@@ -202,12 +192,20 @@ const formRules = {
 const fetchDepartmentList = async () => {
   loading.value = true
   try {
-    const res = await getDepartmentList(queryParams)
-    departmentList.value = res.data.records || []
-    total.value = res.data.total || 0
+    const response = await getDepartments(queryParams)
+
+    if (response.code === 200 && response.data) {
+      departmentList.value = response.data.records || []
+      total.value = response.data.total || 0
+    } else {
+      departmentList.value = []
+      total.value = 0
+    }
   } catch (error) {
     console.error('Failed to fetch departments:', error)
     ElMessage.error('获取部门列表失败')
+    departmentList.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
@@ -216,10 +214,16 @@ const fetchDepartmentList = async () => {
 // 加载父级部门选项
 const loadParentDeptOptions = async () => {
   try {
-    const res = await getDepartmentList({ pageNum: 1, pageSize: 100 })
-    parentDeptOptions.value = res.data.records || []
+    const response = await getDepartments({ pageNum: 1, pageSize: 100 })
+
+    if (response.code === 200 && response.data) {
+      parentDeptOptions.value = response.data.records || []
+    } else {
+      parentDeptOptions.value = []
+    }
   } catch (error) {
     console.error('Failed to load parent departments:', error)
+    parentDeptOptions.value = []
   }
 }
 
@@ -287,9 +291,10 @@ const handleSubmit = () => {
   formRef.value.validate(async (valid) => {
     if (!valid) return
 
+    loading.value = true
     try {
       if (formData.id) {
-        await updateDepartment(formData)
+        await updateDepartment(formData.id, formData)
         ElMessage.success('更新成功')
       } else {
         await createDepartment(formData)
@@ -300,6 +305,8 @@ const handleSubmit = () => {
     } catch (error) {
       console.error('Failed to save department:', error)
       ElMessage.error('保存失败')
+    } finally {
+      loading.value = false
     }
   })
 }

@@ -1,0 +1,302 @@
+# GCRF Library Management System - Promtail Configuration
+# Log collection agent for Loki
+# Version: 1.0.0
+# Last Updated: 2025-12-01
+#
+# Purpose:
+#   - Collect Docker container logs
+#   - Parse JSON-formatted Spring Boot logs
+#   - Add metadata labels for filtering
+#   - Forward logs to Loki
+#
+# Documentation: https://grafana.com/docs/loki/latest/clients/promtail/configuration/
+
+# Server configuration
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+# Positions file - tracks log file positions for resumption
+positions:
+  filename: /tmp/positions.yaml
+  sync_period: 10s
+
+# Loki client configuration
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    tenant_id: gcrf-library
+    # Batching configuration
+    batchwait: 1s
+    batchsize: 1048576  # 1MB
+    # Retry configuration
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+    # Timeout configuration
+    timeout: 10s
+    # External labels applied to all logs
+    external_labels:
+      cluster: gcrf-library
+      environment: ${ENVIRONMENT:-development}
+
+# Scrape configurations - define what logs to collect
+scrape_configs:
+  # ===========================================
+  # Docker Container Logs (via Docker socket)
+  # ===========================================
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          # Only scrape containers with GCRF labels
+          - name: label
+            values: ["com.gcrf.service"]
+
+    relabel_configs:
+      # Extract container name
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+
+      # Extract service name from label
+      - source_labels: ['__meta_docker_container_label_com_gcrf_service']
+        target_label: 'service_name'
+
+      # Extract tier from label
+      - source_labels: ['__meta_docker_container_label_com_gcrf_tier']
+        target_label: 'tier'
+
+      # Extract component from label
+      - source_labels: ['__meta_docker_container_label_com_gcrf_component']
+        target_label: 'component'
+
+      # Extract version from label
+      - source_labels: ['__meta_docker_container_label_com_gcrf_version']
+        target_label: 'version'
+
+      # Extract container ID
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+
+      # Set job name based on service
+      - source_labels: ['__meta_docker_container_label_com_gcrf_service']
+        target_label: 'job'
+        replacement: 'gcrf-$1'
+
+      # Extract Docker image name
+      - source_labels: ['__meta_docker_container_image']
+        target_label: 'image'
+
+    pipeline_stages:
+      # ===========================================
+      # Stage 1: Parse Docker JSON log format
+      # ===========================================
+      - docker: {}
+
+      # ===========================================
+      # Stage 2: Parse Spring Boot JSON logs
+      # ===========================================
+      - match:
+          # Match JSON logs from Spring Boot services
+          selector: '{tier="backend"}'
+          stages:
+            # Try to parse as JSON
+            - json:
+                expressions:
+                  timestamp: timestamp
+                  level: level
+                  logger: logger_name
+                  message: message
+                  thread: thread_name
+                  trace_id: traceId
+                  span_id: spanId
+                  user_id: userId
+                  request_id: requestId
+                  service: service
+                  exception: stack_trace
+
+            # Extract labels from parsed JSON
+            - labels:
+                level:
+                logger:
+                thread:
+                trace_id:
+                span_id:
+                user_id:
+                request_id:
+
+            # Set timestamp from log
+            - timestamp:
+                source: timestamp
+                format: RFC3339Nano
+                fallback_formats:
+                  - '2006-01-02T15:04:05.000Z07:00'
+                  - '2006-01-02T15:04:05.000Z'
+                  - '2006-01-02 15:04:05.000'
+
+            # Normalize log level
+            - template:
+                source: level
+                template: '{{ ToLower .Value }}'
+
+            # Rewrite log level label
+            - labels:
+                level:
+
+            # Extract message for output (use original message if JSON parsing failed)
+            - output:
+                source: message
+
+      # ===========================================
+      # Stage 3: Parse Gateway/Nginx access logs
+      # ===========================================
+      - match:
+          selector: '{service_name="gateway"}'
+          stages:
+            # Parse access log pattern
+            - regex:
+                expression: '^(?P<client_ip>[\d.]+) - (?P<remote_user>[^ ]*) \[(?P<timestamp>[^\]]+)\] "(?P<method>[A-Z]+) (?P<path>[^ ]*) (?P<protocol>[^"]*)" (?P<status>\d+) (?P<bytes_sent>\d+) "(?P<referer>[^"]*)" "(?P<user_agent>[^"]*)" (?P<request_time>[\d.]+)?'
+
+            - labels:
+                method:
+                status:
+                path:
+
+            # Add metrics for request duration
+            - metrics:
+                http_request_duration_seconds:
+                  type: Histogram
+                  description: "HTTP request duration in seconds"
+                  source: request_time
+                  config:
+                    buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+
+      # ===========================================
+      # Stage 4: Infrastructure logs (PostgreSQL, Redis, etc.)
+      # ===========================================
+      - match:
+          selector: '{tier="infrastructure"}'
+          stages:
+            # Parse PostgreSQL logs
+            - match:
+                selector: '{component="postgresql"}'
+                stages:
+                  - regex:
+                      expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+ [A-Z]+) \[(?P<pid>\d+)\] (?P<level>[A-Z]+):  (?P<message>.*)$'
+                  - labels:
+                      level:
+                  - timestamp:
+                      source: timestamp
+                      format: '2006-01-02 15:04:05.000 MST'
+
+            # Parse Redis logs
+            - match:
+                selector: '{component="redis"}'
+                stages:
+                  - regex:
+                      expression: '^(?P<pid>\d+):(?P<role>[A-Z]) (?P<timestamp>\d{2} [A-Za-z]+ \d{4} \d{2}:\d{2}:\d{2}\.\d+) (?P<level>[.*#-]) (?P<message>.*)$'
+                  - labels:
+                      role:
+                      level:
+
+      # ===========================================
+      # Stage 5: Error detection and labeling
+      # ===========================================
+      - match:
+          selector: '{level=~"error|fatal|critical"}'
+          stages:
+            - labels:
+                severity: error
+
+      - match:
+          selector: '{level=~"warn|warning"}'
+          stages:
+            - labels:
+                severity: warning
+
+      # ===========================================
+      # Stage 6: Drop noisy logs (optional)
+      # ===========================================
+      - match:
+          selector: '{service_name="gateway"}'
+          stages:
+            # Drop health check logs
+            - drop:
+                expression: '.*actuator/health.*'
+                drop_counter_reason: health_check
+            # Drop metrics endpoint logs
+            - drop:
+                expression: '.*actuator/prometheus.*'
+                drop_counter_reason: metrics_endpoint
+
+      # ===========================================
+      # Stage 7: Multiline exception handling
+      # ===========================================
+      - multiline:
+          firstline: '^\d{4}-\d{2}-\d{2}|^\{|^[A-Z][a-z]{2} \d{2},'
+          max_wait_time: 3s
+          max_lines: 128
+
+  # ===========================================
+  # Journal logs (systemd - for host system)
+  # ===========================================
+  - job_name: journal
+    journal:
+      max_age: 12h
+      path: /var/log/journal
+      labels:
+        job: systemd-journal
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        target_label: 'unit'
+      - source_labels: ['__journal_priority_keyword']
+        target_label: 'level'
+    pipeline_stages:
+      - labels:
+          level:
+
+  # ===========================================
+  # Static file logs (for mounted log volumes)
+  # ===========================================
+  - job_name: gcrf-service-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: gcrf-services
+          __path__: /var/log/gcrf/**/*.log
+
+    pipeline_stages:
+      # Parse filename to extract service name
+      - regex:
+          source: filename
+          expression: '/var/log/gcrf/(?P<service>[^/]+)/'
+      - labels:
+          service_name: service
+
+      # Parse JSON logs
+      - json:
+          expressions:
+            timestamp: '@timestamp'
+            level: level
+            logger: logger_name
+            message: message
+            trace_id: traceId
+            span_id: spanId
+
+      - labels:
+          level:
+          logger:
+          trace_id:
+          span_id:
+
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+
+# Target configuration for rate limiting
+target_config:
+  sync_period: 10s

@@ -1,0 +1,57 @@
+# GCRF Library Management System - Loki Datasource Configuration
+# Grafana provisioning for Loki log aggregation
+# Version: 1.0.0
+# Last Updated: 2025-12-01
+#
+# Documentation: https://grafana.com/docs/grafana/latest/datasources/loki/
+
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    editable: true
+    jsonData:
+      # Maximum number of lines returned from a log query
+      maxLines: 1000
+      # Derived fields - link to traces
+      derivedFields:
+        # Link traceId to Jaeger (if deployed)
+        - name: TraceID
+          matcherRegex: '"traceId":"([a-f0-9]+)"'
+          url: 'http://localhost:16686/trace/$${__value.raw}'
+          datasourceUid: jaeger
+          matcherType: regex
+        # Link to Prometheus metrics based on service
+        - name: ServiceMetrics
+          matcherRegex: '"service":"([^"]+)"'
+          url: '/explore?left=["now-1h","now","Prometheus",{"expr":"sum(rate(http_server_requests_seconds_count{service=\"$${__value.raw}\"}[5m]))"}]'
+          matcherType: regex
+      # Timeout for queries
+      timeout: 60
+      # Query type
+      queryType: range
+    version: 1
+    uid: loki
+
+  # Combined datasource for logs + traces correlation
+  - name: Loki-Prometheus
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    editable: true
+    jsonData:
+      maxLines: 500
+      # Enable derived fields for correlation
+      derivedFields:
+        - name: TraceID
+          matcherRegex: 'traceId[=:]"?([a-f0-9-]+)"?'
+          url: ''
+          datasourceUid: prometheus
+          matcherType: regex
+    version: 1
+    uid: loki-prometheus

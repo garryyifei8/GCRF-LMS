@@ -31,6 +31,12 @@ public class Book {
     private String isbn;
 
     /**
+     * 条形码
+     */
+    @Size(max = 50, message = "条形码长度不能超过50")
+    private String barcode;
+
+    /**
      * 图书标题
      */
     @NotBlank(message = "书名不能为空")
@@ -119,6 +125,24 @@ public class Book {
     private String coverUrl;
 
     /**
+     * PDF文件URL
+     */
+    @TableField("pdf_url")
+    private String pdfUrl;
+
+    /**
+     * PDF文件原始名称
+     */
+    @TableField("pdf_file_name")
+    private String pdfFileName;
+
+    /**
+     * PDF文件大小（字节）
+     */
+    @TableField("pdf_file_size")
+    private Long pdfFileSize;
+
+    /**
      * 馆藏总数
      */
     @NotNull(message = "库存数量不能为空")
@@ -133,6 +157,25 @@ public class Book {
     @Min(value = 0, message = "可借数量不能为负数")
     @TableField("available_quantity")
     private Integer availableQuantity;
+
+    /**
+     * 已借出数量
+     */
+    @TableField("borrowed_quantity")
+    private Integer borrowedQuantity;
+
+    /**
+     * 预约数量
+     */
+    @TableField("reserved_quantity")
+    private Integer reservedQuantity;
+
+    /**
+     * 版本号（乐观锁）
+     */
+    @Version
+    @TableField("version")
+    private Long version;
 
     /**
      * 状态：ACTIVE-正常 INACTIVE-下架

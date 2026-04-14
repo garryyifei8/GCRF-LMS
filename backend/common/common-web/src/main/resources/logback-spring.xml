@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GCRF Library Management System - Logback Configuration
+  Version: 1.0.0
+  Last Updated: 2025-12-01
+
+  Purpose:
+    - Structured JSON logging for Loki/ELK integration
+    - MDC context support (traceId, userId, etc.)
+    - Environment-specific log levels
+    - Console and file appenders with rotation
+
+  Profiles:
+    - default/dev: Console output with colored format
+    - prod: JSON format for log aggregation systems
+    - test: Minimal console output
+
+  Usage:
+    This file should be included by each service's logback-spring.xml using:
+    <include resource="logback-spring.xml"/>
+-->
+<configuration scan="true" scanPeriod="30 seconds">
+
+    <!-- Property definitions -->
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="gcrf-service"/>
+    <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="./logs"/>
+    <springProperty scope="context" name="LOG_LEVEL" source="logging.level.root" defaultValue="INFO"/>
+
+    <!-- Console pattern with color for development -->
+    <property name="CONSOLE_PATTERN"
+              value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %clr([%X{traceId:-}]){blue} %clr([%X{userId:-}]){magenta} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"/>
+
+    <!-- Plain pattern for file output (non-JSON) -->
+    <property name="FILE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%15.15t] %-40.40logger{39} : [%X{traceId:-}] [%X{userId:-}] %m%n%wEx"/>
+
+    <!-- JSON pattern for Loki/ELK integration -->
+    <property name="JSON_PATTERN">
+        {"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ}","level":"%level","logger_name":"%logger","thread_name":"%thread","message":"%message","service":"${APP_NAME}","traceId":"%X{traceId:-}","spanId":"%X{spanId:-}","requestId":"%X{requestId:-}","userId":"%X{userId:-}","clientIp":"%X{clientIp:-}","requestPath":"%X{requestPath:-}","requestMethod":"%X{requestMethod:-}"%ex{full}}%n
+    </property>
+
+    <!-- ===========================================
+         Console Appender - Development
+         =========================================== -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ===========================================
+         Console Appender - JSON for Production
+         =========================================== -->
+    <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","logger_name":"%logger","thread_name":"%thread","message":"%replace(%message){'\"','\\\"'}","service":"${APP_NAME}","traceId":"%X{traceId:-}","spanId":"%X{spanId:-}","requestId":"%X{requestId:-}","userId":"%X{userId:-}","clientIp":"%X{clientIp:-}","requestPath":"%X{requestPath:-}","requestMethod":"%X{requestMethod:-}","stack_trace":"%replace(%xException{full}){'\"','\\\"'}"}%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ===========================================
+         File Appender - Application Logs
+         =========================================== -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${APP_NAME}.log</file>
+        <encoder>
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- Daily rollover with max file size -->
+            <fileNamePattern>${LOG_PATH}/${APP_NAME}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <!-- Max single file size -->
+            <maxFileSize>100MB</maxFileSize>
+            <!-- Keep 30 days of logs -->
+            <maxHistory>30</maxHistory>
+            <!-- Max total size -->
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ===========================================
+         File Appender - JSON Logs for Promtail
+         =========================================== -->
+    <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${APP_NAME}-json.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","logger_name":"%logger","thread_name":"%thread","message":"%replace(%message){'\"','\\\"'}","service":"${APP_NAME}","traceId":"%X{traceId:-}","spanId":"%X{spanId:-}","requestId":"%X{requestId:-}","userId":"%X{userId:-}","clientIp":"%X{clientIp:-}","requestPath":"%X{requestPath:-}","requestMethod":"%X{requestMethod:-}","stack_trace":"%replace(%xException{full}){'\"','\\\"'}"}%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${APP_NAME}-json.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ===========================================
+         File Appender - Error Logs
+         =========================================== -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${APP_NAME}-error.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","logger_name":"%logger","thread_name":"%thread","message":"%replace(%message){'\"','\\\"'}","service":"${APP_NAME}","traceId":"%X{traceId:-}","spanId":"%X{spanId:-}","requestId":"%X{requestId:-}","userId":"%X{userId:-}","clientIp":"%X{clientIp:-}","requestPath":"%X{requestPath:-}","requestMethod":"%X{requestMethod:-}","stack_trace":"%replace(%xException{full}){'\"','\\\"'}"}%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${APP_NAME}-error.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ===========================================
+         Async Appenders for Performance
+         =========================================== -->
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+        <appender-ref ref="FILE"/>
+    </appender>
+
+    <appender name="ASYNC_FILE_JSON" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+        <appender-ref ref="FILE_JSON"/>
+    </appender>
+
+    <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>256</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>true</includeCallerData>
+        <appender-ref ref="ERROR_FILE"/>
+    </appender>
+
+    <!-- ===========================================
+         Logger Configurations
+         =========================================== -->
+
+    <!-- Reduce noise from common frameworks -->
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.springframework.boot.autoconfigure" level="WARN"/>
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="org.springframework.security" level="INFO"/>
+    <logger name="org.springframework.cloud" level="INFO"/>
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="org.mybatis" level="WARN"/>
+    <logger name="com.baomidou.mybatisplus" level="WARN"/>
+    <logger name="com.zaxxer.hikari" level="WARN"/>
+    <logger name="io.lettuce" level="WARN"/>
+    <logger name="io.netty" level="WARN"/>
+    <logger name="org.apache" level="WARN"/>
+    <logger name="com.alibaba.nacos" level="WARN"/>
+    <logger name="com.netflix" level="WARN"/>
+
+    <!-- SQL logging (enable in dev if needed) -->
+    <logger name="org.springframework.jdbc" level="INFO"/>
+    <logger name="com.gcrf.library" level="DEBUG"/>
+
+    <!-- ===========================================
+         Profile: Development
+         =========================================== -->
+    <springProfile name="dev,default,local">
+        <root level="${LOG_LEVEL}">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+
+        <!-- Enable SQL logging in dev -->
+        <logger name="org.springframework.jdbc.core.JdbcTemplate" level="DEBUG"/>
+        <logger name="org.springframework.jdbc.core.StatementCreatorUtils" level="TRACE"/>
+
+        <!-- MyBatis SQL logging -->
+        <logger name="com.gcrf.library.**.mapper" level="DEBUG"/>
+    </springProfile>
+
+    <!-- ===========================================
+         Profile: Production
+         =========================================== -->
+    <springProfile name="prod,production">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_JSON"/>
+            <appender-ref ref="ASYNC_FILE_JSON"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+
+        <!-- Less verbose in production -->
+        <logger name="com.gcrf.library" level="INFO"/>
+        <logger name="org.springframework.web" level="WARN"/>
+    </springProfile>
+
+    <!-- ===========================================
+         Profile: Test
+         =========================================== -->
+    <springProfile name="test">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+
+        <!-- Minimal logging in tests -->
+        <logger name="org.springframework" level="WARN"/>
+        <logger name="com.gcrf.library" level="DEBUG"/>
+    </springProfile>
+
+    <!-- ===========================================
+         Profile: Docker (JSON to stdout for Promtail)
+         =========================================== -->
+    <springProfile name="docker">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_JSON"/>
+        </root>
+
+        <logger name="com.gcrf.library" level="INFO"/>
+    </springProfile>
+
+</configuration>

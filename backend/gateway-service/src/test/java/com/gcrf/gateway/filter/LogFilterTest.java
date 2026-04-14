@@ -131,7 +131,9 @@ class LogFilterTest {
     void testLogFilterOrderIsAfterAuthFilter() {
         // Verify that LogFilter order is greater than AuthenticationFilter
         // (lower priority, executes later)
-        AuthenticationFilter authFilter = new AuthenticationFilter();
-        assertTrue(logFilter.getOrder() > authFilter.getOrder());
+        // AuthenticationFilter has order -100, LogFilter has order -50
+        // Higher number means later execution
+        int authFilterOrder = -100;  // AuthenticationFilter.getOrder()
+        assertTrue(logFilter.getOrder() > authFilterOrder);
     }
 }

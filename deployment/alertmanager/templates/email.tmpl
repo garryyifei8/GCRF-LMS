@@ -1,0 +1,801 @@
+{{/* GCRF Library Management System - Email Alert Templates */}}
+{{/* Version: 1.0.0 */}}
+{{/* Last Updated: 2025-12-01 */}}
+
+{{/* ========================================
+     Default Email Template
+     ======================================== */}}
+{{ define "email.default.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GCRF Library Alert</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            padding: 20px;
+            text-align: center;
+        }
+        .header.firing {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+        }
+        .header.resolved {
+            background: linear-gradient(135deg, #51cf66, #40c057);
+            color: white;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .header .status {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        .content {
+            padding: 20px;
+        }
+        .alert-card {
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        .alert-card-header {
+            padding: 12px 15px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .alert-card-header.critical {
+            background-color: #ffe3e3;
+            border-left: 4px solid #fa5252;
+        }
+        .alert-card-header.warning {
+            background-color: #fff3bf;
+            border-left: 4px solid #fab005;
+        }
+        .alert-card-header.info {
+            background-color: #d0ebff;
+            border-left: 4px solid #228be6;
+        }
+        .alert-card-body {
+            padding: 15px;
+            background-color: #fafafa;
+        }
+        .label {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .label.critical {
+            background-color: #fa5252;
+            color: white;
+        }
+        .label.warning {
+            background-color: #fab005;
+            color: #333;
+        }
+        .label.info {
+            background-color: #228be6;
+            color: white;
+        }
+        .description {
+            white-space: pre-line;
+            font-size: 14px;
+            color: #495057;
+        }
+        .labels-list {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e9ecef;
+        }
+        .labels-list span {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 2px 6px;
+            margin: 2px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .footer {
+            padding: 15px 20px;
+            background-color: #f8f9fa;
+            text-align: center;
+            font-size: 12px;
+            color: #868e96;
+            border-top: 1px solid #e9ecef;
+        }
+        .footer a {
+            color: #228be6;
+            text-decoration: none;
+        }
+        .summary {
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .summary-item {
+            display: inline-block;
+            margin-right: 20px;
+        }
+        .summary-item strong {
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header {{ if eq .Status "firing" }}firing{{ else }}resolved{{ end }}">
+            <h1>GCRF Library Alert</h1>
+            <div class="status">
+                {{ if eq .Status "firing" }}
+                    {{ .Alerts.Firing | len }} alert(s) firing
+                {{ else }}
+                    {{ .Alerts.Resolved | len }} alert(s) resolved
+                {{ end }}
+            </div>
+        </div>
+
+        <div class="summary">
+            <div class="summary-item"><strong>Environment:</strong> {{ .CommonLabels.environment }}</div>
+            <div class="summary-item"><strong>Cluster:</strong> {{ .CommonLabels.cluster }}</div>
+            <div class="summary-item"><strong>Time:</strong> {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}</div>
+        </div>
+
+        <div class="content">
+            {{ if gt (len .Alerts.Firing) 0 }}
+            <h3 style="color: #fa5252; margin-bottom: 15px;">Firing Alerts</h3>
+            {{ range .Alerts.Firing }}
+            <div class="alert-card">
+                <div class="alert-card-header {{ .Labels.severity }}">
+                    <span>{{ .Labels.alertname }}</span>
+                    <span class="label {{ .Labels.severity }}">{{ .Labels.severity | toUpper }}</span>
+                </div>
+                <div class="alert-card-body">
+                    <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+                    <div class="description">{{ .Annotations.description }}</div>
+                    <div class="labels-list">
+                        {{ range .Labels.SortedPairs }}
+                        <span>{{ .Name }}: {{ .Value }}</span>
+                        {{ end }}
+                    </div>
+                </div>
+            </div>
+            {{ end }}
+            {{ end }}
+
+            {{ if gt (len .Alerts.Resolved) 0 }}
+            <h3 style="color: #40c057; margin-bottom: 15px;">Resolved Alerts</h3>
+            {{ range .Alerts.Resolved }}
+            <div class="alert-card">
+                <div class="alert-card-header" style="background-color: #d3f9d8; border-left: 4px solid #40c057;">
+                    <span>{{ .Labels.alertname }}</span>
+                    <span class="label" style="background-color: #40c057; color: white;">RESOLVED</span>
+                </div>
+                <div class="alert-card-body">
+                    <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+                    <p><strong>Duration:</strong> {{ .StartsAt.Format "15:04:05" }} - {{ .EndsAt.Format "15:04:05" }}</p>
+                </div>
+            </div>
+            {{ end }}
+            {{ end }}
+        </div>
+
+        <div class="footer">
+            <p>
+                <a href="{{ .ExternalURL }}">View in AlertManager</a> |
+                <a href="http://grafana:3000/alerting/list">View in Grafana</a>
+            </p>
+            <p>GCRF Library Management System - Monitoring</p>
+        </div>
+    </div>
+</body>
+</html>
+{{ end }}
+
+{{/* ========================================
+     Critical Alert Email Template
+     ======================================== */}}
+{{ define "email.critical.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff5f5;
+        }
+        .container {
+            background-color: #ffffff;
+            border: 2px solid #fa5252;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #c92a2a, #e03131);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .header .subtitle {
+            margin-top: 10px;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .urgency-banner {
+            background-color: #ffe3e3;
+            padding: 15px;
+            text-align: center;
+            font-weight: 600;
+            color: #c92a2a;
+            border-bottom: 1px solid #fa5252;
+        }
+        .content {
+            padding: 25px;
+        }
+        .alert-box {
+            background-color: #fff5f5;
+            border: 1px solid #ffc9c9;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .alert-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #c92a2a;
+            margin-bottom: 15px;
+        }
+        .description {
+            white-space: pre-line;
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .action-required {
+            background-color: #fff3bf;
+            border: 1px solid #fab005;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        .action-required h4 {
+            margin: 0 0 10px 0;
+            color: #e67700;
+        }
+        .footer {
+            padding: 20px;
+            background-color: #f8f9fa;
+            text-align: center;
+            font-size: 12px;
+            color: #868e96;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #c92a2a;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            margin: 5px;
+        }
+        .btn:hover {
+            background-color: #a51111;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>CRITICAL ALERT</h1>
+            <div class="subtitle">GCRF Library Management System</div>
+        </div>
+
+        <div class="urgency-banner">
+            IMMEDIATE ACTION REQUIRED - {{ .Alerts.Firing | len }} Critical Alert(s)
+        </div>
+
+        <div class="content">
+            {{ range .Alerts.Firing }}
+            <div class="alert-box">
+                <div class="alert-name">{{ .Labels.alertname }}</div>
+                <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+                <div class="description">{{ .Annotations.description }}</div>
+                {{ if .Annotations.runbook_url }}
+                <div class="action-required">
+                    <h4>Runbook Available</h4>
+                    <a href="{{ .Annotations.runbook_url }}" class="btn">View Runbook</a>
+                </div>
+                {{ end }}
+            </div>
+            {{ end }}
+
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="{{ .ExternalURL }}" class="btn">View in AlertManager</a>
+                <a href="http://grafana:3000/alerting/list" class="btn" style="background-color: #228be6;">View in Grafana</a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>This is an automated critical alert from GCRF Library Monitoring System.</p>
+            <p>If you believe this is a false alarm, please contact the operations team.</p>
+            <p>Alert generated at {{ now.Format "2006-01-02 15:04:05 MST" }}</p>
+        </div>
+    </div>
+</body>
+</html>
+{{ end }}
+
+{{/* ========================================
+     Warning Alert Email Template
+     ======================================== */}}
+{{ define "email.warning.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            border: 1px solid #fab005;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #fab005, #f59f00);
+            color: #333;
+            padding: 20px;
+            text-align: center;
+        }
+        .content {
+            padding: 20px;
+        }
+        .alert-item {
+            background-color: #fffbeb;
+            border-left: 4px solid #fab005;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 0 4px 4px 0;
+        }
+        .description {
+            white-space: pre-line;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Warning Alert - GCRF Library</h2>
+            <p>{{ .Alerts.Firing | len }} warning(s) require attention</p>
+        </div>
+        <div class="content">
+            {{ range .Alerts.Firing }}
+            <div class="alert-item">
+                <strong>{{ .Labels.alertname }}</strong>
+                <p>{{ .Annotations.summary }}</p>
+                <div class="description">{{ .Annotations.description }}</div>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+</body>
+</html>
+{{ end }}
+
+{{/* ========================================
+     Database Alert Email Template
+     ======================================== */}}
+{{ define "email.database.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: monospace;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .header {
+            background-color: #0078d4;
+            color: white;
+            padding: 15px 20px;
+        }
+        .content {
+            padding: 20px;
+        }
+        .metric {
+            background-color: #2d2d2d;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .metric-name {
+            color: #569cd6;
+        }
+        .metric-value {
+            color: #ce9178;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h3>Database Alert - GCRF Library</h3>
+        </div>
+        <div class="content">
+            {{ range .Alerts.Firing }}
+            <h4 style="color: #dcdcaa;">{{ .Labels.alertname }}</h4>
+            <p>{{ .Annotations.summary }}</p>
+            <pre style="white-space: pre-wrap; color: #9cdcfe;">{{ .Annotations.description }}</pre>
+            <div class="metric">
+                <span class="metric-name">Database:</span>
+                <span class="metric-value">{{ .Labels.datname }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-name">Instance:</span>
+                <span class="metric-value">{{ .Labels.instance }}</span>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+</body>
+</html>
+{{ end }}
+
+{{/* ========================================
+     Performance Alert Email Template
+     ======================================== */}}
+{{ define "email.performance.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            border: 1px solid #228be6;
+            border-radius: 8px;
+        }
+        .header {
+            background: linear-gradient(135deg, #228be6, #1971c2);
+            color: white;
+            padding: 20px;
+        }
+        .content {
+            padding: 20px;
+        }
+        .perf-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Performance Alert</h2>
+            <p>GCRF Library Management System</p>
+        </div>
+        <div class="content">
+            {{ range .Alerts.Firing }}
+            <div class="perf-card">
+                <h4>{{ .Labels.alertname }}</h4>
+                <p><strong>Service:</strong> {{ .Labels.application }}</p>
+                <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+                <pre style="white-space: pre-wrap; font-size: 13px;">{{ .Annotations.description }}</pre>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+</body>
+</html>
+{{ end }}
+
+{{/* ========================================
+     Infrastructure Alert Email Template
+     ======================================== */}}
+{{ define "email.infrastructure.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #fff;
+            border: 1px solid #495057;
+            border-radius: 8px;
+        }
+        .header {
+            background-color: #495057;
+            color: white;
+            padding: 20px;
+        }
+        .content {
+            padding: 20px;
+        }
+        .server-info {
+            background-color: #f1f3f5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Infrastructure Alert</h2>
+            <p>Server/Resource Issue Detected</p>
+        </div>
+        <div class="content">
+            {{ range .Alerts.Firing }}
+            <div class="server-info">
+                <p><strong>Alert:</strong> {{ .Labels.alertname }}</p>
+                <p><strong>Instance:</strong> {{ .Labels.instance }}</p>
+                <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+                <pre style="white-space: pre-wrap;">{{ .Annotations.description }}</pre>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+</body>
+</html>
+{{ end }}
+
+{{/* ========================================
+     Info Alert Email Template
+     ======================================== */}}
+{{ define "email.info.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #fff;
+            border: 1px solid #228be6;
+            border-radius: 8px;
+        }
+        .header {
+            background-color: #228be6;
+            color: white;
+            padding: 15px 20px;
+        }
+        .content {
+            padding: 20px;
+        }
+        .info-item {
+            background-color: #e7f5ff;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h3>Information Alert - GCRF Library</h3>
+        </div>
+        <div class="content">
+            {{ range .Alerts.Firing }}
+            <div class="info-item">
+                <strong>{{ .Labels.alertname }}</strong>
+                <p>{{ .Annotations.summary }}</p>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+</body>
+</html>
+{{ end }}
+
+{{/* ========================================
+     Business Alert Email Template
+     ======================================== */}}
+{{ define "email.business.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #fff;
+            border: 1px solid #20c997;
+            border-radius: 8px;
+        }
+        .header {
+            background: linear-gradient(135deg, #20c997, #12b886);
+            color: white;
+            padding: 20px;
+        }
+        .content {
+            padding: 20px;
+        }
+        .business-alert {
+            background-color: #e6fcf5;
+            border-left: 4px solid #20c997;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Business Alert - GCRF Library</h2>
+            <p>Library Operations Issue</p>
+        </div>
+        <div class="content">
+            {{ range .Alerts.Firing }}
+            <div class="business-alert">
+                <h4>{{ .Labels.alertname }}</h4>
+                <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+                <pre style="white-space: pre-wrap; font-size: 14px;">{{ .Annotations.description }}</pre>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+</body>
+</html>
+{{ end }}
+
+{{/* ========================================
+     Security Alert Email Template
+     ======================================== */}}
+{{ define "email.security.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1a1a2e;
+        }
+        .container {
+            background-color: #16213e;
+            border: 2px solid #e94560;
+            border-radius: 8px;
+            color: #eee;
+        }
+        .header {
+            background: linear-gradient(135deg, #e94560, #0f3460);
+            padding: 25px;
+            text-align: center;
+        }
+        .header h2 {
+            margin: 0;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+        .content {
+            padding: 20px;
+        }
+        .security-alert {
+            background-color: #1f4068;
+            border-left: 4px solid #e94560;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 0 4px 4px 0;
+        }
+        .security-alert h4 {
+            color: #e94560;
+            margin-top: 0;
+        }
+        .description {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background-color: #0f3460;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Security Alert</h2>
+            <p>GCRF Library Management System</p>
+        </div>
+        <div class="content">
+            {{ range .Alerts.Firing }}
+            <div class="security-alert">
+                <h4>{{ .Labels.alertname }}</h4>
+                <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+                <div class="description">{{ .Annotations.description }}</div>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+</body>
+</html>
+{{ end }}

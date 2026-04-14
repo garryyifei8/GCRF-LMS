@@ -2,12 +2,14 @@ package com.gcrf.library.book.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.gcrf.library.book.client.IsbnApiClient;
 import com.gcrf.library.book.dto.BookQueryRequest;
 import com.gcrf.library.book.dto.request.BookCreateRequest;
 import com.gcrf.library.book.dto.request.BookUpdateRequest;
 import com.gcrf.library.book.dto.response.BookDetailVO;
 import com.gcrf.library.book.dto.response.BookVO;
 import com.gcrf.library.book.entity.Book;
+import com.gcrf.library.book.event.BookEventPublisher;
 import com.gcrf.library.book.mapper.BookMapper;
 import com.gcrf.library.book.service.impl.BookServiceImpl;
 import com.gcrf.library.common.exception.BusinessException;
@@ -16,6 +18,7 @@ import com.gcrf.library.common.result.ResultCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -40,7 +43,14 @@ class BookServiceTest {
     @Mock
     private BookMapper bookMapper;
 
-    private BookService bookService;
+    @Mock
+    private IsbnApiClient isbnApiClient;
+
+    @Mock
+    private BookEventPublisher eventPublisher;
+
+    @InjectMocks
+    private BookServiceImpl bookService;
 
     private Book testBook;
     private BookCreateRequest createRequest;
@@ -48,9 +58,6 @@ class BookServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Manually create BookServiceImpl instance with mocked BookMapper
-        bookService = new BookServiceImpl(bookMapper);
-
         // 创建测试图书实体
         testBook = new Book();
         testBook.setId(1L);

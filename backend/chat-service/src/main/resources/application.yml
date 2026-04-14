@@ -1,0 +1,86 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: chat-service
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/gcrf_chat
+    username: postgres
+    password: postgres
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 4
+      timeout: 10000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
+
+# MyBatis Plus Configuration
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.gcrf.library.chat.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deletedAt
+      logic-delete-value: "NOW()"
+      logic-not-delete-value: "NULL"
+
+# Chat Service Configuration
+chat:
+  # Session settings
+  session:
+    timeout-minutes: 30
+    max-history-messages: 50
+  # Intent matching
+  intent:
+    min-confidence: 0.6
+    fallback-threshold: 0.3
+  # Cache settings (in seconds)
+  cache:
+    faq-ttl: 3600
+    intent-ttl: 1800
+    session-ttl: 1800
+
+# Logging
+logging:
+  level:
+    com.gcrf.library.chat: debug
+    com.baomidou.mybatisplus: debug
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# SpringDoc
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

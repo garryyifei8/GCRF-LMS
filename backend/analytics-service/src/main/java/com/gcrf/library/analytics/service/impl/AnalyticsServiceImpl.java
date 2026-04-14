@@ -1,0 +1,324 @@
+package com.gcrf.library.analytics.service.impl;
+
+import com.gcrf.library.analytics.client.BookServiceClient;
+import com.gcrf.library.analytics.client.CirculationServiceClient;
+import com.gcrf.library.analytics.client.ReaderServiceClient;
+import com.gcrf.library.analytics.dto.request.RankingQueryRequest;
+import com.gcrf.library.analytics.dto.request.TrendQueryRequest;
+import com.gcrf.library.analytics.dto.response.*;
+import com.gcrf.library.analytics.service.AnalyticsService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+
+/**
+ * 数据分析服务实现类
+ *
+ * 注意：当前实现使用模拟数据，生产环境需要通过Feign Client从各服务获取真实数据
+ *
+ * @author GCRF Team
+ * @since 2025-11-30
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class AnalyticsServiceImpl implements AnalyticsService {
+
+    private final BookServiceClient bookServiceClient;
+    private final CirculationServiceClient circulationServiceClient;
+    private final ReaderServiceClient readerServiceClient;
+
+    // 分类颜色映射
+    private static final Map<String, String> CATEGORY_COLORS = Map.of(
+            "I", "#5470c6",
+            "TP", "#91cc75",
+            "K", "#fac858",
+            "F", "#ee6666",
+            "B", "#73c0de",
+            "J", "#3ba272",
+            "H", "#fc8452",
+            "G", "#9a60b4",
+            "O", "#ea7ccc",
+            "D", "#8b5cf6"
+    );
+
+    // 分类名称映射
+    private static final Map<String, String> CATEGORY_NAMES = Map.of(
+            "I", "文学",
+            "TP", "工业技术",
+            "K", "历史、地理",
+            "F", "经济",
+            "B", "哲学、宗教",
+            "J", "艺术",
+            "H", "语言、文字",
+            "G", "文化、教育",
+            "O", "数理科学",
+            "D", "政治、法律"
+    );
+
+    @Override
+    public OverviewVO getOverview() {
+        log.info("获取总览统计数据");
+
+        // TODO: 生产环境应通过Feign Client从各服务聚合数据
+        // 当前返回模拟数据
+        return OverviewVO.builder()
+                .totalBooks(10000L)
+                .totalCopies(25000L)
+                .totalReaders(5000L)
+                .totalVisits(125000L)
+                .booksPerReader(BigDecimal.valueOf(5.0))
+                .visitsPerReader(BigDecimal.valueOf(25.0))
+                .currentBorrowed(2500L)
+                .availableCopies(22500L)
+                .overdueCount(350L)
+                .reservationCount(180L)
+                .todayVisits(randomLong(280, 350))
+                .todayBorrowed(randomLong(70, 100))
+                .todayReturned(randomLong(75, 110))
+                .todayNewReaders(randomLong(3, 10))
+                .thisMonthBorrowed(1800L)
+                .thisMonthReturned(1650L)
+                .thisMonthVisits(8500L)
+                .thisMonthNewBooks(120L)
+                .circulationRate(BigDecimal.valueOf(0.65))
+                .zeroCirculationCount(800L)
+                .zeroCirculationRate(BigDecimal.valueOf(0.08))
+                .borrowGrowth(BigDecimal.valueOf(0.15))
+                .visitsGrowth(BigDecimal.valueOf(0.12))
+                .readerGrowth(BigDecimal.valueOf(0.08))
+                .build();
+    }
+
+    @Override
+    public List<BorrowTrendVO> getBorrowTrends(TrendQueryRequest request) {
+        log.info("获取借阅趋势数据, timeRange: {}, granularity: {}",
+                request.getTimeRange(), request.getGranularity());
+
+        List<BorrowTrendVO> trends = new ArrayList<>();
+        int days = getDaysFromTimeRange(request.getTimeRange());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        for (int i = days - 1; i >= 0; i--) {
+            LocalDate date = LocalDate.now().minusDays(i);
+            boolean isWeekend = date.getDayOfWeek() == DayOfWeek.SATURDAY
+                    || date.getDayOfWeek() == DayOfWeek.SUNDAY;
+
+            // 周末和工作日有不同的流量模式
+            long borrowedMin = isWeekend ? 30 : 60;
+            long borrowedMax = isWeekend ? 80 : 150;
+            long returnedMin = isWeekend ? 25 : 55;
+            long returnedMax = isWeekend ? 75 : 145;
+            long visitsMin = isWeekend ? 100 : 200;
+            long visitsMax = isWeekend ? 300 : 500;
+
+            trends.add(BorrowTrendVO.builder()
+                    .date(date)
+                    .dateStr(date.format(formatter))
+                    .borrowed(randomLong(borrowedMin, borrowedMax))
+                    .returned(randomLong(returnedMin, returnedMax))
+                    .visits(randomLong(visitsMin, visitsMax))
+                    .newReaders(randomLong(0, isWeekend ? 3 : 8))
+                    .reserved(randomLong(5, 25))
+                    .renewed(randomLong(3, 15))
+                    .build());
+        }
+
+        return trends;
+    }
+
+    @Override
+    public List<PopularBookVO> getPopularBooks(RankingQueryRequest request) {
+        log.info("获取热门图书排行, rankBy: {}, limit: {}", request.getRankBy(), request.getLimit());
+
+        List<PopularBookVO> books = new ArrayList<>();
+
+        String[] titles = {
+                "三体", "活着", "百年孤独", "Python编程:从入门到实践", "算法导论",
+                "深入理解计算机系统", "人类简史", "未来简史", "原则", "自控力",
+                "围城", "平凡的世界", "红楼梦", "西游记", "三国演义",
+                "水浒传", "追风筝的人", "解忧杂货店", "白夜行", "嫌疑人X的献身"
+        };
+
+        String[] authors = {
+                "刘慈欣", "余华", "加西亚·马尔克斯", "Eric Matthes", "Thomas H. Cormen",
+                "Randal E. Bryant", "尤瓦尔·赫拉利", "尤瓦尔·赫拉利", "瑞·达利欧", "凯利·麦格尼格尔",
+                "钱钟书", "路遥", "曹雪芹", "吴承恩", "罗贯中",
+                "施耐庵", "卡勒德·胡赛尼", "东野圭吾", "东野圭吾", "东野圭吾"
+        };
+
+        String[] categories = {"I", "I", "I", "TP", "TP", "TP", "K", "K", "F", "B",
+                "I", "I", "I", "I", "I", "I", "I", "I", "I", "I"};
+
+        int limit = Math.min(request.getLimit(), titles.length);
+
+        for (int i = 0; i < limit; i++) {
+            String categoryCode = categories[i];
+            int totalCopies = randomInt(5, 15);
+            int borrowedCopies = randomInt(2, totalCopies);
+
+            books.add(PopularBookVO.builder()
+                    .rank(i + 1)
+                    .bookId((long) (i + 1))
+                    .isbn("978" + String.format("%010d", randomLong(1000000000L, 9999999999L)))
+                    .title(titles[i])
+                    .author(authors[i])
+                    .categoryCode(categoryCode)
+                    .categoryName(CATEGORY_NAMES.getOrDefault(categoryCode, "其他"))
+                    .coverUrl("https://picsum.photos/seed/" + i + "/100/150")
+                    .borrowCount(randomLong(500 - i * 20, 600 - i * 15))
+                    .rating(BigDecimal.valueOf(randomDouble(3.5, 5.0)).setScale(1, RoundingMode.HALF_UP))
+                    .totalCopies(totalCopies)
+                    .availableCopies(totalCopies - borrowedCopies)
+                    .borrowedCopies(borrowedCopies)
+                    .reservationCount(randomInt(0, 10))
+                    .build());
+        }
+
+        return books;
+    }
+
+    @Override
+    public List<ActiveReaderVO> getActiveReaders(RankingQueryRequest request) {
+        log.info("获取活跃读者排行, rankBy: {}, limit: {}", request.getRankBy(), request.getLimit());
+
+        List<ActiveReaderVO> readers = new ArrayList<>();
+
+        String[] names = {"张三", "李四", "王五", "赵六", "钱七", "孙八", "周九", "吴十",
+                "郑十一", "王小明", "李小红", "张小华", "刘小伟", "陈小芳", "杨小军",
+                "黄小燕", "周小敏", "吴小强", "林小丽", "何小刚"};
+
+        String[] types = {"student", "teacher", "staff"};
+        String[] typeNames = {"学生", "教师", "职工"};
+        String[] categories = {"文学", "工业技术", "历史地理", "经济", "哲学宗教"};
+
+        int limit = Math.min(request.getLimit(), names.length);
+
+        for (int i = 0; i < limit; i++) {
+            int typeIndex = i < 15 ? 0 : (i < 18 ? 1 : 2);
+
+            readers.add(ActiveReaderVO.builder()
+                    .rank(i + 1)
+                    .readerId((long) (i + 1))
+                    .cardNo(String.format("RD%08d", i + 1))
+                    .realName(names[i])
+                    .readerType(types[typeIndex])
+                    .readerTypeName(typeNames[typeIndex])
+                    .avatar("https://i.pravatar.cc/100?img=" + (i + 1))
+                    .borrowCount(randomLong(200 - i * 8, 250 - i * 10))
+                    .visitCount(randomLong(500 - i * 20, 600 - i * 25))
+                    .favoriteCategory(categories[i % categories.length])
+                    .lastBorrowDate(LocalDate.now().minusDays(randomInt(0, 7)).atStartOfDay())
+                    .currentBorrowCount(randomInt(0, 10))
+                    .overdueCount(randomInt(0, 3))
+                    .build());
+        }
+
+        return readers;
+    }
+
+    @Override
+    public List<CategoryDistributionVO> getCategoryDistribution() {
+        log.info("获取分类分布数据");
+
+        List<CategoryDistributionVO> distributions = new ArrayList<>();
+        long totalBooks = 10000L;
+
+        List<Map.Entry<String, String>> entries = new ArrayList<>(CATEGORY_NAMES.entrySet());
+
+        for (int i = 0; i < entries.size(); i++) {
+            String code = entries.get(i).getKey();
+            String name = entries.get(i).getValue();
+            long bookCount = randomLong(500, 2000);
+
+            distributions.add(CategoryDistributionVO.builder()
+                    .code(code)
+                    .name(name)
+                    .color(CATEGORY_COLORS.getOrDefault(code, "#999999"))
+                    .bookCount(bookCount)
+                    .borrowCount(randomLong(200, (long) (bookCount * 1.5)))
+                    .circulationRate(BigDecimal.valueOf(randomDouble(0.3, 0.9)).setScale(2, RoundingMode.HALF_UP))
+                    .readerCount(randomLong(100, 800))
+                    .percentage(BigDecimal.valueOf((double) bookCount / totalBooks).setScale(3, RoundingMode.HALF_UP))
+                    .zeroCirculationCount(randomLong(10, 100))
+                    .zeroCirculationRate(BigDecimal.valueOf(randomDouble(0.02, 0.15)).setScale(3, RoundingMode.HALF_UP))
+                    .build());
+        }
+
+        return distributions;
+    }
+
+    @Override
+    public HeatmapDataVO getReaderActivityHeatmap() {
+        log.info("获取读者活跃度热力图数据");
+
+        List<String> hours = Arrays.asList(
+                "8:00", "9:00", "10:00", "11:00", "12:00", "13:00",
+                "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"
+        );
+        List<String> days = Arrays.asList("周一", "周二", "周三", "周四", "周五", "周六", "周日");
+
+        List<int[]> data = new ArrayList<>();
+        int minValue = Integer.MAX_VALUE;
+        int maxValue = Integer.MIN_VALUE;
+
+        for (int dayIndex = 0; dayIndex < days.size(); dayIndex++) {
+            for (int hourIndex = 0; hourIndex < hours.size(); hourIndex++) {
+                // 模拟不同时段的活跃度
+                // 周末和工作日模式不同，午休和下午时段较活跃
+                boolean isWeekend = dayIndex >= 5;
+                boolean isPeakHour = (hourIndex >= 2 && hourIndex <= 4) || (hourIndex >= 6 && hourIndex <= 8);
+
+                int baseValue = isWeekend ? 40 : 60;
+                int peakBonus = isPeakHour ? 30 : 0;
+                int value = randomInt(baseValue + peakBonus - 20, baseValue + peakBonus + 20);
+
+                value = Math.max(0, Math.min(100, value));
+                minValue = Math.min(minValue, value);
+                maxValue = Math.max(maxValue, value);
+
+                data.add(new int[]{hourIndex, dayIndex, value});
+            }
+        }
+
+        return HeatmapDataVO.builder()
+                .hours(hours)
+                .days(days)
+                .data(data)
+                .minValue(minValue)
+                .maxValue(maxValue)
+                .build();
+    }
+
+    // ==================== 辅助方法 ====================
+
+    private int getDaysFromTimeRange(String timeRange) {
+        return switch (timeRange) {
+            case "LAST_7_DAYS" -> 7;
+            case "LAST_30_DAYS" -> 30;
+            case "THIS_MONTH" -> LocalDate.now().getDayOfMonth();
+            case "THIS_YEAR" -> LocalDate.now().getDayOfYear();
+            default -> 30;
+        };
+    }
+
+    private long randomLong(long min, long max) {
+        return ThreadLocalRandom.current().nextLong(min, max + 1);
+    }
+
+    private int randomInt(int min, int max) {
+        return ThreadLocalRandom.current().nextInt(min, max + 1);
+    }
+
+    private double randomDouble(double min, double max) {
+        return ThreadLocalRandom.current().nextDouble(min, max);
+    }
+}

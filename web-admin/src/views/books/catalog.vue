@@ -53,9 +53,11 @@
             size="large"
             :icon="Search"
             :loading="isbnSearching"
+            :disabled="isbnSearching"
             @click="handleISBNSearch"
           >
-            查询图书信息
+            <ButtonLoading v-if="isbnSearching" text="查询中..." size="default" />
+            <span v-else>查询图书信息</span>
           </el-button>
         </div>
         <div class="isbn-tip">
@@ -88,7 +90,11 @@
                     :disabled="catalogMode === 'smart' && isbnFetched"
                   >
                     <template #append>
-                      <el-button v-if="catalogMode === 'manual'" :icon="Search" @click="handleISBNSearch">
+                      <el-button
+                        v-if="catalogMode === 'manual'"
+                        :icon="Search"
+                        @click="handleISBNSearch"
+                      >
                         查询
                       </el-button>
                     </template>
@@ -118,16 +124,19 @@
                 </el-form-item>
 
                 <el-form-item label="分类" prop="category">
-                  <el-select v-model="bookForm.category" placeholder="请选择图书分类" style="width: 100%">
-                    <el-option label="文学" value="literature" />
-                    <el-option label="历史" value="history" />
-                    <el-option label="科学" value="science" />
-                    <el-option label="艺术" value="art" />
-                    <el-option label="计算机" value="computer" />
-                    <el-option label="哲学" value="philosophy" />
-                    <el-option label="经济" value="economics" />
-                    <el-option label="教育" value="education" />
-                    <el-option label="其他" value="other" />
+                  <el-select
+                    v-model="bookForm.category"
+                    placeholder="请选择图书分类"
+                    style="width: 100%"
+                    :loading="categoryLoading"
+                    filterable
+                  >
+                    <el-option
+                      v-for="cat in categoryOptions"
+                      :key="cat.value"
+                      :label="cat.label"
+                      :value="cat.value"
+                    />
                   </el-select>
                 </el-form-item>
 
@@ -194,7 +203,11 @@
                 </el-form-item>
 
                 <el-form-item label="语言">
-                  <el-select v-model="bookForm.language" placeholder="请选择语言" style="width: 100%">
+                  <el-select
+                    v-model="bookForm.language"
+                    placeholder="请选择语言"
+                    style="width: 100%"
+                  >
                     <el-option label="中文" value="zh" />
                     <el-option label="英文" value="en" />
                     <el-option label="日文" value="ja" />
@@ -203,7 +216,11 @@
                 </el-form-item>
 
                 <el-form-item label="装帧">
-                  <el-select v-model="bookForm.binding" placeholder="请选择装帧方式" style="width: 100%">
+                  <el-select
+                    v-model="bookForm.binding"
+                    placeholder="请选择装帧方式"
+                    style="width: 100%"
+                  >
                     <el-option label="平装" value="paperback" />
                     <el-option label="精装" value="hardcover" />
                     <el-option label="其他" value="other" />
@@ -216,16 +233,24 @@
           <!-- 表单操作按钮 -->
           <el-form-item>
             <div class="form-actions">
-              <el-button type="primary" size="large" :icon="Check" @click="handleSubmit">
-                保存图书
+              <el-button
+                type="primary"
+                size="large"
+                :icon="Check"
+                :loading="submitting"
+                :disabled="submitting"
+                @click="handleSubmit"
+              >
+                <ButtonLoading v-if="submitting" text="保存中..." size="large" />
+                <span v-else>保存图书</span>
               </el-button>
-              <el-button size="large" @click="handleSaveAndContinue">
+              <el-button size="large" :disabled="submitting" @click="handleSaveAndContinue">
                 保存并继续添加
               </el-button>
-              <el-button size="large" @click="handleReset">
+              <el-button size="large" :disabled="submitting" @click="handleReset">
                 重置表单
               </el-button>
-              <el-button size="large" @click="$router.push('/books/list')">
+              <el-button size="large" :disabled="submitting" @click="$router.push('/books/list')">
                 返回列表
               </el-button>
             </div>
@@ -237,10 +262,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import AvatarUpload from '@/components/AvatarUpload.vue'
+import { SkeletonLoader, ButtonLoading } from '@/components/Loading'
+import { searchBookByISBN, createBook, getCategoryTree } from '@/api/books'
 
 const router = useRouter()
 
@@ -259,6 +286,13 @@ const showForm = computed(() => {
 
 // 表单引用
 const bookFormRef = ref(null)
+
+// 分类数据加载
+const categoryLoading = ref(false)
+const categoryOptions = ref([])
+
+// 提交状态
+const submitting = ref(false)
 
 // 图书表单数据
 const bookForm = reactive({
@@ -307,6 +341,48 @@ const handleModeChange = (mode) => {
   }
 }
 
+// 加载分类数据
+const loadCategories = async () => {
+  try {
+    categoryLoading.value = true
+    const res = await getCategoryTree()
+
+    if (res.code === 200 && res.data) {
+      // 将分类树转换为平铺选项列表
+      const flattenCategories = (categories, level = 0) => {
+        let options = []
+        categories.forEach((cat) => {
+          options.push({
+            label: `${'　'.repeat(level)}${cat.name}`,
+            value: cat.code
+          })
+          if (cat.children && cat.children.length > 0) {
+            options = options.concat(flattenCategories(cat.children, level + 1))
+          }
+        })
+        return options
+      }
+      categoryOptions.value = flattenCategories(res.data)
+    }
+  } catch (error) {
+    console.error('加载分类失败:', error)
+    // 使用默认分类
+    categoryOptions.value = [
+      { label: '文学', value: 'literature' },
+      { label: '历史', value: 'history' },
+      { label: '科学', value: 'science' },
+      { label: '艺术', value: 'art' },
+      { label: '计算机', value: 'computer' },
+      { label: '哲学', value: 'philosophy' },
+      { label: '经济', value: 'economics' },
+      { label: '教育', value: 'education' },
+      { label: '其他', value: 'other' }
+    ]
+  } finally {
+    categoryLoading.value = false
+  }
+}
+
 // ISBN查询
 const handleISBNSearch = async () => {
   const isbn = catalogMode.value === 'smart' ? isbnInput.value : bookForm.isbn
@@ -325,38 +401,48 @@ const handleISBNSearch = async () => {
   isbnSearching.value = true
 
   try {
-    // TODO: 调用API查询图书信息
-    // const res = await request.get('/api/books/isbn-search', { params: { isbn } })
+    const res = await searchBookByISBN(isbn)
 
-    // Mock数据 - 模拟从第三方API获取图书信息
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    if (res.code === 200 && res.data) {
+      // 填充表单
+      Object.assign(bookForm, {
+        isbn: res.data.isbn || isbn,
+        title: res.data.title || '',
+        author: res.data.author || '',
+        publisher: res.data.publisher || '',
+        publishDate: res.data.publishDate || '',
+        category: res.data.category || '',
+        price: res.data.price || 0,
+        summary: res.data.summary || res.data.description || '',
+        coverUrl: res.data.coverUrl || res.data.cover || '',
+        pages: res.data.pages || null,
+        language: res.data.language || 'zh',
+        binding: res.data.binding || 'paperback'
+      })
+      isbnFetched.value = true
 
-    const mockBookInfo = {
-      isbn: isbn,
-      title: 'Python编程：从入门到实践（第2版）',
-      author: '[美] Eric Matthes',
-      publisher: '人民邮电出版社',
-      publishDate: '2020-10-01',
-      category: 'computer',
-      price: 89.0,
-      summary:
-        '本书是一本针对所有层次的Python读者而作的Python入门书。全书分两部分：第一部分介绍用Python编程所必须了解的基本概念，包括matplotlib、NumPy和Pygal等强大的Python库和工具介绍，以及列表、字典、if语句、类、文件与异常、代码测试等内容；第二部分将理论付诸实践，讲解如何开发三个项目，包括简单的Python 2D游戏开发，如何利用数据生成交互式的信息图，以及创建和定制简单的Web应用，并帮助读者解决常见编程问题和困惑。',
-      coverUrl: 'https://via.placeholder.com/400x600/4A90E2/FFFFFF?text=Python',
-      pages: 464,
-      language: 'zh',
-      binding: 'paperback'
+      ElMessage.success('图书信息获取成功，请核对并补充完整信息')
+    } else {
+      throw new Error('未获取到图书信息')
     }
-
-    // 填充表单
-    Object.assign(bookForm, mockBookInfo)
-    isbnFetched.value = true
-
-    ElMessage.success('图书信息获取成功，请核对并补充完整信息')
   } catch (error) {
-    ElMessage.error('获取图书信息失败，请尝试手工编目')
-    // 切换到手工编目模式
-    catalogMode.value = 'manual'
-    bookForm.isbn = isbn
+    console.error('ISBN查询失败:', error)
+
+    // 如果查询失败，询问是否手动编目
+    ElMessageBox.confirm('未查询到图书信息，是否切换到手工编目模式？', '提示', {
+      confirmButtonText: '手工编目',
+      cancelButtonText: '重新查询',
+      type: 'warning'
+    })
+      .then(() => {
+        catalogMode.value = 'manual'
+        bookForm.isbn = isbn
+        isbnFetched.value = false
+      })
+      .catch(() => {
+        // 用户选择重新查询，清空ISBN输入
+        isbnInput.value = ''
+      })
   } finally {
     isbnSearching.value = false
   }
@@ -364,32 +450,59 @@ const handleISBNSearch = async () => {
 
 // 提交表单
 const handleSubmit = async (continueAdding = false) => {
+  if (!bookFormRef.value) return
+
   try {
     await bookFormRef.value.validate()
 
-    // TODO: 调用API保存图书
-    // await request.post('/api/books', bookForm)
+    submitting.value = true
 
-    // Mock保存
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    // 准备提交数据
+    const submitData = {
+      isbn: bookForm.isbn,
+      title: bookForm.title,
+      author: bookForm.author,
+      publisher: bookForm.publisher,
+      publishDate: bookForm.publishDate,
+      category: bookForm.category,
+      price: bookForm.price,
+      totalCopies: bookForm.totalCount,
+      availableCopies: bookForm.totalCount,
+      location: bookForm.location,
+      description: bookForm.summary,
+      coverUrl: bookForm.coverUrl,
+      pages: bookForm.pages,
+      language: bookForm.language,
+      binding: bookForm.binding,
+      status: 'available'
+    }
 
-    ElMessage.success(`图书《${bookForm.title}》添加成功，已生成${bookForm.totalCount}个条码`)
+    const res = await createBook(submitData)
 
-    if (continueAdding) {
-      // 继续添加
-      resetForm()
-      isbnInput.value = ''
-      isbnFetched.value = false
-    } else {
-      // 返回列表
-      setTimeout(() => {
-        router.push('/books/list')
-      }, 1000)
+    if (res.code === 200) {
+      ElMessage.success({
+        message: `图书《${bookForm.title}》添加成功，已生成${bookForm.totalCount}个条码`,
+        duration: 3000
+      })
+
+      if (continueAdding) {
+        // 继续添加
+        resetForm()
+        isbnInput.value = ''
+        isbnFetched.value = false
+        bookFormRef.value?.resetFields()
+      } else {
+        // 返回列表
+        setTimeout(() => {
+          router.push('/books/list')
+        }, 1500)
+      }
     }
   } catch (error) {
-    if (error !== false) {
-      ElMessage.error('保存失败，请检查表单信息')
-    }
+    // 错误已由errorHandler处理
+    console.error('保存图书失败:', error)
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -423,6 +536,11 @@ const resetForm = () => {
   bookForm.language = 'zh'
   bookForm.binding = 'paperback'
 }
+
+// 组件挂载时加载分类
+onMounted(() => {
+  loadCategories()
+})
 </script>
 
 <style lang="scss" scoped>

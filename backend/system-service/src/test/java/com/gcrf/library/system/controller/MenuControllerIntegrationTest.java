@@ -2,6 +2,7 @@ package com.gcrf.library.system.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gcrf.library.common.test.BaseIntegrationTest;
 import com.gcrf.library.system.dto.request.MenuCreateRequest;
 import com.gcrf.library.system.dto.request.MenuUpdateRequest;
 import com.gcrf.library.system.entity.Menu;
@@ -44,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional  // Rollback after each test
-class MenuControllerIntegrationTest {
+class MenuControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

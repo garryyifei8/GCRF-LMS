@@ -2,11 +2,8 @@ spring:
   application:
     name: system-service-test
 
+  # Datasource is dynamically configured by BaseIntegrationTest via @DynamicPropertySource
   datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/system_service_test
-    username: postgres
-    password: gcrf_secure_2024
     hikari:
       maximum-pool-size: 5
       minimum-idle: 1

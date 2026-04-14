@@ -1,105 +1,772 @@
-import { faker } from '@faker-js/faker/locale/zh_CN'
+/**
+ * 读者数据 - 来自数据库真实数据
+ * 数据来源: reader_service.readers 表
+ * 更新日期: 2025-12-02
+ */
 
-// 读者类型
+// 读者类型配置
 export const readerTypes = [
-  { value: 'student', label: '学生', maxBorrowCount: 5, borrowDays: 30, depositAmount: 0 },
-  { value: 'teacher', label: '教师', maxBorrowCount: 10, borrowDays: 60, depositAmount: 0 },
-  { value: 'staff', label: '职工', maxBorrowCount: 8, borrowDays: 45, depositAmount: 0 },
-  { value: 'public', label: '公众读者', maxBorrowCount: 3, borrowDays: 15, depositAmount: 100 }
+  { value: 'STUDENT', label: '学生', maxBorrowCount: 10, borrowDays: 30, depositAmount: 0 },
+  { value: 'TEACHER', label: '教师', maxBorrowCount: 20, borrowDays: 60, depositAmount: 0 },
+  { value: 'STAFF', label: '职工', maxBorrowCount: 15, borrowDays: 45, depositAmount: 0 },
+  { value: 'EXTERNAL', label: '校外读者', maxBorrowCount: 3, borrowDays: 15, depositAmount: 100 }
 ]
 
-// 年级列表
-const grades = [
-  '一年级', '二年级', '三年级', '四年级', '五年级', '六年级',
-  '初一', '初二', '初三',
-  '高一', '高二', '高三',
-  '大一', '大二', '大三', '大四'
+// 数据库真实读者数据
+const realReadersData = [
+  {
+    id: 1,
+    readerId: '20240001',
+    name: '张晓明',
+    idCard: '110105200301151234',
+    phone: '13811111111',
+    email: 'zhangxm@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '计算机科学与技术学院',
+    studentNo: '2021001',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/001.jpg'
+  },
+  {
+    id: 2,
+    readerId: '20240002',
+    name: '李雨晨',
+    idCard: '110108200302251567',
+    phone: '13822222222',
+    email: 'liyc@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '电子信息工程学院',
+    studentNo: '2021002',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/002.jpg'
+  },
+  {
+    id: 3,
+    readerId: '20240003',
+    name: '王思远',
+    idCard: '110106200301083456',
+    phone: '13833333333',
+    email: 'wangsy@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '机械工程学院',
+    studentNo: '2021003',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/003.jpg'
+  },
+  {
+    id: 4,
+    readerId: '20240004',
+    name: '陈佳琪',
+    idCard: '110109200302174589',
+    phone: '13844444444',
+    email: 'chenjq@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '经济管理学院',
+    studentNo: '2021004',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'SUSPENDED',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/004.jpg'
+  },
+  {
+    id: 5,
+    readerId: '20240005',
+    name: '刘梦婷',
+    idCard: '110107200301297890',
+    phone: '13855555555',
+    email: 'liumt@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '文学与传媒学院',
+    studentNo: '2021005',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/005.jpg'
+  },
+  {
+    id: 6,
+    readerId: '20240006',
+    name: '赵文博',
+    idCard: '110102200302051234',
+    phone: '13866666666',
+    email: 'zhaowb@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '数学与统计学院',
+    studentNo: '2021006',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/006.jpg'
+  },
+  {
+    id: 7,
+    readerId: '20240007',
+    name: '周晓雪',
+    idCard: '110101200301164567',
+    phone: '13877777777',
+    email: 'zhouxx@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '外国语学院',
+    studentNo: '2021007',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'EXPIRED',
+    expiryDate: '2024-06-30',
+    avatarUrl: 'https://avatars.example.com/student/007.jpg'
+  },
+  {
+    id: 8,
+    readerId: '20240008',
+    name: '吴浩然',
+    idCard: '110104200302238901',
+    phone: '13888888888',
+    email: 'wuhr@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '物理与光电工程学院',
+    studentNo: '2021008',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/008.jpg'
+  },
+  {
+    id: 9,
+    readerId: '20240009',
+    name: '郑雅琴',
+    idCard: '110103200301092345',
+    phone: '13899999999',
+    email: 'zhengyq@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '化学与材料科学学院',
+    studentNo: '2021009',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/009.jpg'
+  },
+  {
+    id: 10,
+    readerId: '20240010',
+    name: '孙志强',
+    idCard: '110110200302186789',
+    phone: '13900000000',
+    email: 'sunzq@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '生命科学学院',
+    studentNo: '2021010',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/010.jpg'
+  },
+  {
+    id: 11,
+    readerId: '20240011',
+    name: '马晓宇',
+    idCard: '110111200301270123',
+    phone: '13911111111',
+    email: 'maxy@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '建筑与城市规划学院',
+    studentNo: '2021011',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/011.jpg'
+  },
+  {
+    id: 12,
+    readerId: '20240012',
+    name: '徐梦洁',
+    idCard: '110112200302034567',
+    phone: '13922222222',
+    email: 'xumj@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '艺术设计学院',
+    studentNo: '2021012',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/012.jpg'
+  },
+  {
+    id: 13,
+    readerId: '20240013',
+    name: '冯博文',
+    idCard: '110105200301148901',
+    phone: '13933333333',
+    email: 'fengbw@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '法学院',
+    studentNo: '2021013',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'SUSPENDED',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/013.jpg'
+  },
+  {
+    id: 14,
+    readerId: '20240014',
+    name: '杨雪莉',
+    idCard: '110108200302212345',
+    phone: '13944444444',
+    email: 'yangxl@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '教育学院',
+    studentNo: '2021014',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/014.jpg'
+  },
+  {
+    id: 15,
+    readerId: '20240015',
+    name: '黄俊杰',
+    idCard: '110106200301056789',
+    phone: '13955555555',
+    email: 'huangjj@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '体育学院',
+    studentNo: '2021015',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/015.jpg'
+  },
+  {
+    id: 16,
+    readerId: '20240016',
+    name: '林诗涵',
+    idCard: '110109200302190123',
+    phone: '13966666666',
+    email: 'linsh@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '音乐学院',
+    studentNo: '2021016',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/016.jpg'
+  },
+  {
+    id: 17,
+    readerId: '20240017',
+    name: '谢明轩',
+    idCard: '110107200301234567',
+    phone: '13977777777',
+    email: 'xiemx@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '医学院',
+    studentNo: '2021017',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'EXPIRED',
+    expiryDate: '2024-06-30',
+    avatarUrl: 'https://avatars.example.com/student/017.jpg'
+  },
+  {
+    id: 18,
+    readerId: '20240018',
+    name: '何雨欣',
+    idCard: '110102200302078901',
+    phone: '13988888888',
+    email: 'heyx@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '药学院',
+    studentNo: '2021018',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/018.jpg'
+  },
+  {
+    id: 19,
+    readerId: '20240019',
+    name: '罗天宇',
+    idCard: '110101200301112345',
+    phone: '13999999999',
+    email: 'luoty@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '公共管理学院',
+    studentNo: '2021019',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/019.jpg'
+  },
+  {
+    id: 20,
+    readerId: '20240020',
+    name: '韩雅静',
+    idCard: '110104200302156789',
+    phone: '15000000000',
+    email: 'hanyj@student.edu.cn',
+    readerType: 'STUDENT',
+    department: '马克思主义学院',
+    studentNo: '2021020',
+    employeeNo: null,
+    maxBorrowCount: 10,
+    maxBorrowDays: 30,
+    status: 'ACTIVE',
+    expiryDate: '2025-06-30',
+    avatarUrl: 'https://avatars.example.com/student/020.jpg'
+  },
+  {
+    id: 21,
+    readerId: '20240021',
+    name: '陈建国',
+    idCard: '110105198001150234',
+    phone: '15011111111',
+    email: 'chenjg@teacher.edu.cn',
+    readerType: 'TEACHER',
+    department: '计算机科学与技术学院',
+    studentNo: null,
+    employeeNo: 'T001',
+    maxBorrowCount: 20,
+    maxBorrowDays: 60,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/teacher/001.jpg'
+  },
+  {
+    id: 22,
+    readerId: '20240022',
+    name: '王秀英',
+    idCard: '110108197905251567',
+    phone: '15022222222',
+    email: 'wangxy@teacher.edu.cn',
+    readerType: 'TEACHER',
+    department: '电子信息工程学院',
+    studentNo: null,
+    employeeNo: 'T002',
+    maxBorrowCount: 20,
+    maxBorrowDays: 60,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/teacher/002.jpg'
+  },
+  {
+    id: 23,
+    readerId: '20240023',
+    name: '李文斌',
+    idCard: '110106198203083456',
+    phone: '15033333333',
+    email: 'liwb@teacher.edu.cn',
+    readerType: 'TEACHER',
+    department: '机械工程学院',
+    studentNo: null,
+    employeeNo: 'T003',
+    maxBorrowCount: 20,
+    maxBorrowDays: 60,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/teacher/003.jpg'
+  },
+  {
+    id: 24,
+    readerId: '20240024',
+    name: '张丽华',
+    idCard: '110109197802174589',
+    phone: '15044444444',
+    email: 'zhanglh@teacher.edu.cn',
+    readerType: 'TEACHER',
+    department: '经济管理学院',
+    studentNo: null,
+    employeeNo: 'T004',
+    maxBorrowCount: 20,
+    maxBorrowDays: 60,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/teacher/004.jpg'
+  },
+  {
+    id: 25,
+    readerId: '20240025',
+    name: '刘志强',
+    idCard: '110107198101297890',
+    phone: '15055555555',
+    email: 'liuzq@teacher.edu.cn',
+    readerType: 'TEACHER',
+    department: '文学与传媒学院',
+    studentNo: null,
+    employeeNo: 'T005',
+    maxBorrowCount: 20,
+    maxBorrowDays: 60,
+    status: 'SUSPENDED',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/teacher/005.jpg'
+  },
+  {
+    id: 26,
+    readerId: '20240026',
+    name: '赵明阳',
+    idCard: '110102197702051234',
+    phone: '15066666666',
+    email: 'zhaomy@teacher.edu.cn',
+    readerType: 'TEACHER',
+    department: '数学与统计学院',
+    studentNo: null,
+    employeeNo: 'T006',
+    maxBorrowCount: 20,
+    maxBorrowDays: 60,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/teacher/006.jpg'
+  },
+  {
+    id: 27,
+    readerId: '20240027',
+    name: '周华民',
+    idCard: '110101198301164567',
+    phone: '15077777777',
+    email: 'zhouhm@teacher.edu.cn',
+    readerType: 'TEACHER',
+    department: '外国语学院',
+    studentNo: null,
+    employeeNo: 'T007',
+    maxBorrowCount: 20,
+    maxBorrowDays: 60,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/teacher/007.jpg'
+  },
+  {
+    id: 28,
+    readerId: '20240028',
+    name: '吴晓峰',
+    idCard: '110104197902238901',
+    phone: '15088888888',
+    email: 'wuxf@teacher.edu.cn',
+    readerType: 'TEACHER',
+    department: '物理与光电工程学院',
+    studentNo: null,
+    employeeNo: 'T008',
+    maxBorrowCount: 20,
+    maxBorrowDays: 60,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/teacher/008.jpg'
+  },
+  {
+    id: 29,
+    readerId: '20240029',
+    name: '郑文杰',
+    idCard: '110103198201092345',
+    phone: '15099999999',
+    email: 'zhengwj@teacher.edu.cn',
+    readerType: 'TEACHER',
+    department: '化学与材料科学学院',
+    studentNo: null,
+    employeeNo: 'T009',
+    maxBorrowCount: 20,
+    maxBorrowDays: 60,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/teacher/009.jpg'
+  },
+  {
+    id: 30,
+    readerId: '20240030',
+    name: '孙美玲',
+    idCard: '110110197802186789',
+    phone: '15100000000',
+    email: 'sunml@teacher.edu.cn',
+    readerType: 'TEACHER',
+    department: '生命科学学院',
+    studentNo: null,
+    employeeNo: 'T010',
+    maxBorrowCount: 20,
+    maxBorrowDays: 60,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/teacher/010.jpg'
+  },
+  {
+    id: 31,
+    readerId: '20240031',
+    name: '马建军',
+    idCard: '110111198501270123',
+    phone: '15111111111',
+    email: 'majj@staff.edu.cn',
+    readerType: 'STAFF',
+    department: '图书馆',
+    studentNo: null,
+    employeeNo: 'S001',
+    maxBorrowCount: 15,
+    maxBorrowDays: 45,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/staff/001.jpg'
+  },
+  {
+    id: 32,
+    readerId: '20240032',
+    name: '徐晓红',
+    idCard: '110112198602034567',
+    phone: '15122222222',
+    email: 'xuxh@staff.edu.cn',
+    readerType: 'STAFF',
+    department: '教务处',
+    studentNo: null,
+    employeeNo: 'S002',
+    maxBorrowCount: 15,
+    maxBorrowDays: 45,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/staff/002.jpg'
+  },
+  {
+    id: 33,
+    readerId: '20240033',
+    name: '冯国庆',
+    idCard: '110105198701148901',
+    phone: '15133333333',
+    email: 'fenggq@staff.edu.cn',
+    readerType: 'STAFF',
+    department: '财务处',
+    studentNo: null,
+    employeeNo: 'S003',
+    maxBorrowCount: 15,
+    maxBorrowDays: 45,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/staff/003.jpg'
+  },
+  {
+    id: 34,
+    readerId: '20240034',
+    name: '杨丽萍',
+    idCard: '110108198802212345',
+    phone: '15144444444',
+    email: 'yanglp@staff.edu.cn',
+    readerType: 'STAFF',
+    department: '后勤处',
+    studentNo: null,
+    employeeNo: 'S004',
+    maxBorrowCount: 15,
+    maxBorrowDays: 45,
+    status: 'EXPIRED',
+    expiryDate: '2024-12-31',
+    avatarUrl: 'https://avatars.example.com/staff/004.jpg'
+  },
+  {
+    id: 35,
+    readerId: '20240035',
+    name: '黄志伟',
+    idCard: '110106198901056789',
+    phone: '15155555555',
+    email: 'huangzw@staff.edu.cn',
+    readerType: 'STAFF',
+    department: '保卫处',
+    studentNo: null,
+    employeeNo: 'S005',
+    maxBorrowCount: 15,
+    maxBorrowDays: 45,
+    status: 'ACTIVE',
+    expiryDate: '2026-12-31',
+    avatarUrl: 'https://avatars.example.com/staff/005.jpg'
+  },
+  {
+    id: 36,
+    readerId: '20240036',
+    name: '林海涛',
+    idCard: '110109199002190123',
+    phone: '15166666666',
+    email: 'linht@external.com',
+    readerType: 'EXTERNAL',
+    department: null,
+    studentNo: null,
+    employeeNo: null,
+    maxBorrowCount: 3,
+    maxBorrowDays: 15,
+    status: 'ACTIVE',
+    expiryDate: '2025-03-31',
+    avatarUrl: 'https://avatars.example.com/external/001.jpg'
+  },
+  {
+    id: 37,
+    readerId: '20240037',
+    name: '谢敏敏',
+    idCard: '110107199101234567',
+    phone: '15177777777',
+    email: 'xiemm@external.com',
+    readerType: 'EXTERNAL',
+    department: null,
+    studentNo: null,
+    employeeNo: null,
+    maxBorrowCount: 3,
+    maxBorrowDays: 15,
+    status: 'ACTIVE',
+    expiryDate: '2025-03-31',
+    avatarUrl: 'https://avatars.example.com/external/002.jpg'
+  },
+  {
+    id: 38,
+    readerId: '20240038',
+    name: '何建华',
+    idCard: '110102199202078901',
+    phone: '15188888888',
+    email: 'hejh@external.com',
+    readerType: 'EXTERNAL',
+    department: null,
+    studentNo: null,
+    employeeNo: null,
+    maxBorrowCount: 3,
+    maxBorrowDays: 15,
+    status: 'SUSPENDED',
+    expiryDate: '2025-03-31',
+    avatarUrl: 'https://avatars.example.com/external/003.jpg'
+  },
+  {
+    id: 39,
+    readerId: '20240039',
+    name: '罗晓芳',
+    idCard: '110101199301112345',
+    phone: '15199999999',
+    email: 'luoxf@external.com',
+    readerType: 'EXTERNAL',
+    department: null,
+    studentNo: null,
+    employeeNo: null,
+    maxBorrowCount: 3,
+    maxBorrowDays: 15,
+    status: 'ACTIVE',
+    expiryDate: '2025-03-31',
+    avatarUrl: 'https://avatars.example.com/external/004.jpg'
+  },
+  {
+    id: 40,
+    readerId: '20240040',
+    name: '韩东明',
+    idCard: '110104199402156789',
+    phone: '15200000000',
+    email: 'handm@external.com',
+    readerType: 'EXTERNAL',
+    department: null,
+    studentNo: null,
+    employeeNo: null,
+    maxBorrowCount: 3,
+    maxBorrowDays: 15,
+    status: 'ACTIVE',
+    expiryDate: '2025-03-31',
+    avatarUrl: 'https://avatars.example.com/external/005.jpg'
+  }
 ]
 
-// 班级列表
-const classes = ['1班', '2班', '3班', '4班', '5班', '6班', '7班', '8班']
-
-// 部门列表
-const departments = [
-  '语文组', '数学组', '英语组', '物理组', '化学组', '生物组',
-  '政治组', '历史组', '地理组', '体育组', '音乐组', '美术组',
-  '信息技术组', '行政办公室', '教务处', '德育处', '总务处'
-]
+// 获取读者类型名称
+function getReaderTypeName(type) {
+  const typeConfig = readerTypes.find((t) => t.value === type)
+  return typeConfig ? typeConfig.label : '未知'
+}
 
 // 生成读者数据
-export function generateReaders(count = 200) {
-  const readers = []
+export function generateReaders(count = 40) {
+  return realReadersData.slice(0, count).map((reader, index) => {
+    const readerType = readerTypes.find((t) => t.value === reader.readerType) || readerTypes[0]
+    // 模拟当前借阅数和总借阅数
+    const currentBorrowCount = Math.floor(Math.random() * reader.maxBorrowCount)
+    const totalBorrowCount = Math.floor(Math.random() * 100) + 10
+    const hasOverdue = reader.status === 'SUSPENDED'
+    const overdueCount = hasOverdue ? Math.floor(Math.random() * 3) + 1 : 0
 
-  for (let i = 0; i < count; i++) {
-    const readerType = faker.helpers.arrayElement(readerTypes)
-    const isStudent = readerType.value === 'student'
-    const isTeacher = readerType.value === 'teacher'
-    const isStaff = readerType.value === 'staff'
-
-    const currentBorrowCount = faker.number.int({ min: 0, max: readerType.maxBorrowCount })
-    const totalBorrowCount = faker.number.int({ min: currentBorrowCount, max: 500 })
-    const hasOverdue = faker.datatype.boolean({ probability: 0.1 })
-    const overdueCount = hasOverdue ? faker.number.int({ min: 1, max: 3 }) : 0
-
-    const reader = {
-      id: i + 1,
-      cardNo: `RD${String(i + 1).padStart(8, '0')}`,
-      realName: faker.person.fullName(),
-      gender: faker.helpers.arrayElement(['male', 'female']),
-      phone: faker.phone.number('1##########'),
-      email: faker.internet.email(),
-      idCard: faker.string.numeric(18),
-      readerType: readerType.value,
-      readerTypeName: readerType.label,
-      maxBorrowCount: readerType.maxBorrowCount,
-      borrowDays: readerType.borrowDays,
+    return {
+      id: reader.id,
+      cardNo: reader.readerId,
+      realName: reader.name,
+      gender: index % 2 === 0 ? 'male' : 'female',
+      phone: reader.phone,
+      email: reader.email,
+      idCard: reader.idCard,
+      readerType: reader.readerType.toLowerCase(),
+      readerTypeName: getReaderTypeName(reader.readerType),
+      maxBorrowCount: reader.maxBorrowCount,
+      borrowDays: reader.maxBorrowDays,
       depositAmount: readerType.depositAmount,
       currentBorrowCount,
       totalBorrowCount,
       overdueCount,
       hasOverdue,
-      status: hasOverdue && overdueCount > 2 ? 'suspended' :
-              faker.datatype.boolean({ probability: 0.95 }) ? 'active' :
-              faker.helpers.arrayElement(['suspended', 'expired']),
-      cardExpireDate: faker.date.future({ years: 1 }).toISOString().split('T')[0],
-      registeredDate: faker.date.past({ years: 3 }).toISOString().split('T')[0],
-      lastBorrowDate: faker.date.recent({ days: 30 }).toISOString(),
-      avatar: `https://i.pravatar.cc/150?img=${i + 1}`,
-      address: faker.location.streetAddress(),
+      status: reader.status.toLowerCase(),
+      cardExpireDate: reader.expiryDate,
+      registeredDate: '2024-01-01',
+      lastBorrowDate: new Date().toISOString(),
+      avatar: reader.avatarUrl || `https://i.pravatar.cc/150?img=${index + 1}`,
+      address: '',
       remark: '',
-      createdAt: faker.date.past({ years: 3 }).toISOString(),
-      updatedAt: faker.date.recent().toISOString()
+      // 特定字段
+      department: reader.department,
+      studentNo: reader.studentNo,
+      jobNo: reader.employeeNo,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     }
-
-    // 根据读者类型添加特定字段
-    if (isStudent) {
-      reader.grade = faker.helpers.arrayElement(grades)
-      reader.class = faker.helpers.arrayElement(classes)
-      reader.studentNo = `S${String(i + 1).padStart(8, '0')}`
-    } else if (isTeacher || isStaff) {
-      reader.department = faker.helpers.arrayElement(departments)
-      reader.jobNo = `T${String(i + 1).padStart(6, '0')}`
-      reader.title = faker.helpers.arrayElement(['助教', '讲师', '副教授', '教授'])
-    }
-
-    readers.push(reader)
-  }
-
-  return readers
+  })
 }
 
-// 生成读者统计数据
+// 生成读者统计数据 - 基于真实数据计算
 export function generateReaderStats() {
+  const readers = realReadersData
+  const active = readers.filter((r) => r.status === 'ACTIVE').length
+  const suspended = readers.filter((r) => r.status === 'SUSPENDED').length
+  const expired = readers.filter((r) => r.status === 'EXPIRED').length
+  const students = readers.filter((r) => r.readerType === 'STUDENT').length
+  const teachers = readers.filter((r) => r.readerType === 'TEACHER').length
+  const staff = readers.filter((r) => r.readerType === 'STAFF').length
+  const external = readers.filter((r) => r.readerType === 'EXTERNAL').length
+
   return {
-    totalReaders: 5000,
-    activeReaders: 4500,
-    suspendedReaders: 300,
-    expiredReaders: 200,
-    studentCount: 3500,
-    teacherCount: 800,
-    staffCount: 500,
-    publicCount: 200,
-    newReadersThisMonth: 150,
-    activeReadersThisMonth: 2800
+    totalReaders: readers.length,
+    activeReaders: active,
+    suspendedReaders: suspended,
+    expiredReaders: expired,
+    studentCount: students,
+    teacherCount: teachers,
+    staffCount: staff,
+    publicCount: external,
+    newReadersThisMonth: 5,
+    activeReadersThisMonth: active
   }
 }

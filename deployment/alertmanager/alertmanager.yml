@@ -1,0 +1,424 @@
+# GCRF Library Management System - AlertManager Configuration
+# Version: 1.0.0
+# Last Updated: 2025-12-01
+#
+# AlertManager handles alerts sent by Prometheus, deduplicates, groups,
+# routes to appropriate receivers, and manages silences/inhibitions.
+
+global:
+  # SMTP configuration for email notifications
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alertmanager@gcrf-library.com'
+  smtp_auth_username: 'alertmanager@gcrf-library.com'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+  smtp_hello: 'gcrf-library.com'
+
+  # Slack/Webhook timeout
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+  # HTTP configuration for webhooks
+  http_config:
+    follow_redirects: true
+
+  # Default resolve timeout
+  resolve_timeout: 5m
+
+# Templates for notifications
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route tree for alert routing
+route:
+  # Default receiver
+  receiver: 'default-receiver'
+
+  # Group alerts by these labels
+  group_by: ['alertname', 'severity', 'service', 'category']
+
+  # Wait before sending initial notification
+  group_wait: 30s
+
+  # Wait before sending updated notification
+  group_interval: 5m
+
+  # Wait before sending a notification again for the same alert
+  repeat_interval: 4h
+
+  # Continue matching after first match
+  continue: false
+
+  # Child routes - more specific routes
+  routes:
+    # ========================================
+    # Critical Alerts - Immediate Response
+    # ========================================
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 1h
+      continue: true
+      routes:
+        # Service down alerts - highest priority
+        - match:
+            alertname: ServiceDown
+          receiver: 'pagerduty-critical'
+          group_wait: 0s
+          repeat_interval: 15m
+
+        # Database down - highest priority
+        - match:
+            alertname: PostgreSQLDown
+          receiver: 'pagerduty-critical'
+          group_wait: 0s
+          repeat_interval: 15m
+
+        # Redis down - high priority
+        - match:
+            alertname: RedisDown
+          receiver: 'pagerduty-critical'
+          group_wait: 0s
+          repeat_interval: 15m
+
+    # ========================================
+    # Warning Alerts - Operations Team
+    # ========================================
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 1m
+      group_interval: 10m
+      repeat_interval: 4h
+      routes:
+        # Database related warnings
+        - match:
+            category: database
+          receiver: 'dba-team'
+          group_by: ['alertname', 'datname']
+
+        # Performance warnings
+        - match:
+            category: performance
+          receiver: 'performance-alerts'
+          group_by: ['alertname', 'application']
+
+        # Resource warnings
+        - match:
+            category: resource
+          receiver: 'infrastructure-team'
+          group_by: ['alertname', 'instance']
+
+    # ========================================
+    # Info Alerts - Daily Digest
+    # ========================================
+    - match:
+        severity: info
+      receiver: 'info-alerts'
+      group_wait: 10m
+      group_interval: 1h
+      repeat_interval: 24h
+
+    # ========================================
+    # Business Alerts
+    # ========================================
+    - match:
+        category: business
+      receiver: 'business-alerts'
+      group_by: ['alertname']
+      group_wait: 5m
+      group_interval: 30m
+      repeat_interval: 4h
+
+    # ========================================
+    # Security Alerts
+    # ========================================
+    - match:
+        category: security
+      receiver: 'security-alerts'
+      group_wait: 0s
+      group_interval: 5m
+      repeat_interval: 1h
+
+# Inhibition rules - suppress alerts based on other alerts
+inhibit_rules:
+  # Inhibit warning when critical of same alertname exists
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'service', 'instance']
+
+  # Inhibit info when warning of same alertname exists
+  - source_match:
+      severity: 'warning'
+    target_match:
+      severity: 'info'
+    equal: ['alertname', 'service', 'instance']
+
+  # Inhibit all alerts for a service when ServiceDown is firing
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: '.+'
+    equal: ['service']
+
+  # Inhibit database alerts when PostgreSQL is down
+  - source_match:
+      alertname: 'PostgreSQLDown'
+    target_match:
+      category: 'database'
+    equal: ['instance']
+
+  # Inhibit Redis alerts when Redis is down
+  - source_match:
+      alertname: 'RedisDown'
+    target_match:
+      category: 'cache'
+    equal: ['instance']
+
+  # Inhibit JVM alerts when service is down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match:
+      category: 'jvm'
+    equal: ['application']
+
+  # Inhibit performance alerts when resource alerts are firing
+  - source_match:
+      category: 'resource'
+      severity: 'critical'
+    target_match:
+      category: 'performance'
+    equal: ['instance']
+
+  # Inhibit node exporter alerts when node is down
+  - source_match:
+      alertname: 'ExporterDown'
+      job: 'node-exporter'
+    target_match_re:
+      alertname: 'High(CPU|Memory|Disk).*'
+    equal: ['instance']
+
+# Receiver definitions
+receivers:
+  # ========================================
+  # Default Receiver
+  # ========================================
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'ops-team@gcrf-library.com'
+        send_resolved: true
+        html: '{{ template "email.default.html" . }}'
+        headers:
+          Subject: '[GCRF Alert] {{ .Status | toUpper }} - {{ .CommonAnnotations.summary }}'
+    webhook_configs:
+      - url: 'http://notification-service:8086/api/v1/alerts/webhook'
+        send_resolved: true
+        max_alerts: 10
+
+  # ========================================
+  # Critical Alerts Receiver
+  # ========================================
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'ops-critical@gcrf-library.com,cto@gcrf-library.com'
+        send_resolved: true
+        html: '{{ template "email.critical.html" . }}'
+        headers:
+          Subject: '[GCRF CRITICAL] {{ .Status | toUpper }} - {{ .CommonAnnotations.summary }}'
+          X-Priority: '1'
+    webhook_configs:
+      - url: 'http://notification-service:8086/api/v1/alerts/webhook/critical'
+        send_resolved: true
+        http_config:
+          bearer_token: '${WEBHOOK_TOKEN}'
+    # Slack integration
+    slack_configs:
+      - channel: '#gcrf-alerts-critical'
+        send_resolved: true
+        icon_emoji: ':rotating_light:'
+        title: '{{ template "slack.title" . }}'
+        text: '{{ template "slack.text" . }}'
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+        actions:
+          - type: button
+            text: 'View in Grafana'
+            url: 'http://localhost:3000/alerting/list'
+          - type: button
+            text: 'Runbook'
+            url: 'http://docs.gcrf-library.com/runbooks/{{ .CommonLabels.alertname }}'
+
+  # ========================================
+  # PagerDuty Critical Receiver
+  # ========================================
+  - name: 'pagerduty-critical'
+    email_configs:
+      - to: 'on-call@gcrf-library.com'
+        send_resolved: true
+        html: '{{ template "email.critical.html" . }}'
+        headers:
+          Subject: '[GCRF CRITICAL] {{ .Status | toUpper }} - {{ .CommonAnnotations.summary }}'
+          X-Priority: '1'
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY}'
+        send_resolved: true
+        severity: critical
+        description: '{{ .CommonAnnotations.summary }}'
+        details:
+          firing: '{{ template "pagerduty.firing.details" . }}'
+          num_firing: '{{ .Alerts.Firing | len }}'
+          num_resolved: '{{ .Alerts.Resolved | len }}'
+        client: 'GCRF AlertManager'
+        client_url: 'http://alertmanager:9093/#/alerts'
+    webhook_configs:
+      - url: 'http://notification-service:8086/api/v1/alerts/webhook/critical'
+        send_resolved: true
+
+  # ========================================
+  # Warning Alerts Receiver
+  # ========================================
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'ops-team@gcrf-library.com'
+        send_resolved: true
+        html: '{{ template "email.warning.html" . }}'
+        headers:
+          Subject: '[GCRF Warning] {{ .Status | toUpper }} - {{ .CommonAnnotations.summary }}'
+    webhook_configs:
+      - url: 'http://notification-service:8086/api/v1/alerts/webhook/warning'
+        send_resolved: true
+    slack_configs:
+      - channel: '#gcrf-alerts-warning'
+        send_resolved: true
+        icon_emoji: ':warning:'
+        title: '{{ template "slack.title" . }}'
+        text: '{{ template "slack.text" . }}'
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+
+  # ========================================
+  # DBA Team Receiver
+  # ========================================
+  - name: 'dba-team'
+    email_configs:
+      - to: 'dba-team@gcrf-library.com'
+        send_resolved: true
+        html: '{{ template "email.database.html" . }}'
+        headers:
+          Subject: '[GCRF Database] {{ .Status | toUpper }} - {{ .CommonAnnotations.summary }}'
+    webhook_configs:
+      - url: 'http://notification-service:8086/api/v1/alerts/webhook/database'
+        send_resolved: true
+    slack_configs:
+      - channel: '#gcrf-database'
+        send_resolved: true
+        icon_emoji: ':database:'
+
+  # ========================================
+  # Performance Alerts Receiver
+  # ========================================
+  - name: 'performance-alerts'
+    email_configs:
+      - to: 'dev-team@gcrf-library.com'
+        send_resolved: true
+        html: '{{ template "email.performance.html" . }}'
+        headers:
+          Subject: '[GCRF Performance] {{ .Status | toUpper }} - {{ .CommonAnnotations.summary }}'
+    webhook_configs:
+      - url: 'http://notification-service:8086/api/v1/alerts/webhook/performance'
+        send_resolved: true
+    slack_configs:
+      - channel: '#gcrf-performance'
+        send_resolved: true
+        icon_emoji: ':chart_with_upwards_trend:'
+
+  # ========================================
+  # Infrastructure Team Receiver
+  # ========================================
+  - name: 'infrastructure-team'
+    email_configs:
+      - to: 'infra-team@gcrf-library.com'
+        send_resolved: true
+        html: '{{ template "email.infrastructure.html" . }}'
+        headers:
+          Subject: '[GCRF Infrastructure] {{ .Status | toUpper }} - {{ .CommonAnnotations.summary }}'
+    webhook_configs:
+      - url: 'http://notification-service:8086/api/v1/alerts/webhook/infrastructure'
+        send_resolved: true
+    slack_configs:
+      - channel: '#gcrf-infrastructure'
+        send_resolved: true
+        icon_emoji: ':desktop_computer:'
+
+  # ========================================
+  # Info Alerts Receiver (Daily Digest)
+  # ========================================
+  - name: 'info-alerts'
+    email_configs:
+      - to: 'ops-team@gcrf-library.com'
+        send_resolved: false
+        html: '{{ template "email.info.html" . }}'
+        headers:
+          Subject: '[GCRF Info] Daily Alert Digest'
+    webhook_configs:
+      - url: 'http://notification-service:8086/api/v1/alerts/webhook/info'
+        send_resolved: false
+
+  # ========================================
+  # Business Alerts Receiver
+  # ========================================
+  - name: 'business-alerts'
+    email_configs:
+      - to: 'business-team@gcrf-library.com,product@gcrf-library.com'
+        send_resolved: true
+        html: '{{ template "email.business.html" . }}'
+        headers:
+          Subject: '[GCRF Business] {{ .Status | toUpper }} - {{ .CommonAnnotations.summary }}'
+    webhook_configs:
+      - url: 'http://notification-service:8086/api/v1/alerts/webhook/business'
+        send_resolved: true
+    slack_configs:
+      - channel: '#gcrf-business-alerts'
+        send_resolved: true
+        icon_emoji: ':books:'
+
+  # ========================================
+  # Security Alerts Receiver
+  # ========================================
+  - name: 'security-alerts'
+    email_configs:
+      - to: 'security-team@gcrf-library.com,cto@gcrf-library.com'
+        send_resolved: true
+        html: '{{ template "email.security.html" . }}'
+        headers:
+          Subject: '[GCRF SECURITY] {{ .Status | toUpper }} - {{ .CommonAnnotations.summary }}'
+          X-Priority: '1'
+    webhook_configs:
+      - url: 'http://notification-service:8086/api/v1/alerts/webhook/security'
+        send_resolved: true
+        http_config:
+          bearer_token: '${WEBHOOK_TOKEN}'
+    slack_configs:
+      - channel: '#gcrf-security'
+        send_resolved: true
+        icon_emoji: ':lock:'
+        color: 'danger'
+
+# Time-based muting rules (optional, can be configured via API)
+# mute_time_intervals:
+#   - name: 'weekends'
+#     time_intervals:
+#       - weekdays: ['saturday', 'sunday']
+#   - name: 'business-hours'
+#     time_intervals:
+#       - weekdays: ['monday:friday']
+#         times:
+#           - start_time: '09:00'
+#             end_time: '18:00'
+#   - name: 'maintenance-window'
+#     time_intervals:
+#       - weekdays: ['sunday']
+#         times:
+#           - start_time: '02:00'
+#             end_time: '06:00'

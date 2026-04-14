@@ -1,0 +1,86 @@
+# GCRF Library Management System - Common Parameters
+# 通用参数定义
+# 版本: 1.0.0
+
+components:
+  parameters:
+    # ==================== 分页参数 ====================
+    PageNum:
+      name: pageNum
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: 页码 (从1开始)
+
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: 每页大小 (最大100)
+
+    # ==================== 搜索参数 ====================
+    Keyword:
+      name: keyword
+      in: query
+      required: false
+      schema:
+        type: string
+        maxLength: 100
+      description: 搜索关键词
+
+    # ==================== 排序参数 ====================
+    SortField:
+      name: sortField
+      in: query
+      required: false
+      schema:
+        type: string
+        example: "createTime"
+      description: 排序字段
+
+    SortOrder:
+      name: sortOrder
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+      description: 排序方向
+
+    # ==================== 时间范围参数 ====================
+    StartTime:
+      name: startTime
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: 开始时间 (ISO 8601格式)
+
+    EndTime:
+      name: endTime
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: 结束时间 (ISO 8601格式)
+
+    # ==================== 路径参数 ====================
+    ID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: 资源ID

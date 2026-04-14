@@ -1,0 +1,429 @@
+# GCRF Library Management System - Service Alert Rules
+# Version: 1.0.0
+# Last Updated: 2025-12-01
+#
+# Purpose: Monitor microservice health, performance, and availability
+# These rules focus on application-level metrics from Spring Boot Actuator
+
+groups:
+  # ========================================
+  # Service Availability Alerts
+  # ========================================
+  - name: service_availability
+    interval: 15s
+    rules:
+      # Service is down (unable to scrape)
+      - alert: ServiceDown
+        expr: up{job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+          team: platform
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: |
+            Service: {{ $labels.job }}
+            Instance: {{ $labels.instance }}
+            Status: DOWN (unable to scrape metrics)
+            Duration: 1 minute
+            Impact: Service unavailable to users
+            Runbook: https://docs.gcrf-library.com/runbooks/service-down
+          runbook_url: "https://docs.gcrf-library.com/runbooks/service-down"
+
+      # Service health check failed but still scraping
+      - alert: ServiceUnhealthy
+        expr: |
+          up{job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service"} == 1
+          AND
+          (
+            spring_boot_admin_status{status!="UP"} == 1
+            OR
+            health_check_status == 0
+          )
+        for: 2m
+        labels:
+          severity: warning
+          category: health
+          team: platform
+        annotations:
+          summary: "Service {{ $labels.job }} health check failed"
+          description: |
+            Service: {{ $labels.job }}
+            Instance: {{ $labels.instance }}
+            Health Status: UNHEALTHY
+            Duration: 2 minutes
+            Recommendation: Check /actuator/health endpoint for details
+
+      # Service restart detected
+      - alert: ServiceRestarted
+        expr: |
+          changes(process_start_time_seconds{job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service"}[10m]) > 0
+        for: 0m
+        labels:
+          severity: info
+          category: availability
+          team: platform
+        annotations:
+          summary: "Service {{ $labels.job }} restarted"
+          description: |
+            Service: {{ $labels.job }}
+            Instance: {{ $labels.instance }}
+            Event: Service restart detected in last 10 minutes
+            Action: Review if restart was planned or due to crash
+
+  # ========================================
+  # Response Time Alerts
+  # ========================================
+  - name: http_response_time
+    interval: 30s
+    rules:
+      # P95 response time > 500ms (warning)
+      - alert: HighResponseTimeP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              uri!~"/actuator.*|/health.*|/metrics.*"
+            }[5m])) by (le, job, uri, method)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+          team: development
+        annotations:
+          summary: "High response time on {{ $labels.job }} - {{ $labels.uri }}"
+          description: |
+            Service: {{ $labels.job }}
+            Endpoint: {{ $labels.method }} {{ $labels.uri }}
+            P95 Response Time: {{ printf "%.2f" $value }}s
+            Threshold: 500ms
+            Duration: 5 minutes
+            Impact: User experience degradation
+            Recommendation: Check database queries, external calls, and resource usage
+
+      # P99 response time > 1s (critical)
+      - alert: CriticalResponseTimeP99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_server_requests_seconds_bucket{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              uri!~"/actuator.*|/health.*|/metrics.*"
+            }[5m])) by (le, job, uri, method)
+          ) > 1
+        for: 3m
+        labels:
+          severity: critical
+          category: performance
+          team: development
+        annotations:
+          summary: "Critical response time on {{ $labels.job }} - {{ $labels.uri }}"
+          description: |
+            Service: {{ $labels.job }}
+            Endpoint: {{ $labels.method }} {{ $labels.uri }}
+            P99 Response Time: {{ printf "%.2f" $value }}s
+            Threshold: 1s
+            Duration: 3 minutes
+            Impact: Severe user experience degradation, possible timeouts
+            Action: Immediate investigation required
+
+      # Average response time > 200ms
+      - alert: SlowAverageResponseTime
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_sum{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              uri!~"/actuator.*|/health.*|/metrics.*"
+            }[5m])) by (job, uri, method)
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              uri!~"/actuator.*|/health.*|/metrics.*"
+            }[5m])) by (job, uri, method)
+          ) > 0.2
+        for: 10m
+        labels:
+          severity: info
+          category: performance
+          team: development
+        annotations:
+          summary: "Slow average response time on {{ $labels.job }} - {{ $labels.uri }}"
+          description: |
+            Service: {{ $labels.job }}
+            Endpoint: {{ $labels.method }} {{ $labels.uri }}
+            Avg Response Time: {{ printf "%.3f" $value }}s
+            Threshold: 200ms
+            Duration: 10 minutes
+
+  # ========================================
+  # Error Rate Alerts
+  # ========================================
+  - name: http_error_rate
+    interval: 30s
+    rules:
+      # 5xx error rate > 1% (warning)
+      - alert: HighErrorRate5xx
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              status=~"5..",
+              uri!~"/actuator.*|/health.*|/metrics.*"
+            }[5m])) by (job, uri, method)
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              uri!~"/actuator.*|/health.*|/metrics.*"
+            }[5m])) by (job, uri, method)
+          ) * 100 > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: reliability
+          team: development
+        annotations:
+          summary: "High 5xx error rate on {{ $labels.job }} - {{ $labels.uri }}"
+          description: |
+            Service: {{ $labels.job }}
+            Endpoint: {{ $labels.method }} {{ $labels.uri }}
+            Error Rate: {{ printf "%.2f" $value }}%
+            Threshold: 1%
+            Duration: 5 minutes
+            Impact: Users experiencing server errors
+            Recommendation: Check application logs for stack traces
+
+      # 5xx error rate > 5% (critical)
+      - alert: CriticalErrorRate5xx
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              status=~"5..",
+              uri!~"/actuator.*|/health.*|/metrics.*"
+            }[5m])) by (job, uri, method)
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              uri!~"/actuator.*|/health.*|/metrics.*"
+            }[5m])) by (job, uri, method)
+          ) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+          category: reliability
+          team: development
+        annotations:
+          summary: "Critical 5xx error rate on {{ $labels.job }} - {{ $labels.uri }}"
+          description: |
+            Service: {{ $labels.job }}
+            Endpoint: {{ $labels.method }} {{ $labels.uri }}
+            Error Rate: {{ printf "%.2f" $value }}%
+            Threshold: 5%
+            Duration: 2 minutes
+            Impact: Major service degradation
+            Action: Immediate investigation required
+
+      # Overall service error rate > 1%
+      - alert: HighServiceErrorRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              status=~"5.."
+            }[5m])) by (job)
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service"
+            }[5m])) by (job)
+          ) * 100 > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: reliability
+          team: platform
+        annotations:
+          summary: "Service {{ $labels.job }} overall error rate is high"
+          description: |
+            Service: {{ $labels.job }}
+            Overall Error Rate: {{ printf "%.2f" $value }}%
+            Threshold: 1%
+            Duration: 5 minutes
+
+  # ========================================
+  # Traffic Anomaly Alerts
+  # ========================================
+  - name: traffic_anomaly
+    interval: 1m
+    rules:
+      # Request rate dropped significantly
+      - alert: RequestRateDropped
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              uri!~"/actuator.*|/health.*|/metrics.*"
+            }[5m])) by (job)
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              uri!~"/actuator.*|/health.*|/metrics.*"
+            }[5m] offset 1h)) by (job)
+          ) < 0.3
+          AND
+          sum(rate(http_server_requests_seconds_count{
+            job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+            uri!~"/actuator.*|/health.*|/metrics.*"
+          }[5m] offset 1h)) by (job) > 1
+        for: 10m
+        labels:
+          severity: warning
+          category: traffic
+          team: platform
+        annotations:
+          summary: "Request rate dropped significantly for {{ $labels.job }}"
+          description: |
+            Service: {{ $labels.job }}
+            Current Rate: Dropped by more than 70%
+            Comparison: Against 1 hour ago
+            Duration: 10 minutes
+            Possible Causes: Load balancer issue, upstream problem, or network partition
+
+      # Unusual spike in requests
+      - alert: RequestRateSpiked
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              uri!~"/actuator.*|/health.*|/metrics.*"
+            }[5m])) by (job)
+            /
+            sum(rate(http_server_requests_seconds_count{
+              job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+              uri!~"/actuator.*|/health.*|/metrics.*"
+            }[5m] offset 1h)) by (job)
+          ) > 3
+          AND
+          sum(rate(http_server_requests_seconds_count{
+            job=~"gateway-service|auth-service|book-service|circulation-service|reader-service|system-service|notification-service",
+            uri!~"/actuator.*|/health.*|/metrics.*"
+          }[5m])) by (job) > 10
+        for: 5m
+        labels:
+          severity: info
+          category: traffic
+          team: platform
+        annotations:
+          summary: "Request rate spiked for {{ $labels.job }}"
+          description: |
+            Service: {{ $labels.job }}
+            Current Rate: More than 3x normal
+            Comparison: Against 1 hour ago
+            Possible Causes: Marketing campaign, DDoS attack, or legitimate traffic increase
+
+  # ========================================
+  # Database Connection Pool Alerts
+  # ========================================
+  - name: database_pool
+    interval: 30s
+    rules:
+      # HikariCP connection pool high usage
+      - alert: DatabasePoolHighUsage
+        expr: |
+          (hikaricp_connections_active / hikaricp_connections_max) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+          team: development
+        annotations:
+          summary: "Database pool high usage on {{ $labels.application }}"
+          description: |
+            Service: {{ $labels.application }}
+            Pool: {{ $labels.pool }}
+            Usage: {{ printf "%.1f" $value }}%
+            Active: {{ with query "hikaricp_connections_active" }}{{ . | first | value }}{{ end }}
+            Max: {{ with query "hikaricp_connections_max" }}{{ . | first | value }}{{ end }}
+            Threshold: 80%
+            Recommendation: Check for slow queries or connection leaks
+
+      # HikariCP connection pool exhausted
+      - alert: DatabasePoolExhausted
+        expr: |
+          (hikaricp_connections_active / hikaricp_connections_max) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: database
+          team: development
+        annotations:
+          summary: "Database pool exhausted on {{ $labels.application }}"
+          description: |
+            Service: {{ $labels.application }}
+            Pool: {{ $labels.pool }}
+            Usage: {{ printf "%.1f" $value }}%
+            Impact: New requests may fail to acquire database connection
+            Action: Scale pool size or investigate connection leaks
+
+      # Connection wait timeout
+      - alert: DatabaseConnectionTimeout
+        expr: |
+          rate(hikaricp_connections_timeout_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          category: database
+          team: development
+        annotations:
+          summary: "Database connection timeouts on {{ $labels.application }}"
+          description: |
+            Service: {{ $labels.application }}
+            Pool: {{ $labels.pool }}
+            Timeouts: Detected connection acquisition timeouts
+            Impact: Requests may be failing due to database connection shortage
+
+  # ========================================
+  # Gateway Specific Alerts
+  # ========================================
+  - name: gateway_alerts
+    interval: 30s
+    rules:
+      # High gateway latency
+      - alert: GatewayHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket{job="gateway-service"}[5m])) by (le)
+          ) > 0.3
+        for: 5m
+        labels:
+          severity: warning
+          category: gateway
+          team: platform
+        annotations:
+          summary: "Gateway P95 latency is high"
+          description: |
+            Gateway P95 Latency: {{ printf "%.3f" $value }}s
+            Threshold: 300ms
+            Impact: All downstream services affected
+            Recommendation: Check gateway resources and routing configuration
+
+      # Gateway routing errors
+      - alert: GatewayRoutingErrors
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{job="gateway-service", status=~"502|503|504"}[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count{job="gateway-service"}[5m]))
+          ) * 100 > 1
+        for: 3m
+        labels:
+          severity: warning
+          category: gateway
+          team: platform
+        annotations:
+          summary: "Gateway routing error rate is high"
+          description: |
+            Gateway Routing Errors: {{ printf "%.2f" $value }}%
+            Error Types: 502/503/504
+            Impact: Requests failing to reach backend services
+            Recommendation: Check backend service health and connectivity

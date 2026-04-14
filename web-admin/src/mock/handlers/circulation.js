@@ -7,13 +7,13 @@ import {
   reservationStatus
 } from '../data/circulation'
 
-// 生成并缓存流通记录数据
-let circulationData = generateCirculationRecords(500)
-let reservationData = generateReservations(100)
+// 生成并缓存流通记录数据 (使用真实数据库数据量)
+let circulationData = generateCirculationRecords(40)
+let reservationData = generateReservations(10)
 
 export const circulationHandlers = [
-  // 获取流通记录列表
-  http.get('/api/v1/circulation/records', ({ request }) => {
+  // 获取流通记录列表 (新路径)
+  http.get('/api/v1/borrows', ({ request }) => {
     const url = new URL(request.url)
     const pageNum = parseInt(url.searchParams.get('pageNum') || '1')
     const pageSize = parseInt(url.searchParams.get('pageSize') || '10')
@@ -26,27 +26,28 @@ export const circulationHandlers = [
     let filteredRecords = circulationData
 
     if (keyword) {
-      filteredRecords = filteredRecords.filter(record =>
-        record.bookTitle.includes(keyword) ||
-        record.readerName.includes(keyword) ||
-        record.readerCardNo.includes(keyword) ||
-        record.bookBarcode.includes(keyword)
+      filteredRecords = filteredRecords.filter(
+        (record) =>
+          record.bookTitle.includes(keyword) ||
+          record.readerName.includes(keyword) ||
+          record.readerCardNo.includes(keyword) ||
+          record.bookBarcode.includes(keyword)
       )
     }
 
     if (status) {
-      filteredRecords = filteredRecords.filter(record => record.status === status)
+      filteredRecords = filteredRecords.filter((record) => record.status === status)
     }
 
     if (startDate) {
-      filteredRecords = filteredRecords.filter(record =>
-        new Date(record.borrowDate) >= new Date(startDate)
+      filteredRecords = filteredRecords.filter(
+        (record) => new Date(record.borrowDate) >= new Date(startDate)
       )
     }
 
     if (endDate) {
-      filteredRecords = filteredRecords.filter(record =>
-        new Date(record.borrowDate) <= new Date(endDate)
+      filteredRecords = filteredRecords.filter(
+        (record) => new Date(record.borrowDate) <= new Date(endDate)
       )
     }
 
@@ -69,8 +70,8 @@ export const circulationHandlers = [
     })
   }),
 
-  // 借书
-  http.post('/api/v1/circulation/borrow', async ({ request }) => {
+  // 借书 (新路径)
+  http.post('/api/v1/borrows/borrow', async ({ request }) => {
     const { readerId, bookId } = await request.json()
 
     const newRecord = {
@@ -106,16 +107,19 @@ export const circulationHandlers = [
     })
   }),
 
-  // 还书
-  http.post('/api/v1/circulation/return', async ({ request }) => {
+  // 还书 (新路径)
+  http.post('/api/v1/borrows/return', async ({ request }) => {
     const { recordId } = await request.json()
 
-    const index = circulationData.findIndex(r => r.id === recordId)
+    const index = circulationData.findIndex((r) => r.id === recordId)
     if (index === -1) {
-      return HttpResponse.json({
-        code: 404,
-        message: '借阅记录不存在'
-      }, { status: 404 })
+      return HttpResponse.json(
+        {
+          code: 404,
+          message: '借阅记录不存在'
+        },
+        { status: 404 }
+      )
     }
 
     circulationData[index] = {
@@ -132,29 +136,37 @@ export const circulationHandlers = [
     })
   }),
 
-  // 续借
-  http.post('/api/v1/circulation/renew', async ({ request }) => {
+  // 续借 (新路径)
+  http.post('/api/v1/borrows/renew', async ({ request }) => {
     const { recordId } = await request.json()
 
-    const index = circulationData.findIndex(r => r.id === recordId)
+    const index = circulationData.findIndex((r) => r.id === recordId)
     if (index === -1) {
-      return HttpResponse.json({
-        code: 404,
-        message: '借阅记录不存在'
-      }, { status: 404 })
+      return HttpResponse.json(
+        {
+          code: 404,
+          message: '借阅记录不存在'
+        },
+        { status: 404 }
+      )
     }
 
     const record = circulationData[index]
     if (record.renewCount >= 2) {
-      return HttpResponse.json({
-        code: 400,
-        message: '已达到最大续借次数'
-      }, { status: 400 })
+      return HttpResponse.json(
+        {
+          code: 400,
+          message: '已达到最大续借次数'
+        },
+        { status: 400 }
+      )
     }
 
     circulationData[index] = {
       ...record,
-      dueDate: new Date(new Date(record.dueDate).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      dueDate: new Date(
+        new Date(record.dueDate).getTime() + 30 * 24 * 60 * 60 * 1000
+      ).toISOString(),
       renewCount: record.renewCount + 1,
       status: circulationStatus.RENEWED,
       updatedAt: new Date().toISOString()
@@ -167,8 +179,8 @@ export const circulationHandlers = [
     })
   }),
 
-  // 获取预约列表
-  http.get('/api/v1/circulation/reservations', ({ request }) => {
+  // 获取预约列表 (新路径)
+  http.get('/api/v1/reserves', ({ request }) => {
     const url = new URL(request.url)
     const pageNum = parseInt(url.searchParams.get('pageNum') || '1')
     const pageSize = parseInt(url.searchParams.get('pageSize') || '10')
@@ -179,15 +191,18 @@ export const circulationHandlers = [
     let filteredReservations = reservationData
 
     if (keyword) {
-      filteredReservations = filteredReservations.filter(reservation =>
-        reservation.bookTitle.includes(keyword) ||
-        reservation.readerName.includes(keyword) ||
-        reservation.readerCardNo.includes(keyword)
+      filteredReservations = filteredReservations.filter(
+        (reservation) =>
+          reservation.bookTitle.includes(keyword) ||
+          reservation.readerName.includes(keyword) ||
+          reservation.readerCardNo.includes(keyword)
       )
     }
 
     if (status) {
-      filteredReservations = filteredReservations.filter(reservation => reservation.status === status)
+      filteredReservations = filteredReservations.filter(
+        (reservation) => reservation.status === status
+      )
     }
 
     // 分页
@@ -209,8 +224,8 @@ export const circulationHandlers = [
     })
   }),
 
-  // 预约图书
-  http.post('/api/v1/circulation/reserve', async ({ request }) => {
+  // 预约图书 (新路径)
+  http.post('/api/v1/reserves/reserve', async ({ request }) => {
     const { readerId, bookId } = await request.json()
 
     const newReservation = {
@@ -243,16 +258,19 @@ export const circulationHandlers = [
     })
   }),
 
-  // 取消预约
-  http.post('/api/v1/circulation/cancel-reservation', async ({ request }) => {
-    const { reservationId } = await request.json()
+  // 取消预约 (新路径 - RESTful风格)
+  http.post('/api/v1/reserves/:id/cancel', async ({ params }) => {
+    const reservationId = parseInt(params.id)
 
-    const index = reservationData.findIndex(r => r.id === reservationId)
+    const index = reservationData.findIndex((r) => r.id === reservationId)
     if (index === -1) {
-      return HttpResponse.json({
-        code: 404,
-        message: '预约记录不存在'
-      }, { status: 404 })
+      return HttpResponse.json(
+        {
+          code: 404,
+          message: '预约记录不存在'
+        },
+        { status: 404 }
+      )
     }
 
     reservationData[index] = {

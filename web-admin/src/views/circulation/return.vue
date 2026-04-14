@@ -65,7 +65,9 @@
         <!-- 操作按钮 -->
         <div v-if="returnList.length > 0" class="lib-card">
           <div class="lib-card-body">
-            <el-button size="large" style="width: 100%" @click="clearReturnList">清空列表</el-button>
+            <el-button size="large" style="width: 100%" @click="clearReturnList"
+              >清空列表</el-button
+            >
             <el-button
               type="primary"
               size="large"
@@ -120,7 +122,9 @@
               </el-table-column>
               <el-table-column label="操作" width="80" fixed="right">
                 <template #default="{ $index }">
-                  <el-button type="danger" link :icon="Delete" @click="removeBook($index)">移除</el-button>
+                  <el-button type="danger" link :icon="Delete" @click="removeBook($index)"
+                    >移除</el-button
+                  >
                 </template>
               </el-table-column>
             </el-table>
@@ -154,10 +158,15 @@
     <el-dialog v-model="confirmDialogVisible" title="确认归还" width="500px">
       <div class="confirm-content">
         <el-descriptions :column="1" border>
-          <el-descriptions-item label="归还图书数量">{{ returnList.length }} 本</el-descriptions-item>
+          <el-descriptions-item label="归还图书数量"
+            >{{ returnList.length }} 本</el-descriptions-item
+          >
           <el-descriptions-item label="逾期图书数量">{{ overdueCount }} 本</el-descriptions-item>
           <el-descriptions-item label="应缴罚款">
-            <span :class="totalFine > 0 ? 'text-danger' : 'text-success'" style="font-size: 18px; font-weight: 600">
+            <span
+              :class="totalFine > 0 ? 'text-danger' : 'text-success'"
+              style="font-size: 18px; font-weight: 600"
+            >
               ¥{{ totalFine.toFixed(2) }}
             </span>
           </el-descriptions-item>
@@ -182,6 +191,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
+import { getBorrowRecordByBarcode, returnBook } from '@/api/circulation'
 
 // 图书归还
 const bookBarcode = ref('')
@@ -221,17 +231,19 @@ const scanBook = async () => {
   }
 
   try {
-    // TODO: 调用API查询借阅记录
-    // const res = await request.get(`/api/circulation/borrow-record/${bookBarcode.value}`)
+    const res = await getBorrowRecordByBarcode(bookBarcode.value)
 
-    // Mock数据
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    if (res.code !== 200 || !res.data) {
+      ElMessage.error('未找到该图书的借阅记录')
+      return
+    }
 
-    // 模拟借阅记录
-    const borrowDate = dayjs().subtract(Math.floor(Math.random() * 60), 'day')
-    const dueDate = borrowDate.add(30, 'day')
+    const recordData = res.data
+
+    // 计算逾期天数
+    const dueDate = dayjs(recordData.dueDate)
     const now = dayjs()
-    const overdueDays = now.diff(dueDate, 'day')
+    const overdueDays = Math.max(0, now.diff(dueDate, 'day'))
     const isOverdue = overdueDays > 0
 
     // 计算罚款（宽限期内不罚款）
@@ -242,19 +254,14 @@ const scanBook = async () => {
     }
 
     const record = {
-      id: Math.random().toString(36).substr(2, 9),
-      title:
-        bookBarcode.value.includes('001')
-          ? '人工智能基础'
-          : bookBarcode.value.includes('002')
-            ? 'Python编程'
-            : '数据结构与算法',
+      id: recordData.recordId || recordData.id,
+      title: recordData.bookTitle,
       barcode: bookBarcode.value,
-      readerName: '张三',
-      readerCardNo: 'S2025001',
-      borrowDate: borrowDate.format('YYYY-MM-DD'),
-      dueDate: dueDate.format('YYYY-MM-DD'),
-      overdueDays: Math.max(0, overdueDays),
+      readerName: recordData.readerName,
+      readerCardNo: recordData.readerCardNo || recordData.cardNumber,
+      borrowDate: dayjs(recordData.borrowDate).format('YYYY-MM-DD'),
+      dueDate: dayjs(recordData.dueDate).format('YYYY-MM-DD'),
+      overdueDays,
       isOverdue,
       fine
     }
@@ -263,7 +270,8 @@ const scanBook = async () => {
     ElMessage.success(`《${record.title}》已添加到归还清单`)
     bookBarcode.value = ''
   } catch (error) {
-    ElMessage.error('查询借阅记录失败')
+    console.error('查询借阅记录失败:', error)
+    ElMessage.error(error.message || '查询借阅记录失败')
   }
 }
 
@@ -301,26 +309,53 @@ const handleConfirmReturn = async () => {
   try {
     submitting.value = true
 
-    // TODO: 调用API提交归还
-    // const res = await request.post('/api/circulation/return', {
-    //   returns: returnList.value.map(r => ({
-    //     recordId: r.id,
-    //     barcode: r.barcode,
-    //     fine: r.fine
-    //   }))
-    // })
+    // 为每本图书调用归还API
+    const successCount = []
+    const failedBooks = []
 
-    // Mock延迟
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    for (const record of returnList.value) {
+      try {
+        const res = await returnBook({
+          recordId: record.id,
+          remark: record.fine > 0 ? `罚款: ¥${record.fine.toFixed(2)}` : ''
+        })
 
-    ElMessage.success(`成功归还 ${returnList.value.length} 本图书`)
+        if (res.code === 200) {
+          successCount.push(record.title)
+        } else {
+          failedBooks.push({ title: record.title, reason: res.message })
+        }
+      } catch (error) {
+        failedBooks.push({ title: record.title, reason: error.message || '未知错误' })
+      }
+    }
 
-    // 清空归还清单
-    returnList.value = []
-    bookBarcode.value = ''
-    confirmDialogVisible.value = false
+    // 显示结果
+    if (failedBooks.length === 0) {
+      ElMessage.success(`成功归还 ${successCount.length} 本图书`)
+
+      // 清空归还清单
+      returnList.value = []
+      bookBarcode.value = ''
+      confirmDialogVisible.value = false
+    } else {
+      const successMsg = successCount.length > 0 ? `成功归还 ${successCount.length} 本，` : ''
+      const failedMsg = `${failedBooks.length} 本失败`
+      ElMessage.warning(`${successMsg}${failedMsg}`)
+
+      // 从归还清单中移除成功的图书
+      returnList.value = returnList.value.filter((record) =>
+        failedBooks.some((fb) => fb.title === record.title)
+      )
+
+      // 如果全部失败则不关闭对话框
+      if (successCount.length === 0) {
+        confirmDialogVisible.value = false
+      }
+    }
   } catch (error) {
-    ElMessage.error('归还失败，请重试')
+    console.error('归还失败:', error)
+    ElMessage.error(error.message || '归还失败，请重试')
   } finally {
     submitting.value = false
   }

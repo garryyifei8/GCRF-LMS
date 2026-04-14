@@ -1,9 +1,8 @@
 spring:
+  # Datasource/Flyway URLs are injected via BaseIntegrationTest @DynamicPropertySource (Testcontainers).
+  # Keeping driver hint here so plain @SpringBootTest contexts without container still fail fast.
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/auth_service
-    username: postgres
-    password: gcrf_secure_2024
     type: com.alibaba.druid.pool.DruidDataSource
     druid:
       initial-size: 1

@@ -2,6 +2,7 @@ package com.gcrf.library.notification.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gcrf.library.common.test.BaseIntegrationTest;
 import com.gcrf.library.notification.dto.request.EmailSendRequest;
 import com.gcrf.library.notification.entity.EmailLog;
 import com.gcrf.library.notification.mapper.EmailLogMapper;
@@ -14,6 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -36,8 +38,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
+@Transactional
 @ActiveProfiles("test")
-class EmailControllerIntegrationTest {
+class EmailControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

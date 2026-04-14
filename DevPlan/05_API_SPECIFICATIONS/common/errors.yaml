@@ -1,0 +1,97 @@
+# GCRF Library Management System - Error Responses
+# 错误响应定义
+# 版本: 1.0.0
+
+components:
+  responses:
+    # 400 参数错误
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: './schemas.yaml#/components/schemas/ErrorResult'
+          example:
+            code: 400
+            message: "参数校验失败"
+            data:
+              field: "email"
+              reason: "邮箱格式不正确"
+            timestamp: "2025-11-06T10:00:00Z"
+
+    # 401 未认证
+    Unauthorized:
+      description: 未认证或Token已过期
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: './schemas.yaml#/components/schemas/ErrorResult'
+          example:
+            code: 401
+            message: "未登录或Token已过期"
+            data:
+              reason: "JWT token expired"
+            timestamp: "2025-11-06T10:00:00Z"
+
+    # 403 无权限
+    Forbidden:
+      description: 无权限访问
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: './schemas.yaml#/components/schemas/ErrorResult'
+          example:
+            code: 403
+            message: "权限不足"
+            data:
+              reason: "需要 BOOK_DELETE 权限"
+            timestamp: "2025-11-06T10:00:00Z"
+
+    # 404 资源不存在
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: './schemas.yaml#/components/schemas/ErrorResult'
+          example:
+            code: 404
+            message: "资源不存在"
+            data:
+              reason: "图书ID 12345 不存在"
+            timestamp: "2025-11-06T10:00:00Z"
+
+    # 500 服务器错误
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: './schemas.yaml#/components/schemas/ErrorResult'
+          example:
+            code: 500
+            message: "服务器内部错误"
+            data:
+              traceId: "3c7e8f9a-1b2d-4e5f-8c9d-1a2b3c4d5e6f"
+              reason: "数据库连接失败"
+            timestamp: "2025-11-06T10:00:00Z"
+
+    # 503 服务不可用
+    ServiceUnavailable:
+      description: 服务暂时不可用
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: './schemas.yaml#/components/schemas/ErrorResult'
+          example:
+            code: 503
+            message: "服务维护中"
+            data:
+              reason: "系统正在升级,请稍后再试"
+            timestamp: "2025-11-06T10:00:00Z"

@@ -25,7 +25,12 @@
           </el-form-item>
 
           <el-form-item label="角色">
-            <el-select v-model="queryForm.role" placeholder="全部角色" clearable style="width: 150px">
+            <el-select
+              v-model="queryForm.role"
+              placeholder="全部角色"
+              clearable
+              style="width: 150px"
+            >
               <el-option label="全部" value="" />
               <el-option label="超级管理员" value="admin" />
               <el-option label="管理员" value="manager" />
@@ -34,7 +39,12 @@
           </el-form-item>
 
           <el-form-item label="状态">
-            <el-select v-model="queryForm.status" placeholder="全部状态" clearable style="width: 120px">
+            <el-select
+              v-model="queryForm.status"
+              placeholder="全部状态"
+              clearable
+              style="width: 120px"
+            >
               <el-option label="全部" value="" />
               <el-option label="正常" value="active" />
               <el-option label="停用" value="inactive" />
@@ -59,7 +69,9 @@
           <el-table-column prop="realName" label="姓名" width="120" />
           <el-table-column label="角色" width="120">
             <template #default="{ row }">
-              <el-tag :type="getRoleType(row.role)" size="small">{{ getRoleName(row.role) }}</el-tag>
+              <el-tag :type="getRoleType(row.role)" size="small">{{
+                getRoleName(row.role)
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="department" label="部门" width="150" />
@@ -75,7 +87,9 @@
           <el-table-column label="操作" width="260" fixed="right">
             <template #default="{ row }">
               <el-button type="primary" link :icon="Edit" @click="handleEdit(row)">编辑</el-button>
-              <el-button type="warning" link :icon="Key" @click="handleResetPassword(row)">重置密码</el-button>
+              <el-button type="warning" link :icon="Key" @click="handleResetPassword(row)"
+                >重置密码</el-button
+              >
               <el-button
                 v-if="row.status === 'active'"
                 type="danger"
@@ -85,7 +99,9 @@
               >
                 停用
               </el-button>
-              <el-button v-else type="success" link :icon="Check" @click="handleToggleStatus(row)">启用</el-button>
+              <el-button v-else type="success" link :icon="Check" @click="handleToggleStatus(row)"
+                >启用</el-button
+              >
             </template>
           </el-table-column>
         </el-table>
@@ -113,7 +129,12 @@
         </el-form-item>
 
         <el-form-item v-if="!isEdit" label="密码" prop="password">
-          <el-input v-model="userForm.password" type="password" placeholder="请输入密码" show-password />
+          <el-input
+            v-model="userForm.password"
+            type="password"
+            placeholder="请输入密码"
+            show-password
+          />
         </el-form-item>
 
         <el-form-item label="姓名" prop="realName">
@@ -159,6 +180,8 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh, Plus, Edit, Key, Close, Check } from '@element-plus/icons-vue'
+import { getUsers, createUser, updateUser, resetPassword, updateUserStatus } from '@/api/system'
 
 // 查询表单
 const queryForm = reactive({
@@ -236,29 +259,27 @@ const getRoleType = (role) => {
 const loadUserList = async () => {
   loading.value = true
   try {
-    // TODO: 调用API获取用户列表
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    const response = await getUsers({
+      pageNum: pagination.page,
+      pageSize: pagination.pageSize,
+      keyword: queryForm.keyword,
+      role: queryForm.role,
+      status: queryForm.status
+    })
 
-    const mockData = []
-    for (let i = 1; i <= pagination.pageSize; i++) {
-      const id = (pagination.page - 1) * pagination.pageSize + i
-      mockData.push({
-        id,
-        username: `user${id}`,
-        realName: ['张三', '李四', '王五', '赵六', '刘老师'][i % 5],
-        role: ['admin', 'manager', 'librarian'][i % 3],
-        department: ['图书馆', '信息中心', '行政部'][i % 3],
-        phone: `138${Math.random().toString().substr(2, 8)}`,
-        email: `user${id}@library.com`,
-        status: i % 10 === 0 ? 'inactive' : 'active',
-        lastLoginTime: `2025-10-${(i % 28) + 1} ${(i % 12) + 8}:${(i % 60).toString().padStart(2, '0')}:00`
-      })
+    // 处理响应数据
+    if (response.code === 200 && response.data) {
+      userList.value = response.data.records || []
+      pagination.total = response.data.total || 0
+    } else {
+      userList.value = []
+      pagination.total = 0
     }
-
-    userList.value = mockData
-    pagination.total = 68
   } catch (error) {
+    console.error('Failed to load user list:', error)
     ElMessage.error('加载用户列表失败')
+    userList.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
@@ -310,16 +331,42 @@ const handleSubmit = async () => {
   try {
     await userFormRef.value.validate()
 
-    // TODO: 调用API保存用户
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    loading.value = true
 
-    ElMessage.success(isEdit.value ? '编辑成功' : '添加成功')
-    dialogVisible.value = false
-    loadUserList()
-  } catch (error) {
-    if (error !== false) {
-      ElMessage.error('操作失败')
+    // 准备提交数据
+    const submitData = {
+      username: userForm.username,
+      realName: userForm.realName,
+      role: userForm.role,
+      department: userForm.department,
+      phone: userForm.phone,
+      email: userForm.email,
+      status: userForm.status
     }
+
+    // 新增时需要密码
+    if (!isEdit.value) {
+      submitData.password = userForm.password
+    }
+
+    // 调用API
+    if (isEdit.value) {
+      await updateUser(userForm.id, submitData)
+      ElMessage.success('编辑成功')
+    } else {
+      await createUser(submitData)
+      ElMessage.success('添加成功')
+    }
+
+    dialogVisible.value = false
+    await loadUserList()
+  } catch (error) {
+    console.error('Failed to submit user:', error)
+    if (error !== false) {
+      ElMessage.error(isEdit.value ? '编辑失败' : '添加失败')
+    }
+  } finally {
+    loading.value = false
   }
 }
 
@@ -329,9 +376,13 @@ const handleResetPassword = (row) => {
     type: 'warning'
   })
     .then(async () => {
-      // TODO: 调用API重置密码
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      ElMessage.success('密码重置成功')
+      try {
+        await resetPassword(row.id)
+        ElMessage.success('密码重置成功')
+      } catch (error) {
+        console.error('Failed to reset password:', error)
+        ElMessage.error('密码重置失败')
+      }
     })
     .catch(() => {})
 }
@@ -339,14 +390,20 @@ const handleResetPassword = (row) => {
 // 切换用户状态
 const handleToggleStatus = (row) => {
   const action = row.status === 'active' ? '停用' : '启用'
+  const newStatus = row.status === 'active' ? 'inactive' : 'active'
+
   ElMessageBox.confirm(`确定要${action}用户"${row.realName}"吗？`, '提示', {
     type: 'warning'
   })
     .then(async () => {
-      // TODO: 调用API切换状态
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      ElMessage.success(`${action}成功`)
-      loadUserList()
+      try {
+        await updateUserStatus(row.id, newStatus)
+        ElMessage.success(`${action}成功`)
+        await loadUserList()
+      } catch (error) {
+        console.error('Failed to toggle user status:', error)
+        ElMessage.error(`${action}失败`)
+      }
     })
     .catch(() => {})
 }

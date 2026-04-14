@@ -1,0 +1,96 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: recommend-service
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/gcrf_recommend
+    username: postgres
+    password: postgres
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 3
+      timeout: 10000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
+
+# MyBatis Plus Configuration
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.gcrf.library.recommend.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deletedAt
+      logic-delete-value: "NOW()"
+      logic-not-delete-value: "NULL"
+
+# Recommendation Configuration
+recommend:
+  # Algorithm settings
+  algorithm:
+    # User-based CF settings
+    user-cf:
+      min-common-items: 3
+      max-neighbors: 50
+      similarity-threshold: 0.1
+    # Item-based CF settings
+    item-cf:
+      min-common-users: 5
+      max-similar-items: 100
+      similarity-threshold: 0.1
+    # Popular books settings
+    popular:
+      time-window-days: 30
+      max-results: 50
+  # Cache settings (in seconds)
+  cache:
+    user-recommendations-ttl: 3600
+    popular-books-ttl: 1800
+    similar-books-ttl: 7200
+    user-similarity-ttl: 86400
+    item-similarity-ttl: 86400
+
+# Logging
+logging:
+  level:
+    com.gcrf.library.recommend: debug
+    com.baomidou.mybatisplus: debug
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# SpringDoc
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

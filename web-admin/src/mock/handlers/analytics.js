@@ -8,7 +8,9 @@ import {
   generateCollectionAnalysis,
   generateRecentActivities,
   generateGradeBorrowPreferences,
-  generateYearlyCirculation
+  generateYearlyCirculation,
+  generateCategoryDistribution,
+  generateReaderHeatmap
 } from '../data/analytics'
 
 export const analyticsHandlers = [
@@ -43,6 +45,31 @@ export const analyticsHandlers = [
     })
   }),
 
+  // 获取分类分布数据
+  http.get('/api/v1/analytics/category-distribution', () => {
+    return HttpResponse.json({
+      code: 200,
+      message: 'success',
+      data: generateCategoryDistribution()
+    })
+  }),
+
+  // 获取热门图书排行
+  http.get('/api/v1/analytics/popular-books', ({ request }) => {
+    const url = new URL(request.url)
+    const params = {
+      rankBy: url.searchParams.get('rankBy') || 'BORROW_COUNT',
+      timeRange: url.searchParams.get('timeRange') || 'THIS_MONTH',
+      limit: parseInt(url.searchParams.get('limit') || '20')
+    }
+
+    return HttpResponse.json({
+      code: 200,
+      message: 'success',
+      data: generateBookRankings(params)
+    })
+  }),
+
   // 获取图书排行榜
   http.get('/api/v1/analytics/book-rankings', ({ request }) => {
     const url = new URL(request.url)
@@ -59,6 +86,22 @@ export const analyticsHandlers = [
     })
   }),
 
+  // 获取活跃读者排行
+  http.get('/api/v1/analytics/active-readers', ({ request }) => {
+    const url = new URL(request.url)
+    const params = {
+      rankBy: url.searchParams.get('rankBy') || 'BORROW_COUNT',
+      timeRange: url.searchParams.get('timeRange') || 'THIS_MONTH',
+      limit: parseInt(url.searchParams.get('limit') || '20')
+    }
+
+    return HttpResponse.json({
+      code: 200,
+      message: 'success',
+      data: generateReaderRankings(params)
+    })
+  }),
+
   // 获取读者排行榜
   http.get('/api/v1/analytics/reader-rankings', ({ request }) => {
     const url = new URL(request.url)
@@ -72,6 +115,15 @@ export const analyticsHandlers = [
       code: 200,
       message: 'success',
       data: generateReaderRankings(params)
+    })
+  }),
+
+  // 获取读者活跃度热力图
+  http.get('/api/v1/analytics/reader-heatmap', () => {
+    return HttpResponse.json({
+      code: 200,
+      message: 'success',
+      data: generateReaderHeatmap()
     })
   }),
 

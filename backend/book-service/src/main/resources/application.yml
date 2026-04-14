@@ -22,6 +22,28 @@ spring:
   redis:
     host: localhost
     port: 6379
+    password: gcrf_redis_2024
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
 
   elasticsearch:
     uris: http://localhost:9200
@@ -36,9 +58,34 @@ library:
     cors:
       enabled: false
 
+# MinIO Configuration
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket-covers: library-covers
+  bucket-pdfs: library-pdfs
+  max-cover-size: 5242880    # 5MB
+  max-pdf-size: 52428800     # 50MB
+
 logging:
   level:
     com.gcrf.library: debug
+
+# SpringDoc OpenAPI配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  info:
+    title: GCRF Book Service API
+    version: 1.0.0
+    description: 图书管理服务API文档
 
 # Actuator配置 - 健康检查与监控
 management:

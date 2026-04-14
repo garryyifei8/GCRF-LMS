@@ -103,6 +103,9 @@
 
         <!-- Flyway -->
         <flyway.version>10.8.1</flyway.version>
+
+        <!-- Testcontainers -->
+        <testcontainers.version>1.19.3</testcontainers.version>
     </properties>
 
     <dependencyManagement>
@@ -139,6 +142,15 @@
                 <groupId>com.gcrf.library</groupId>
                 <artifactId>common-core</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+
+            <!-- common-core test utilities (e.g., BaseIntegrationTest) -->
+            <dependency>
+                <groupId>com.gcrf.library</groupId>
+                <artifactId>common-core</artifactId>
+                <type>test-jar</type>
+                <version>${project.version}</version>
+                <scope>test</scope>
             </dependency>
 
             <dependency>

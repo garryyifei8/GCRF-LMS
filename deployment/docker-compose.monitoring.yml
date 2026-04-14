@@ -1,7 +1,7 @@
 # GCRF Library Management System - Monitoring Stack
-# Prometheus + Grafana + Exporters
-# Version: 1.0.0
-# Last Updated: 2025-11-01
+# Prometheus + Grafana + AlertManager + Exporters
+# Version: 1.1.0
+# Last Updated: 2025-12-01
 
 version: '3.8'
 
@@ -18,6 +18,8 @@ volumes:
     name: gcrf-prometheus-data
   grafana-data:
     name: gcrf-grafana-data
+  alertmanager-data:
+    name: gcrf-alertmanager-data
 
 services:
   # ===========================================
@@ -57,6 +59,45 @@ services:
       com.gcrf.tier: "monitoring"
 
   # ===========================================
+  # AlertManager - Alert Management & Routing
+  # ===========================================
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: gcrf-alertmanager
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.listen-address=:9093'
+      - '--web.external-url=http://alertmanager:9093'
+      - '--cluster.listen-address='
+      - '--log.level=info'
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./alertmanager/templates:/etc/alertmanager/templates:ro
+      - alertmanager-data:/alertmanager
+    environment:
+      # Environment variables for secrets (use .env file in production)
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-changeme}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - PAGERDUTY_SERVICE_KEY=${PAGERDUTY_SERVICE_KEY:-}
+      - WEBHOOK_TOKEN=${WEBHOOK_TOKEN:-changeme}
+    networks:
+      - gcrf-monitoring-network
+      - gcrf-backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    labels:
+      com.gcrf.service: "alertmanager"
+      com.gcrf.tier: "monitoring"
+
+  # ===========================================
   # Grafana - Metrics Visualization
   # ===========================================
   grafana:
@@ -85,7 +126,7 @@ services:
       # Dashboards
       - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/system-overview.json
 
-      # Alerting (disabled for now)
+      # Alerting - enable unified alerting with AlertManager integration
       - GF_ALERTING_ENABLED=false
       - GF_UNIFIED_ALERTING_ENABLED=true
 
@@ -103,6 +144,7 @@ services:
       - gcrf-monitoring-network
     depends_on:
       - prometheus
+      - alertmanager
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s

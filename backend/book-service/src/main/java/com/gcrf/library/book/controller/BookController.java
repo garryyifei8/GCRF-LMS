@@ -1,19 +1,32 @@
 package com.gcrf.library.book.controller;
 
 import com.gcrf.library.book.dto.BookQueryRequest;
+import com.gcrf.library.book.dto.request.BarcodeGenerateRequest;
+import com.gcrf.library.book.dto.request.BatchDeleteRequest;
 import com.gcrf.library.book.dto.request.BookCreateRequest;
 import com.gcrf.library.book.dto.request.BookUpdateRequest;
+import com.gcrf.library.book.dto.response.BatchOperationResult;
 import com.gcrf.library.book.dto.response.BookDetailVO;
 import com.gcrf.library.book.dto.response.BookVO;
+import com.gcrf.library.book.dto.response.BarcodeVO;
+import com.gcrf.library.book.dto.response.IsbnLookupVO;
+
+import java.util.List;
 import com.gcrf.library.book.service.BookService;
 import com.gcrf.library.common.result.PageResult;
 import com.gcrf.library.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.net.URLEncoder;
 
 /**
  * 图书控制器
@@ -88,11 +101,127 @@ public class BookController {
     }
 
     /**
+     * 获取库存信息
+     */
+    @GetMapping("/{id}/inventory")
+    @Operation(summary = "获取库存信息", description = "查询指定图书的库存信息")
+    public Result<com.gcrf.library.book.dto.response.InventoryVO> getInventory(@PathVariable Long id) {
+        log.info("获取库存信息: bookId={}", id);
+        com.gcrf.library.book.dto.response.InventoryVO inventory = bookService.getInventory(id);
+        return Result.success(inventory);
+    }
+
+    /**
+     * 更新库存
+     */
+    @PutMapping("/{id}/inventory")
+    @Operation(summary = "更新库存", description = "调整图书库存数量")
+    public Result<com.gcrf.library.book.dto.response.InventoryVO> updateInventory(
+            @PathVariable Long id,
+            @Valid @RequestBody com.gcrf.library.book.dto.request.InventoryUpdateRequest request) {
+        log.info("更新库存: bookId={}", id);
+        com.gcrf.library.book.dto.response.InventoryVO inventory = bookService.updateInventory(id, request);
+        return Result.success(inventory);
+    }
+
+    /**
+     * 全文搜索图书
+     */
+    @PostMapping("/search")
+    @Operation(summary = "全文搜索图书", description = "使用关键词搜索图书")
+    public Result<PageResult<BookVO>> searchBooks(@Valid @RequestBody com.gcrf.library.book.dto.request.BookSearchRequest request) {
+        log.info("全文搜索图书: query={}", request.getQuery());
+        PageResult<BookVO> result = bookService.searchBooks(request);
+        return Result.success(result);
+    }
+
+    /**
      * 健康检查
      */
     @GetMapping("/health")
     @Operation(summary = "健康检查", description = "检查图书服务是否正常运行")
     public Result<String> health() {
         return Result.success("Book Service is running");
+    }
+
+    /**
+     * 批量删除图书
+     */
+    @PostMapping("/batch-delete")
+    @Operation(summary = "批量删除图书", description = "批量删除图书（逻辑删除）")
+    public Result<BatchOperationResult> batchDelete(@Valid @RequestBody BatchDeleteRequest request) {
+        log.info("批量删除图书: count={}", request.getIds().size());
+        BatchOperationResult result = bookService.batchDelete(request.getIds());
+        return Result.success(result);
+    }
+
+    /**
+     * 批量导入图书
+     */
+    @PostMapping(value = "/batch-import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "批量导入图书", description = "通过Excel文件批量导入图书")
+    public Result<BatchOperationResult> batchImport(@RequestParam("file") MultipartFile file) throws IOException {
+        log.info("批量导入图书: filename={}, size={}", file.getOriginalFilename(), file.getSize());
+
+        if (file.isEmpty()) {
+            return Result.error("请上传文件");
+        }
+
+        String filename = file.getOriginalFilename();
+        if (filename == null || (!filename.endsWith(".xlsx") && !filename.endsWith(".xls"))) {
+            return Result.error("请上传Excel文件(.xlsx或.xls)");
+        }
+
+        BatchOperationResult result = bookService.batchImport(file.getInputStream());
+        return Result.success(result);
+    }
+
+    /**
+     * 下载导入模板
+     */
+    @GetMapping("/import-template")
+    @Operation(summary = "下载导入模板", description = "下载图书批量导入的Excel模板")
+    public void downloadImportTemplate(HttpServletResponse response) throws IOException {
+        log.info("下载导入模板");
+
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        String fileName = URLEncoder.encode("图书导入模板", "UTF-8").replaceAll("\\+", "%20");
+        response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+
+        bookService.downloadImportTemplate(response.getOutputStream());
+    }
+
+    /**
+     * 通过ISBN查询图书信息
+     */
+    @GetMapping("/isbn/{isbn}")
+    @Operation(summary = "ISBN查询", description = "通过ISBN从第三方API查询图书信息")
+    public Result<IsbnLookupVO> lookupByIsbn(@PathVariable String isbn) {
+        log.info("通过ISBN查询图书信息: {}", isbn);
+        IsbnLookupVO result = bookService.lookupByIsbn(isbn);
+        return Result.success(result);
+    }
+
+    /**
+     * 批量生成条码
+     */
+    @PostMapping("/barcode/generate")
+    @Operation(summary = "批量生成条码", description = "为指定的图书批量生成条码")
+    public Result<List<BarcodeVO>> generateBarcodes(@Valid @RequestBody BarcodeGenerateRequest request) {
+        log.info("批量生成条码: count={}", request.getBookIds().size());
+        List<BarcodeVO> result = bookService.generateBarcodes(request.getBookIds(), request.getPrefix());
+        return Result.success(result);
+    }
+
+    /**
+     * 根据条码查询图书
+     */
+    @GetMapping("/barcode/{barcode}")
+    @Operation(summary = "条码查询", description = "根据条码查询图书信息")
+    public Result<BookDetailVO> findByBarcode(@PathVariable String barcode) {
+        log.info("根据条码查询图书: {}", barcode);
+        BookDetailVO result = bookService.findByBarcode(barcode);
+        return Result.success(result);
     }
 }

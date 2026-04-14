@@ -67,4 +67,77 @@ public interface BookService {
      * @param bookId 图书ID
      */
     void increaseAvailableQuantity(Long bookId);
+
+    /**
+     * 获取库存信息
+     *
+     * @param bookId 图书ID
+     * @return 库存信息
+     */
+    com.gcrf.library.book.dto.response.InventoryVO getInventory(Long bookId);
+
+    /**
+     * 更新库存
+     *
+     * @param bookId 图书ID
+     * @param request 更新请求
+     * @return 更新后的库存信息
+     */
+    com.gcrf.library.book.dto.response.InventoryVO updateInventory(Long bookId, com.gcrf.library.book.dto.request.InventoryUpdateRequest request);
+
+    /**
+     * 全文搜索图书
+     *
+     * @param request 搜索请求
+     * @return 分页结果
+     */
+    PageResult<com.gcrf.library.book.dto.response.BookVO> searchBooks(com.gcrf.library.book.dto.request.BookSearchRequest request);
+
+    /**
+     * 批量删除图书
+     *
+     * @param ids 图书ID列表
+     * @return 批量操作结果
+     */
+    com.gcrf.library.book.dto.response.BatchOperationResult batchDelete(java.util.List<Long> ids);
+
+    /**
+     * 批量导入图书
+     *
+     * @param inputStream Excel文件输入流
+     * @return 批量操作结果
+     */
+    com.gcrf.library.book.dto.response.BatchOperationResult batchImport(java.io.InputStream inputStream);
+
+    /**
+     * 下载导入模板
+     *
+     * @param outputStream 输出流
+     */
+    void downloadImportTemplate(java.io.OutputStream outputStream);
+
+    /**
+     * 通过ISBN查询图书信息（第三方API）
+     *
+     * @param isbn ISBN号
+     * @return 图书信息
+     */
+    com.gcrf.library.book.dto.response.IsbnLookupVO lookupByIsbn(String isbn);
+
+    /**
+     * 批量生成条码
+     *
+     * @param bookIds 图书ID列表
+     * @param prefix 条码前缀（可选）
+     * @return 生成的条码列表
+     */
+    java.util.List<com.gcrf.library.book.dto.response.BarcodeVO> generateBarcodes(java.util.List<Long> bookIds, String prefix);
+
+    /**
+     * 根据条码查询图书
+     *
+     * @param barcode 条码
+     * @return 图书信息
+     */
+    com.gcrf.library.book.dto.response.BookDetailVO findByBarcode(String barcode);
 }

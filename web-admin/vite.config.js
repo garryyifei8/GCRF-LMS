@@ -44,23 +44,66 @@ export default defineConfig(({ command }) => ({
     // 开发环境启用 source maps 以便调试
     sourcemap: true,
     proxy: {
-      // 代理 API 请求到后端服务（直接代理，不重写路径）
+      // 认证服务 - auth-service (直接代理，绕过Gateway)
+      '/api/v1/auth': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+        rewrite: (path) => path
+      },
+      // 图书服务 - book-service
       '/api/v1/books': {
         target: 'http://localhost:8082',
         changeOrigin: true,
         rewrite: (path) => path
       },
+      '/api/v1/categories': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        rewrite: (path) => path
+      },
+      // 库存管理 - book-service
+      '/api/v1/inventory': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        rewrite: (path) => path
+      },
+      // 读者服务 - reader-service
       '/api/v1/readers': {
         target: 'http://localhost:8084',
         changeOrigin: true,
         rewrite: (path) => path
       },
+      // 借阅管理 - circulation-service
+      '/api/v1/borrows': {
+        target: 'http://localhost:8083',
+        changeOrigin: true,
+        rewrite: (path) => path
+      },
+      // 预约管理 - circulation-service
+      '/api/v1/reserves': {
+        target: 'http://localhost:8083',
+        changeOrigin: true,
+        rewrite: (path) => path
+      },
+      // 旧的circulation接口兼容
       '/api/v1/circulation': {
         target: 'http://localhost:8083',
         changeOrigin: true,
         rewrite: (path) => path
       },
-      // 其他 API 请求代理到 Gateway
+      // 罚款管理 - circulation-service
+      '/api/v1/fines': {
+        target: 'http://localhost:8083',
+        changeOrigin: true,
+        rewrite: (path) => path
+      },
+      // 统计分析 - analytics-service (目前未实现，使用前端默认数据)
+      '/api/v1/analytics': {
+        target: 'http://localhost:8087',
+        changeOrigin: true,
+        rewrite: (path) => path
+      },
+      // 其他 API 请求代理到 Gateway (fallback)
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,

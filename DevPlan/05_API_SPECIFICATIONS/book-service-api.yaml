@@ -1,0 +1,1647 @@
+openapi: 3.0.3
+info:
+  title: GCRF Library Management System - Book Service API
+  description: |
+    **图书管理服务 API**
+
+    提供图书信息的完整生命周期管理，包括:
+    - 图书基本信息的增删改查
+    - 图书分类管理
+    - 库存管理
+    - 全文检索 (PostgreSQL full-text search)
+    - 文件上传下载 (MinIO integration)
+    - 批量导入导出
+
+    **技术栈**:
+    - Spring Boot 3.2.2
+    - PostgreSQL 15+ (full-text search)
+    - MinIO (文件存储)
+    - Redis (缓存)
+
+    **服务端口**: 8082
+  version: 1.0.0
+  contact:
+    name: GCRF Development Team
+    email: dev@gcrf.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:8082
+    description: Book Service (Development)
+  - url: http://localhost:8080/book-service
+    description: Via API Gateway (Development)
+
+tags:
+  - name: Book Management
+    description: 图书基本信息管理
+  - name: Category Management
+    description: 图书分类管理
+  - name: Inventory Management
+    description: 库存管理
+  - name: Search
+    description: 图书检索
+  - name: File Management
+    description: 文件上传下载
+  - name: Data Import/Export
+    description: 数据导入导出
+  - name: Health Check
+    description: 健康检查
+
+paths:
+  # ========================================
+  # Book Management APIs
+  # ========================================
+  /api/v1/books:
+    get:
+      tags:
+        - Book Management
+      summary: 分页查询图书
+      description: |
+        支持关键词搜索、分类筛选、状态筛选等条件查询
+
+        **查询条件**:
+        - keyword: 书名、作者、ISBN模糊搜索
+        - categoryId: 按分类筛选
+        - status: 按状态筛选
+      operationId: queryBooks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: pageNum
+          in: query
+          description: 页码 (从1开始)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          description: 每页大小
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: keyword
+          in: query
+          description: 搜索关键词 (书名/作者/ISBN)
+          schema:
+            type: string
+            maxLength: 100
+        - name: categoryId
+          in: query
+          description: 分类ID筛选
+          schema:
+            type: integer
+            format: int64
+        - name: status
+          in: query
+          description: 状态筛选
+          schema:
+            type: string
+            enum:
+              - AVAILABLE
+              - BORROWED
+              - RESERVED
+              - MAINTENANCE
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        format: int64
+                        example: 200
+                      pageNum:
+                        type: integer
+                        example: 1
+                      pageSize:
+                        type: integer
+                        example: 20
+                      pages:
+                        type: integer
+                        example: 10
+                      records:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BookVO'
+                  timestamp:
+                    type: integer
+                    format: int64
+                    example: 1698765432000
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Book Management
+      summary: 创建图书
+      description: 新增图书信息到系统
+      operationId: createBook
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreateRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    $ref: '#/components/schemas/BookDetailVO'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/books/{id}:
+    get:
+      tags:
+        - Book Management
+      summary: 查询图书详情
+      description: 根据图书ID查询详细信息
+      operationId: getBook
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 图书ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    $ref: '#/components/schemas/BookDetailVO'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - Book Management
+      summary: 更新图书
+      description: 修改图书信息
+      operationId: updateBook
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 图书ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    $ref: '#/components/schemas/BookDetailVO'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - Book Management
+      summary: 删除图书
+      description: |
+        删除图书（逻辑删除）
+
+        **注意**:
+        - 逻辑删除，不会真正从数据库删除
+        - 如果图书有未归还的借阅记录，删除将失败
+      operationId: deleteBook
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 图书ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    type: object
+                    nullable: true
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          description: 删除失败 (图书有未归还借阅记录)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "图书有未归还借阅记录，无法删除"
+                  timestamp:
+                    type: integer
+                    format: int64
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ========================================
+  # Category Management APIs
+  # ========================================
+  /api/v1/books/categories:
+    get:
+      tags:
+        - Category Management
+      summary: 查询图书分类列表
+      description: 获取所有图书分类（树形结构）
+      operationId: getCategories
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CategoryVO'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Category Management
+      summary: 创建图书分类
+      description: 新增图书分类
+      operationId: createCategory
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreateRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    $ref: '#/components/schemas/CategoryVO'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/books/categories/{id}:
+    put:
+      tags:
+        - Category Management
+      summary: 更新图书分类
+      description: 修改图书分类信息
+      operationId: updateCategory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 分类ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    $ref: '#/components/schemas/CategoryVO'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - Category Management
+      summary: 删除图书分类
+      description: |
+        删除图书分类
+
+        **注意**: 如果分类下有图书，删除将失败
+      operationId: deleteCategory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 分类ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    type: object
+                    nullable: true
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          description: 删除失败 (分类下有图书)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "分类下有图书，无法删除"
+                  timestamp:
+                    type: integer
+                    format: int64
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ========================================
+  # Inventory Management APIs
+  # ========================================
+  /api/v1/books/{id}/inventory:
+    get:
+      tags:
+        - Inventory Management
+      summary: 查询图书库存
+      description: 查询指定图书的库存信息
+      operationId: getInventory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 图书ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    $ref: '#/components/schemas/InventoryVO'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - Inventory Management
+      summary: 调整图书库存
+      description: |
+        手动调整图书库存数量
+
+        **注意**:
+        - 总量不能小于已借出数量
+        - 需要管理员权限
+      operationId: updateInventory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 图书ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryUpdateRequest'
+      responses:
+        '200':
+          description: 调整成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    $ref: '#/components/schemas/InventoryVO'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ========================================
+  # Search APIs
+  # ========================================
+  /api/v1/books/search:
+    post:
+      tags:
+        - Search
+      summary: 全文检索图书
+      description: |
+        使用PostgreSQL全文检索功能搜索图书
+
+        **支持搜索字段**:
+        - 书名 (title)
+        - 作者 (author)
+        - 简介 (summary)
+        - ISBN
+
+        **搜索特性**:
+        - 中文分词支持
+        - 相关度排序
+        - 高亮显示
+      operationId: searchBooks
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookSearchRequest'
+      responses:
+        '200':
+          description: 搜索成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        format: int64
+                      pageNum:
+                        type: integer
+                      pageSize:
+                        type: integer
+                      pages:
+                        type: integer
+                      records:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BookSearchResultVO'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ========================================
+  # File Management APIs
+  # ========================================
+  /api/v1/books/{id}/cover:
+    post:
+      tags:
+        - File Management
+      summary: 上传图书封面
+      description: |
+        上传图书封面图片到MinIO
+
+        **文件要求**:
+        - 格式: JPG, PNG, WEBP
+        - 大小: 最大5MB
+        - 建议尺寸: 400x600
+      operationId: uploadCover
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 图书ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 封面图片文件
+      responses:
+        '200':
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    type: object
+                    properties:
+                      coverUrl:
+                        type: string
+                        description: 封面URL
+                        example: "http://minio:9000/library/books/covers/123.jpg"
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          description: 上传失败 (文件格式或大小不符)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "文件大小超过限制"
+                  timestamp:
+                    type: integer
+                    format: int64
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/books/{id}/pdf:
+    post:
+      tags:
+        - File Management
+      summary: 上传图书PDF
+      description: |
+        上传电子书PDF文件到MinIO
+
+        **文件要求**:
+        - 格式: PDF
+        - 大小: 最大50MB
+      operationId: uploadPDF
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 图书ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF文件
+      responses:
+        '200':
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    type: object
+                    properties:
+                      fileUrl:
+                        type: string
+                        description: PDF文件URL
+                        example: "http://minio:9000/library/books/pdfs/123.pdf"
+                      fileSize:
+                        type: integer
+                        format: int64
+                        description: 文件大小 (字节)
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/books/{id}/download:
+    get:
+      tags:
+        - File Management
+      summary: 下载图书文件
+      description: |
+        下载图书的电子书PDF文件
+
+        **权限要求**:
+        - 需要有该图书的借阅记录
+        - 或者有管理员权限
+      operationId: downloadBook
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 图书ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 下载成功
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 无下载权限
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 403
+                  message:
+                    type: string
+                    example: "无权限下载该图书"
+                  timestamp:
+                    type: integer
+                    format: int64
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ========================================
+  # Data Import/Export APIs
+  # ========================================
+  /api/v1/books/import:
+    post:
+      tags:
+        - Data Import/Export
+      summary: 批量导入图书
+      description: |
+        通过Excel文件批量导入图书数据
+
+        **文件要求**:
+        - 格式: .xlsx
+        - 最大行数: 1000行
+        - 必填字段: 书名、ISBN、作者、出版社
+
+        **返回结果**:
+        - 成功导入的记录数
+        - 失败记录及原因
+      operationId: importBooks
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Excel文件
+      responses:
+        '200':
+          description: 导入完成 (可能部分失败)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "导入完成"
+                  data:
+                    type: object
+                    properties:
+                      totalRows:
+                        type: integer
+                        description: 总行数
+                        example: 100
+                      successCount:
+                        type: integer
+                        description: 成功导入数
+                        example: 95
+                      failureCount:
+                        type: integer
+                        description: 失败数
+                        example: 5
+                      failures:
+                        type: array
+                        description: 失败记录详情
+                        items:
+                          type: object
+                          properties:
+                            row:
+                              type: integer
+                              example: 10
+                            reason:
+                              type: string
+                              example: "ISBN已存在"
+                  timestamp:
+                    type: integer
+                    format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/books/export:
+    get:
+      tags:
+        - Data Import/Export
+      summary: 导出图书数据
+      description: |
+        导出图书数据到Excel文件
+
+        **支持筛选条件**: 与查询接口相同
+      operationId: exportBooks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: keyword
+          in: query
+          description: 搜索关键词
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          description: 分类ID
+          schema:
+            type: integer
+            format: int64
+        - name: status
+          in: query
+          description: 状态
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 导出成功
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename=books_20251104.xlsx
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ========================================
+  # Statistics APIs
+  # ========================================
+  /api/v1/books/statistics:
+    get:
+      tags:
+        - Book Management
+      summary: 图书统计
+      description: |
+        获取图书统计信息
+
+        **统计指标**:
+        - 总图书数
+        - 可借数量
+        - 已借出数量
+        - 预约数量
+        - 各分类图书数
+      operationId: getStatistics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    $ref: '#/components/schemas/BookStatisticsVO'
+                  timestamp:
+                    type: integer
+                    format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ========================================
+  # Health Check
+  # ========================================
+  /api/v1/books/health:
+    get:
+      tags:
+        - Health Check
+      summary: 健康检查
+      description: 检查图书服务是否正常运行
+      operationId: healthCheck
+      security: []  # No authentication required
+      responses:
+        '200':
+          description: 服务正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "操作成功"
+                  data:
+                    type: string
+                    example: "Book Service is running"
+                  timestamp:
+                    type: integer
+                    format: int64
+
+# ========================================
+# Components
+# ========================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ========================================
+    # Book Schemas
+    # ========================================
+    BookVO:
+      type: object
+      description: 图书列表视图对象
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        title:
+          type: string
+          example: "Java编程思想"
+        author:
+          type: string
+          example: "Bruce Eckel"
+        isbn:
+          type: string
+          example: "978-7-111-21382-7"
+        publisher:
+          type: string
+          example: "机械工业出版社"
+        publishDate:
+          type: string
+          format: date
+          example: "2007-06-01"
+        categoryId:
+          type: integer
+          format: int64
+          example: 1
+        categoryName:
+          type: string
+          example: "计算机技术"
+        coverUrl:
+          type: string
+          example: "http://minio:9000/library/books/covers/1.jpg"
+          nullable: true
+        totalCopies:
+          type: integer
+          description: 总量
+          example: 10
+        availableCopies:
+          type: integer
+          description: 可借数量
+          example: 5
+        status:
+          type: string
+          enum:
+            - AVAILABLE
+            - BORROWED
+            - RESERVED
+            - MAINTENANCE
+          example: "AVAILABLE"
+
+    BookDetailVO:
+      type: object
+      description: 图书详情视图对象
+      allOf:
+        - $ref: '#/components/schemas/BookVO'
+        - type: object
+          properties:
+            summary:
+              type: string
+              description: 简介
+              example: "本书赢得了全球程序员的广泛赞誉..."
+              nullable: true
+            price:
+              type: number
+              format: decimal
+              description: 价格
+              example: 108.00
+            pages:
+              type: integer
+              description: 页数
+              example: 880
+              nullable: true
+            language:
+              type: string
+              description: 语言
+              example: "中文"
+            fileUrl:
+              type: string
+              description: 电子书URL
+              example: "http://minio:9000/library/books/pdfs/1.pdf"
+              nullable: true
+            createdAt:
+              type: string
+              format: date-time
+              example: "2025-10-12T10:30:00Z"
+            updatedAt:
+              type: string
+              format: date-time
+              example: "2025-11-04T15:20:00Z"
+
+    BookCreateRequest:
+      type: object
+      description: 创建图书请求
+      required:
+        - title
+        - author
+        - isbn
+        - publisher
+        - categoryId
+      properties:
+        title:
+          type: string
+          description: 书名
+          example: "Java编程思想"
+          minLength: 1
+          maxLength: 200
+        author:
+          type: string
+          description: 作者
+          example: "Bruce Eckel"
+          minLength: 1
+          maxLength: 100
+        isbn:
+          type: string
+          description: ISBN (唯一)
+          example: "978-7-111-21382-7"
+          pattern: '^\d{3}-\d{1,5}-\d{1,7}-\d{1,7}-\d{1}$'
+        publisher:
+          type: string
+          description: 出版社
+          example: "机械工业出版社"
+          minLength: 1
+          maxLength: 100
+        publishDate:
+          type: string
+          format: date
+          description: 出版日期
+          example: "2007-06-01"
+          nullable: true
+        categoryId:
+          type: integer
+          format: int64
+          description: 分类ID
+          example: 1
+        summary:
+          type: string
+          description: 简介
+          maxLength: 2000
+          nullable: true
+        price:
+          type: number
+          format: decimal
+          description: 价格
+          example: 108.00
+          minimum: 0
+          nullable: true
+        pages:
+          type: integer
+          description: 页数
+          example: 880
+          minimum: 1
+          nullable: true
+        language:
+          type: string
+          description: 语言
+          example: "中文"
+          default: "中文"
+        totalCopies:
+          type: integer
+          description: 总量
+          example: 10
+          minimum: 1
+          default: 1
+
+    BookUpdateRequest:
+      type: object
+      description: 更新图书请求
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        author:
+          type: string
+          minLength: 1
+          maxLength: 100
+        publisher:
+          type: string
+          minLength: 1
+          maxLength: 100
+        publishDate:
+          type: string
+          format: date
+          nullable: true
+        categoryId:
+          type: integer
+          format: int64
+        summary:
+          type: string
+          maxLength: 2000
+          nullable: true
+        price:
+          type: number
+          format: decimal
+          minimum: 0
+          nullable: true
+        pages:
+          type: integer
+          minimum: 1
+          nullable: true
+        language:
+          type: string
+
+    BookSearchRequest:
+      type: object
+      description: 全文检索请求
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: 搜索关键词
+          example: "Java编程"
+          minLength: 1
+          maxLength: 100
+        pageNum:
+          type: integer
+          default: 1
+          minimum: 1
+        pageSize:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+
+    BookSearchResultVO:
+      type: object
+      description: 搜索结果视图对象
+      allOf:
+        - $ref: '#/components/schemas/BookVO'
+        - type: object
+          properties:
+            relevanceScore:
+              type: number
+              format: float
+              description: 相关度得分
+              example: 0.95
+            highlightTitle:
+              type: string
+              description: 高亮标题
+              example: "<em>Java</em><em>编程</em>思想"
+              nullable: true
+
+    # ========================================
+    # Category Schemas
+    # ========================================
+    CategoryVO:
+      type: object
+      description: 分类视图对象
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        categoryName:
+          type: string
+          example: "计算机技术"
+        categoryCode:
+          type: string
+          example: "CS"
+        parentId:
+          type: integer
+          format: int64
+          description: 父分类ID (NULL表示顶级)
+          example: null
+          nullable: true
+        bookCount:
+          type: integer
+          description: 图书数量
+          example: 150
+        sortOrder:
+          type: integer
+          description: 排序
+          example: 1
+        children:
+          type: array
+          description: 子分类
+          items:
+            $ref: '#/components/schemas/CategoryVO'
+          nullable: true
+
+    CategoryCreateRequest:
+      type: object
+      description: 创建分类请求
+      required:
+        - categoryName
+        - categoryCode
+      properties:
+        categoryName:
+          type: string
+          description: 分类名称
+          example: "计算机技术"
+          minLength: 1
+          maxLength: 50
+        categoryCode:
+          type: string
+          description: 分类代码 (唯一)
+          example: "CS"
+          minLength: 1
+          maxLength: 20
+        parentId:
+          type: integer
+          format: int64
+          description: 父分类ID
+          example: null
+          nullable: true
+        sortOrder:
+          type: integer
+          description: 排序
+          example: 1
+          default: 0
+
+    CategoryUpdateRequest:
+      type: object
+      description: 更新分类请求
+      properties:
+        categoryName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        sortOrder:
+          type: integer
+
+    # ========================================
+    # Inventory Schemas
+    # ========================================
+    InventoryVO:
+      type: object
+      description: 库存视图对象
+      properties:
+        bookId:
+          type: integer
+          format: int64
+          example: 1
+        totalCopies:
+          type: integer
+          description: 总量
+          example: 10
+        availableCopies:
+          type: integer
+          description: 可借数量
+          example: 5
+        borrowedCopies:
+          type: integer
+          description: 已借出数量
+          example: 3
+        reservedCopies:
+          type: integer
+          description: 预约数量
+          example: 2
+        maintenanceCopies:
+          type: integer
+          description: 维护中数量
+          example: 0
+
+    InventoryUpdateRequest:
+      type: object
+      description: 库存调整请求
+      required:
+        - totalCopies
+        - reason
+      properties:
+        totalCopies:
+          type: integer
+          description: 新的总量
+          example: 15
+          minimum: 1
+        reason:
+          type: string
+          description: 调整原因
+          example: "新购入5本"
+          minLength: 1
+          maxLength: 200
+
+    # ========================================
+    # Statistics Schemas
+    # ========================================
+    BookStatisticsVO:
+      type: object
+      description: 图书统计视图对象
+      properties:
+        totalBooks:
+          type: integer
+          description: 总图书数
+          example: 5000
+        availableBooks:
+          type: integer
+          description: 可借图书数
+          example: 3500
+        borrowedBooks:
+          type: integer
+          description: 已借出图书数
+          example: 1200
+        reservedBooks:
+          type: integer
+          description: 预约图书数
+          example: 300
+        categoryCounts:
+          type: array
+          description: 各分类图书数
+          items:
+            type: object
+            properties:
+              categoryName:
+                type: string
+                example: "计算机技术"
+              count:
+                type: integer
+                example: 800
+
+  # ========================================
+  # Common Responses
+  # ========================================
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 400
+              message:
+                type: string
+                example: "参数验证失败"
+              timestamp:
+                type: integer
+                format: int64
+
+    Unauthorized:
+      description: 未认证或认证失败
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 401
+              message:
+                type: string
+                example: "未提供认证令牌"
+              timestamp:
+                type: integer
+                format: int64
+
+    Forbidden:
+      description: 无权限访问
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 403
+              message:
+                type: string
+                example: "无权限执行此操作"
+              timestamp:
+                type: integer
+                format: int64
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 404
+              message:
+                type: string
+                example: "资源不存在"
+              timestamp:
+                type: integer
+                format: int64
+
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 500
+              message:
+                type: string
+                example: "服务器内部错误"
+              timestamp:
+                type: integer
+                format: int64

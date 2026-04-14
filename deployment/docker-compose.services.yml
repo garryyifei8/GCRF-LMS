@@ -245,29 +245,105 @@ services:
   #     com.gcrf.component: "web-ui"
 
   # ============================================
+  # Book Service
+  # ============================================
+  # Handles book management, categories, inventory, and file storage
+  gcrf-book-service:
+    image: gcrf-library/book-service:latest
+    container_name: gcrf-book-service
+    restart: unless-stopped
+    # No port exposure - internal service only
+    expose:
+      - "8082"
+    environment:
+      # Spring profile for production configuration
+      SPRING_PROFILES_ACTIVE: prod
+      # JVM settings for production
+      JAVA_OPTS: >
+        -Xms512m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=100
+        -XX:+ParallelRefProcEnabled
+        -Djava.security.egd=file:/dev/./urandom
+        -Dspring.config.location=/app/config/application.yml
+      # Service discovery
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-public}
+      NACOS_USERNAME: ${NACOS_USERNAME}
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
+      # Database configuration
+      DB_HOST: postgres-primary
+      DB_PORT: 5432
+      DB_NAME: gcrf_book
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # Redis configuration
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # MinIO configuration
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-gcrf-books}
+      # Elasticsearch configuration
+      ELASTICSEARCH_URIS: http://elasticsearch:9200
+      # Logging
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_GCRF: ${LOGGING_LEVEL:-INFO}
+    env_file:
+      - ../.env
+    volumes:
+      # Log volume for persistent logging
+      - ./logs/book:/app/logs
+      # Mount production configuration (read-only)
+      - ../backend/book-service/src/main/resources/application-prod.yml:/app/config/application.yml:ro
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      # Backend network only - no direct external access
+      - gcrf-backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.gcrf.service,com.gcrf.tier"
+    labels:
+      com.gcrf.service: "book"
+      com.gcrf.tier: "backend"
+      com.gcrf.version: "1.0.0"
+      com.gcrf.component: "book-management"
+
+  # ============================================
   # Additional Microservices (Phase 3)
   # ============================================
-  # Book Service, Reader Service, Circulation Service, etc.
+  # Reader Service, Circulation Service, System Service, etc.
   # Will be added as they are developed and containerized
-  #
-  # Example structure for future services:
-  # gcrf-book-service:
-  #   image: gcrf-library/book-service:latest
-  #   container_name: gcrf-book-service
-  #   restart: unless-stopped
-  #   expose:
-  #     - "8082"
-  #   environment:
-  #     SPRING_PROFILES_ACTIVE: prod
-  #     # ... additional configuration
-  #   depends_on:
-  #     postgres-primary:
-  #       condition: service_healthy
-  #     redis-master:
-  #       condition: service_healthy
-  #     nacos:
-  #       condition: service_healthy
-  #   # ... rest of configuration
 
 # ============================================
 # Network Configuration

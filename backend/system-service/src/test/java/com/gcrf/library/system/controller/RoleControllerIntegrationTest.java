@@ -2,6 +2,7 @@ package com.gcrf.library.system.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gcrf.library.common.test.BaseIntegrationTest;
 import com.gcrf.library.system.dto.request.AssignPermissionsRequest;
 import com.gcrf.library.system.dto.request.RoleCreateRequest;
 import com.gcrf.library.system.dto.request.RoleUpdateRequest;
@@ -51,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional  // Rollback after each test
-class RoleControllerIntegrationTest {
+class RoleControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

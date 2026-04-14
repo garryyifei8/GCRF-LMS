@@ -126,3 +126,14 @@ export function updateReaderStatus(id, status) {
     data: { status }
   })
 }
+
+/**
+ * 根据借阅证号查询读者信息
+ * @param {string} cardNumber - 借阅证号
+ */
+export function getReaderByCardNumber(cardNumber) {
+  return request({
+    url: `/api/v1/readers/card/${cardNumber}`,
+    method: 'get'
+  })
+}

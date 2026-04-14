@@ -37,7 +37,12 @@
           </el-form-item>
 
           <el-form-item label="状态">
-            <el-select v-model="queryForm.status" placeholder="全部状态" clearable style="width: 120px">
+            <el-select
+              v-model="queryForm.status"
+              placeholder="全部状态"
+              clearable
+              style="width: 120px"
+            >
               <el-option label="全部" value="" />
               <el-option label="待处理" value="pending" />
               <el-option label="可取书" value="ready" />
@@ -47,7 +52,12 @@
           </el-form-item>
 
           <el-form-item label="读者类型">
-            <el-select v-model="queryForm.readerType" placeholder="全部类型" clearable style="width: 120px">
+            <el-select
+              v-model="queryForm.readerType"
+              placeholder="全部类型"
+              clearable
+              style="width: 120px"
+            >
               <el-option label="全部" value="" />
               <el-option label="学生" value="student" />
               <el-option label="教师" value="teacher" />
@@ -95,7 +105,12 @@
       <div class="card-content">
         <el-table v-loading="loading" :data="reservationList" stripe>
           <el-table-column type="index" label="序号" width="60" />
-          <el-table-column prop="bookTitle" label="图书名称" show-overflow-tooltip min-width="180" />
+          <el-table-column
+            prop="bookTitle"
+            label="图书名称"
+            show-overflow-tooltip
+            min-width="180"
+          />
           <el-table-column prop="barcode" label="条码号" width="140" />
           <el-table-column label="读者" width="120">
             <template #default="{ row }">
@@ -119,8 +134,12 @@
             <template #default="{ row }">
               <el-tag v-if="row.status === 'pending'" type="warning" size="small">待处理</el-tag>
               <el-tag v-else-if="row.status === 'ready'" type="success" size="small">可取书</el-tag>
-              <el-tag v-else-if="row.status === 'expired'" type="danger" size="small">已过期</el-tag>
-              <el-tag v-else-if="row.status === 'cancelled'" type="info" size="small">已取消</el-tag>
+              <el-tag v-else-if="row.status === 'expired'" type="danger" size="small"
+                >已过期</el-tag
+              >
+              <el-tag v-else-if="row.status === 'cancelled'" type="info" size="small"
+                >已取消</el-tag
+              >
               <el-tag v-else type="info" size="small">已完成</el-tag>
             </template>
           </el-table-column>
@@ -182,19 +201,34 @@
     <!-- 详情对话框 -->
     <el-dialog v-model="detailDialogVisible" title="预约详情" width="700px">
       <el-descriptions v-if="currentReservation" :column="2" border>
-        <el-descriptions-item label="预约编号" :span="2">{{ currentReservation.reservationNo }}</el-descriptions-item>
-        <el-descriptions-item label="图书名称" :span="2">{{ currentReservation.bookTitle }}</el-descriptions-item>
+        <el-descriptions-item label="预约编号" :span="2">{{
+          currentReservation.reservationNo
+        }}</el-descriptions-item>
+        <el-descriptions-item label="图书名称" :span="2">{{
+          currentReservation.bookTitle
+        }}</el-descriptions-item>
         <el-descriptions-item label="ISBN">{{ currentReservation.isbn }}</el-descriptions-item>
         <el-descriptions-item label="条码号">{{ currentReservation.barcode }}</el-descriptions-item>
-        <el-descriptions-item label="读者姓名">{{ currentReservation.readerName }}</el-descriptions-item>
+        <el-descriptions-item label="读者姓名">{{
+          currentReservation.readerName
+        }}</el-descriptions-item>
         <el-descriptions-item label="读者类型">
           {{ currentReservation.readerType === 'student' ? '学生' : '教师' }}
         </el-descriptions-item>
-        <el-descriptions-item label="读者证号">{{ currentReservation.readerCardNo }}</el-descriptions-item>
-        <el-descriptions-item label="联系电话">{{ currentReservation.readerPhone }}</el-descriptions-item>
-        <el-descriptions-item label="预约日期">{{ currentReservation.reserveDate }}</el-descriptions-item>
+        <el-descriptions-item label="读者证号">{{
+          currentReservation.readerCardNo
+        }}</el-descriptions-item>
+        <el-descriptions-item label="联系电话">{{
+          currentReservation.readerPhone
+        }}</el-descriptions-item>
+        <el-descriptions-item label="预约日期">{{
+          currentReservation.reserveDate
+        }}</el-descriptions-item>
         <el-descriptions-item label="到期日期">
-          <span v-if="currentReservation.expiryDate" :class="isExpired(currentReservation) ? 'text-danger' : ''">
+          <span
+            v-if="currentReservation.expiryDate"
+            :class="isExpired(currentReservation) ? 'text-danger' : ''"
+          >
             {{ currentReservation.expiryDate }}
           </span>
           <span v-else>-</span>
@@ -210,8 +244,12 @@
           <el-tag v-if="currentReservation.notified" type="success">已通知</el-tag>
           <el-tag v-else type="info">未通知</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="操作人">{{ currentReservation.operator || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="处理时间">{{ currentReservation.processTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="操作人">{{
+          currentReservation.operator || '-'
+        }}</el-descriptions-item>
+        <el-descriptions-item label="处理时间">{{
+          currentReservation.processTime || '-'
+        }}</el-descriptions-item>
         <el-descriptions-item label="备注" :span="2">
           {{ currentReservation.remark || '无' }}
         </el-descriptions-item>
@@ -220,7 +258,12 @@
 
     <!-- 处理预约对话框 -->
     <el-dialog v-model="processDialogVisible" title="处理预约" width="500px">
-      <el-form ref="processFormRef" :model="processForm" :rules="processFormRules" label-width="100px">
+      <el-form
+        ref="processFormRef"
+        :model="processForm"
+        :rules="processFormRules"
+        label-width="100px"
+      >
         <el-form-item label="预约信息">
           <div class="reservation-info">
             <div class="info-row">
@@ -264,6 +307,12 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
+import {
+  getReservations,
+  cancelReservation,
+  processReservation,
+  notifyReservation
+} from '@/api/circulation'
 
 // 查询表单
 const queryForm = reactive({
@@ -319,73 +368,64 @@ const isExpired = (reservation) => {
 const loadReservationList = async () => {
   loading.value = true
   try {
-    // TODO: 调用API获取预约列表
-    // const res = await request.get('/api/circulation/reservations', {
-    //   params: {
-    //     ...queryForm,
-    //     startDate: queryForm.dateRange[0],
-    //     endDate: queryForm.dateRange[1],
-    //     page: pagination.page,
-    //     pageSize: pagination.pageSize
-    //   }
-    // })
+    const res = await getReservations({
+      keyword: queryForm.keyword,
+      status: queryForm.status,
+      startDate: queryForm.dateRange?.[0],
+      endDate: queryForm.dateRange?.[1],
+      pageNum: pagination.page,
+      pageSize: pagination.pageSize
+    })
 
-    // Mock数据
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    const mockData = []
-    for (let i = 1; i <= pagination.pageSize; i++) {
-      const id = (pagination.page - 1) * pagination.pageSize + i
-      const reserveDate = dayjs().subtract(Math.floor(Math.random() * 30), 'day')
-      const statusRand = Math.random()
-      let status = 'pending'
-      let expiryDate = null
-      let notified = false
-
-      if (statusRand < 0.3) {
-        status = 'pending'
-      } else if (statusRand < 0.5) {
-        status = 'ready'
-        expiryDate = reserveDate.add(5, 'day')
-        notified = Math.random() > 0.3
-      } else if (statusRand < 0.7) {
-        status = 'expired'
-        expiryDate = reserveDate.add(5, 'day')
-        notified = true
-      } else {
-        status = 'cancelled'
-      }
-
-      mockData.push({
-        id,
-        reservationNo: `R2025${id.toString().padStart(6, '0')}`,
-        bookTitle: ['人工智能基础', 'Python编程', '数据结构与算法', '计算机网络'][i % 4],
-        isbn: `978-7-${Math.random().toString().substr(2, 9)}`,
-        barcode: `B${id.toString().padStart(6, '0')}`,
-        readerName: ['张三', '李四', '王五', '刘老师'][i % 4],
-        readerType: i % 3 === 0 ? 'teacher' : 'student',
-        readerCardNo: i % 3 === 0 ? `T2025${id.toString().padStart(4, '0')}` : `S2025${id.toString().padStart(4, '0')}`,
-        readerPhone: `138${Math.random().toString().substr(2, 8)}`,
-        reserveDate: reserveDate.format('YYYY-MM-DD'),
-        expiryDate: expiryDate ? expiryDate.format('YYYY-MM-DD') : null,
-        status,
-        notified,
-        operator: status !== 'pending' ? '管理员' : null,
-        processTime: status !== 'pending' ? reserveDate.add(1, 'day').format('YYYY-MM-DD HH:mm:ss') : null,
-        remark: i % 5 === 0 ? '读者急需此书，优先处理' : ''
-      })
+    if (res.code !== 200) {
+      ElMessage.error(res.message || '加载预约列表失败')
+      return
     }
 
-    reservationList.value = mockData
-    pagination.total = 156 // Mock总数
+    const data = res.data
 
-    // 更新统计信息
-    statistics.total = pagination.total
-    statistics.pending = Math.floor(pagination.total * 0.3)
-    statistics.ready = Math.floor(pagination.total * 0.2)
-    statistics.expired = Math.floor(pagination.total * 0.2)
+    // 映射后端数据到前端格式
+    reservationList.value = (data.records || data.list || []).map((reservation) => ({
+      id: reservation.reservationId || reservation.id,
+      reservationNo: reservation.reservationNo || `R${reservation.id}`,
+      bookTitle: reservation.bookTitle,
+      isbn: reservation.isbn,
+      barcode: reservation.barcode,
+      readerName: reservation.readerName,
+      readerType: reservation.readerType,
+      readerCardNo: reservation.readerCardNo || reservation.cardNumber,
+      readerPhone: reservation.readerPhone || reservation.phone,
+      reserveDate: dayjs(reservation.reserveDate).format('YYYY-MM-DD'),
+      expiryDate: reservation.expiryDate
+        ? dayjs(reservation.expiryDate).format('YYYY-MM-DD')
+        : null,
+      status: reservation.status,
+      notified: reservation.notified || false,
+      operator: reservation.operator,
+      processTime: reservation.processTime
+        ? dayjs(reservation.processTime).format('YYYY-MM-DD HH:mm:ss')
+        : null,
+      remark: reservation.remark || ''
+    }))
+
+    pagination.total = data.total || 0
+
+    // 更新统计信息（如果后端提供了统计数据）
+    if (data.statistics) {
+      statistics.total = data.statistics.total || 0
+      statistics.pending = data.statistics.pending || 0
+      statistics.ready = data.statistics.ready || 0
+      statistics.expired = data.statistics.expired || 0
+    } else {
+      // 否则根据返回的数据计算
+      statistics.total = pagination.total
+      statistics.pending = reservationList.value.filter((r) => r.status === 'pending').length
+      statistics.ready = reservationList.value.filter((r) => r.status === 'ready').length
+      statistics.expired = reservationList.value.filter((r) => r.status === 'expired').length
+    }
   } catch (error) {
-    ElMessage.error('加载预约列表失败')
+    console.error('加载预约列表失败:', error)
+    ElMessage.error(error.message || '加载预约列表失败')
   } finally {
     loading.value = false
   }
@@ -439,12 +479,16 @@ const submitProcess = async () => {
   try {
     await processFormRef.value.validate()
 
-    // TODO: 调用API处理预约
-    // await request.post(`/api/circulation/reservations/${currentReservation.value.id}/process`, {
-    //   result: processForm.result,
-    //   remark: processForm.remark,
-    //   sendNotification: processForm.sendNotification
-    // })
+    const res = await processReservation(currentReservation.value.id, {
+      result: processForm.result,
+      remark: processForm.remark,
+      sendNotification: processForm.sendNotification
+    })
+
+    if (res.code !== 200) {
+      ElMessage.error(res.message || '处理失败')
+      return
+    }
 
     const action = processForm.result === 'ready' ? '处理成功，图书已标记为可取书' : '预约已取消'
     ElMessage.success(action)
@@ -456,8 +500,9 @@ const submitProcess = async () => {
     processDialogVisible.value = false
     loadReservationList()
   } catch (error) {
+    console.error('处理失败:', error)
     if (error !== false) {
-      ElMessage.error('处理失败')
+      ElMessage.error(error.message || '处理失败')
     }
   }
 }
@@ -475,13 +520,21 @@ const handleCancel = (row) => {
   )
     .then(async () => {
       try {
-        // TODO: 调用API取消预约
-        // await request.post(`/api/circulation/reservations/${row.id}/cancel`)
+        const res = await cancelReservation({
+          reservationId: row.id,
+          remark: '管理员手动取消'
+        })
+
+        if (res.code !== 200) {
+          ElMessage.error(res.message || '取消失败')
+          return
+        }
 
         ElMessage.success('预约已取消')
         loadReservationList()
       } catch (error) {
-        ElMessage.error('取消失败')
+        console.error('取消失败:', error)
+        ElMessage.error(error.message || '取消失败')
       }
     })
     .catch(() => {})
@@ -489,24 +542,25 @@ const handleCancel = (row) => {
 
 // 发送通知
 const handleNotify = (row) => {
-  ElMessageBox.confirm(
-    `确定要发送取书通知给读者"${row.readerName}"吗？`,
-    '提示',
-    {
-      type: 'info',
-      confirmButtonText: '发送通知',
-      cancelButtonText: '取消'
-    }
-  )
+  ElMessageBox.confirm(`确定要发送取书通知给读者"${row.readerName}"吗？`, '提示', {
+    type: 'info',
+    confirmButtonText: '发送通知',
+    cancelButtonText: '取消'
+  })
     .then(async () => {
       try {
-        // TODO: 调用API发送通知
-        // await request.post(`/api/circulation/reservations/${row.id}/notify`)
+        const res = await notifyReservation(row.id)
+
+        if (res.code !== 200) {
+          ElMessage.error(res.message || '发送通知失败')
+          return
+        }
 
         ElMessage.success('通知已发送')
         loadReservationList()
       } catch (error) {
-        ElMessage.error('发送通知失败')
+        console.error('发送通知失败:', error)
+        ElMessage.error(error.message || '发送通知失败')
       }
     })
     .catch(() => {})

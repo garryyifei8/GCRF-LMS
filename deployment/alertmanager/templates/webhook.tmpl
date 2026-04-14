@@ -1,0 +1,341 @@
+{{/* GCRF Library Management System - Webhook/Slack Alert Templates */}}
+{{/* Version: 1.0.0 */}}
+{{/* Last Updated: 2025-12-01 */}}
+
+{{/* ========================================
+     Slack Title Template
+     ======================================== */}}
+{{ define "slack.title" }}
+[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonAnnotations.summary }}
+{{ end }}
+
+{{/* ========================================
+     Slack Text Template
+     ======================================== */}}
+{{ define "slack.text" }}
+{{ if eq .Status "firing" }}
+*Firing Alerts:*
+{{ range .Alerts.Firing }}
+*Alert:* `{{ .Labels.alertname }}`
+*Severity:* {{ .Labels.severity }}
+*Service:* {{ .Labels.service }}{{ if .Labels.application }} / {{ .Labels.application }}{{ end }}
+*Summary:* {{ .Annotations.summary }}
+{{ if .Annotations.description }}
+```
+{{ .Annotations.description }}
+```
+{{ end }}
+{{ if .Annotations.runbook_url }}
+<{{ .Annotations.runbook_url }}|View Runbook>
+{{ end }}
+---
+{{ end }}
+{{ else }}
+*Resolved Alerts:*
+{{ range .Alerts.Resolved }}
+*Alert:* `{{ .Labels.alertname }}` - Resolved
+*Duration:* {{ .StartsAt.Format "15:04:05" }} - {{ .EndsAt.Format "15:04:05" }}
+---
+{{ end }}
+{{ end }}
+
+*Environment:* {{ .CommonLabels.environment }} | *Cluster:* {{ .CommonLabels.cluster }}
+{{ end }}
+
+{{/* ========================================
+     PagerDuty Firing Details Template
+     ======================================== */}}
+{{ define "pagerduty.firing.details" }}
+{{ range .Alerts.Firing }}
+Alert: {{ .Labels.alertname }}
+Severity: {{ .Labels.severity }}
+Service: {{ .Labels.service }}
+Summary: {{ .Annotations.summary }}
+Description: {{ .Annotations.description }}
+{{ if .Annotations.runbook_url }}
+Runbook: {{ .Annotations.runbook_url }}
+{{ end }}
+---
+{{ end }}
+{{ end }}
+
+{{/* ========================================
+     Webhook JSON Payload Template
+     For custom webhook integrations
+     ======================================== */}}
+{{ define "webhook.default.json" }}
+{
+  "version": "1.0",
+  "status": "{{ .Status }}",
+  "groupKey": "{{ .GroupKey }}",
+  "truncatedAlerts": {{ .TruncatedAlerts }},
+  "commonLabels": {
+    {{ range $i, $pair := .CommonLabels.SortedPairs }}{{ if $i }},{{ end }}
+    "{{ $pair.Name }}": "{{ $pair.Value }}"
+    {{ end }}
+  },
+  "commonAnnotations": {
+    {{ range $i, $pair := .CommonAnnotations.SortedPairs }}{{ if $i }},{{ end }}
+    "{{ $pair.Name }}": "{{ $pair.Value }}"
+    {{ end }}
+  },
+  "externalURL": "{{ .ExternalURL }}",
+  "alerts": [
+    {{ range $i, $alert := .Alerts }}{{ if $i }},{{ end }}
+    {
+      "status": "{{ $alert.Status }}",
+      "labels": {
+        {{ range $j, $label := $alert.Labels.SortedPairs }}{{ if $j }},{{ end }}
+        "{{ $label.Name }}": "{{ $label.Value }}"
+        {{ end }}
+      },
+      "annotations": {
+        {{ range $j, $ann := $alert.Annotations.SortedPairs }}{{ if $j }},{{ end }}
+        "{{ $ann.Name }}": "{{ $ann.Value }}"
+        {{ end }}
+      },
+      "startsAt": "{{ $alert.StartsAt.Format "2006-01-02T15:04:05.000Z" }}",
+      "endsAt": "{{ $alert.EndsAt.Format "2006-01-02T15:04:05.000Z" }}",
+      "generatorURL": "{{ $alert.GeneratorURL }}",
+      "fingerprint": "{{ $alert.Fingerprint }}"
+    }
+    {{ end }}
+  ],
+  "groupLabels": {
+    {{ range $i, $pair := .GroupLabels.SortedPairs }}{{ if $i }},{{ end }}
+    "{{ $pair.Name }}": "{{ $pair.Value }}"
+    {{ end }}
+  },
+  "receiver": "{{ .Receiver }}"
+}
+{{ end }}
+
+{{/* ========================================
+     GCRF Notification Service Webhook Template
+     Custom format for internal notification service
+     ======================================== */}}
+{{ define "gcrf.webhook.json" }}
+{
+  "source": "alertmanager",
+  "timestamp": "{{ now.Format "2006-01-02T15:04:05Z07:00" }}",
+  "status": "{{ .Status }}",
+  "environment": "{{ .CommonLabels.environment }}",
+  "cluster": "{{ .CommonLabels.cluster }}",
+  "alertGroup": {
+    "key": "{{ .GroupKey }}",
+    "receiver": "{{ .Receiver }}",
+    "labels": {
+      {{ range $i, $pair := .GroupLabels.SortedPairs }}{{ if $i }},{{ end }}
+      "{{ $pair.Name }}": "{{ $pair.Value }}"
+      {{ end }}
+    }
+  },
+  "summary": {
+    "totalAlerts": {{ len .Alerts }},
+    "firingCount": {{ len .Alerts.Firing }},
+    "resolvedCount": {{ len .Alerts.Resolved }}
+  },
+  "alerts": {
+    "firing": [
+      {{ range $i, $alert := .Alerts.Firing }}{{ if $i }},{{ end }}
+      {
+        "id": "{{ $alert.Fingerprint }}",
+        "name": "{{ $alert.Labels.alertname }}",
+        "severity": "{{ $alert.Labels.severity }}",
+        "category": "{{ $alert.Labels.category }}",
+        "service": "{{ $alert.Labels.service }}",
+        "team": "{{ $alert.Labels.team }}",
+        "summary": "{{ $alert.Annotations.summary }}",
+        "description": "{{ $alert.Annotations.description | reReplaceAll "\n" "\\n" }}",
+        "runbookUrl": "{{ $alert.Annotations.runbook_url }}",
+        "startsAt": "{{ $alert.StartsAt.Format "2006-01-02T15:04:05Z07:00" }}",
+        "labels": {
+          {{ range $j, $label := $alert.Labels.SortedPairs }}{{ if $j }},{{ end }}
+          "{{ $label.Name }}": "{{ $label.Value }}"
+          {{ end }}
+        }
+      }
+      {{ end }}
+    ],
+    "resolved": [
+      {{ range $i, $alert := .Alerts.Resolved }}{{ if $i }},{{ end }}
+      {
+        "id": "{{ $alert.Fingerprint }}",
+        "name": "{{ $alert.Labels.alertname }}",
+        "severity": "{{ $alert.Labels.severity }}",
+        "summary": "{{ $alert.Annotations.summary }}",
+        "startsAt": "{{ $alert.StartsAt.Format "2006-01-02T15:04:05Z07:00" }}",
+        "endsAt": "{{ $alert.EndsAt.Format "2006-01-02T15:04:05Z07:00" }}",
+        "duration": "{{ $alert.EndsAt.Sub $alert.StartsAt }}"
+      }
+      {{ end }}
+    ]
+  },
+  "links": {
+    "alertmanager": "{{ .ExternalURL }}",
+    "grafana": "http://grafana:3000/alerting/list",
+    "prometheus": "http://prometheus:9090/alerts"
+  }
+}
+{{ end }}
+
+{{/* ========================================
+     Microsoft Teams Webhook Template
+     ======================================== */}}
+{{ define "teams.card" }}
+{
+  "@type": "MessageCard",
+  "@context": "http://schema.org/extensions",
+  "themeColor": "{{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}FF0000{{ else if eq .CommonLabels.severity "warning" }}FFA500{{ else }}0076D7{{ end }}{{ else }}00FF00{{ end }}",
+  "summary": "[{{ .Status | toUpper }}] {{ .CommonAnnotations.summary }}",
+  "sections": [{
+    "activityTitle": "GCRF Library Alert",
+    "activitySubtitle": "{{ .Status | toUpper }} - {{ .Alerts | len }} alert(s)",
+    "facts": [
+      {
+        "name": "Environment",
+        "value": "{{ .CommonLabels.environment }}"
+      },
+      {
+        "name": "Cluster",
+        "value": "{{ .CommonLabels.cluster }}"
+      },
+      {
+        "name": "Severity",
+        "value": "{{ .CommonLabels.severity }}"
+      }
+    ],
+    "markdown": true
+  }{{ range .Alerts }},{
+    "activityTitle": "{{ .Labels.alertname }}",
+    "facts": [
+      {
+        "name": "Service",
+        "value": "{{ .Labels.service }}"
+      },
+      {
+        "name": "Summary",
+        "value": "{{ .Annotations.summary }}"
+      }
+    ],
+    "text": "{{ .Annotations.description }}"
+  }{{ end }}],
+  "potentialAction": [{
+    "@type": "OpenUri",
+    "name": "View in AlertManager",
+    "targets": [{
+      "os": "default",
+      "uri": "{{ .ExternalURL }}"
+    }]
+  },{
+    "@type": "OpenUri",
+    "name": "View in Grafana",
+    "targets": [{
+      "os": "default",
+      "uri": "http://grafana:3000/alerting/list"
+    }]
+  }]
+}
+{{ end }}
+
+{{/* ========================================
+     DingTalk Webhook Template (Chinese)
+     ======================================== */}}
+{{ define "dingtalk.markdown" }}
+{
+  "msgtype": "markdown",
+  "markdown": {
+    "title": "[{{ if eq .Status "firing" }}告警{{ else }}恢复{{ end }}] {{ .CommonAnnotations.summary }}",
+    "text": "## GCRF图书馆系统告警\n\n**状态:** {{ if eq .Status "firing" }}**告警中**{{ else }}**已恢复**{{ end }}\n\n**环境:** {{ .CommonLabels.environment }}\n\n**集群:** {{ .CommonLabels.cluster }}\n\n---\n\n{{ range .Alerts }}### {{ .Labels.alertname }}\n\n- **级别:** {{ .Labels.severity }}\n- **服务:** {{ .Labels.service }}\n- **摘要:** {{ .Annotations.summary }}\n- **详情:**\n\n```\n{{ .Annotations.description }}\n```\n\n---\n\n{{ end }}\n\n[查看AlertManager]({{ .ExternalURL }}) | [查看Grafana](http://grafana:3000/alerting/list)"
+  }
+}
+{{ end }}
+
+{{/* ========================================
+     Feishu (Lark) Webhook Template (Chinese)
+     ======================================== */}}
+{{ define "feishu.card" }}
+{
+  "msg_type": "interactive",
+  "card": {
+    "config": {
+      "wide_screen_mode": true
+    },
+    "header": {
+      "title": {
+        "tag": "plain_text",
+        "content": "[{{ if eq .Status "firing" }}告警{{ else }}恢复{{ end }}] GCRF图书馆系统"
+      },
+      "template": "{{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}red{{ else if eq .CommonLabels.severity "warning" }}orange{{ else }}blue{{ end }}{{ else }}green{{ end }}"
+    },
+    "elements": [
+      {
+        "tag": "div",
+        "fields": [
+          {
+            "is_short": true,
+            "text": {
+              "tag": "lark_md",
+              "content": "**状态:** {{ .Status }}"
+            }
+          },
+          {
+            "is_short": true,
+            "text": {
+              "tag": "lark_md",
+              "content": "**环境:** {{ .CommonLabels.environment }}"
+            }
+          }
+        ]
+      },
+      {
+        "tag": "hr"
+      }{{ range .Alerts }},
+      {
+        "tag": "div",
+        "text": {
+          "tag": "lark_md",
+          "content": "**{{ .Labels.alertname }}**\n\n级别: {{ .Labels.severity }} | 服务: {{ .Labels.service }}\n\n{{ .Annotations.summary }}\n\n```\n{{ .Annotations.description }}\n```"
+        }
+      }{{ end }},
+      {
+        "tag": "hr"
+      },
+      {
+        "tag": "action",
+        "actions": [
+          {
+            "tag": "button",
+            "text": {
+              "tag": "plain_text",
+              "content": "查看AlertManager"
+            },
+            "type": "primary",
+            "url": "{{ .ExternalURL }}"
+          },
+          {
+            "tag": "button",
+            "text": {
+              "tag": "plain_text",
+              "content": "查看Grafana"
+            },
+            "url": "http://grafana:3000/alerting/list"
+          }
+        ]
+      }
+    ]
+  }
+}
+{{ end }}
+
+{{/* ========================================
+     WeChat Work Webhook Template (Chinese)
+     ======================================== */}}
+{{ define "wechat.markdown" }}
+{
+  "msgtype": "markdown",
+  "markdown": {
+    "content": "# GCRF图书馆系统告警\n\n> **状态:** <font color=\"{{ if eq .Status "firing" }}warning{{ else }}info{{ end }}\">{{ if eq .Status "firing" }}告警中{{ else }}已恢复{{ end }}</font>\n> **环境:** {{ .CommonLabels.environment }}\n> **时间:** {{ now.Format "2006-01-02 15:04:05" }}\n\n{{ range .Alerts }}---\n## {{ .Labels.alertname }}\n- 级别: {{ .Labels.severity }}\n- 服务: {{ .Labels.service }}\n- 摘要: {{ .Annotations.summary }}\n\n{{ end }}"
+  }
+}
+{{ end }}

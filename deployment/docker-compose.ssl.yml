@@ -1,0 +1,154 @@
+version: '3.8'
+
+# ============================================
+# GCRF Library Management System
+# SSL/HTTPS Configuration Overlay
+# ============================================
+# This is a Docker Compose override file for enabling HTTPS/TLS
+#
+# Prerequisites:
+#   - SSL certificates generated (see deployment/scripts/generate-ssl-cert.sh)
+#   - Base services running (docker-compose.services.yml)
+#
+# Usage:
+#   # Development (with self-signed certificates)
+#   docker-compose -f docker-compose.infrastructure.yml \
+#                  -f docker-compose.services.yml \
+#                  -f docker-compose.ssl.yml \
+#                  up -d
+#
+#   # Or use the combined command
+#   ./scripts/start-stack.sh --ssl
+# ============================================
+
+services:
+  # ============================================
+  # Nginx Reverse Proxy with SSL Termination
+  # ============================================
+  gcrf-nginx:
+    image: nginx:1.25-alpine
+    container_name: gcrf-nginx
+    restart: unless-stopped
+    ports:
+      # HTTP - for redirects and ACME challenges
+      - "80:80"
+      # HTTPS - main SSL endpoint
+      - "443:443"
+    environment:
+      # Nginx environment variables (optional)
+      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx
+    volumes:
+      # Nginx SSL configuration
+      - ./nginx/nginx-ssl.conf:/etc/nginx/nginx.conf:ro
+      # SSL certificates
+      - ./ssl/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
+      - ./ssl/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
+      - ./ssl/chain.pem:/etc/nginx/ssl/chain.pem:ro
+      - ./ssl/dhparam.pem:/etc/nginx/ssl/dhparam.pem:ro
+      # ACME challenge directory for Let's Encrypt
+      - ./certbot/www:/var/www/certbot:ro
+      # Static web files (frontend)
+      - ../web-admin/dist:/usr/share/nginx/html:ro
+      # Logs
+      - ./logs/nginx:/var/log/nginx
+      # Custom error pages (optional)
+      # - ./nginx/error-pages:/usr/share/nginx/html/error-pages:ro
+    depends_on:
+      gcrf-gateway-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - gcrf-frontend-network
+      - gcrf-backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    labels:
+      com.gcrf.service: "nginx"
+      com.gcrf.tier: "frontend"
+      com.gcrf.version: "1.0.0"
+      com.gcrf.component: "reverse-proxy"
+
+  # ============================================
+  # Certbot for Let's Encrypt Auto-Renewal
+  # ============================================
+  # This container handles automatic certificate renewal
+  # Runs periodically to check and renew certificates
+  gcrf-certbot:
+    image: certbot/certbot:latest
+    container_name: gcrf-certbot
+    restart: "no"
+    profiles:
+      - ssl-renewal
+    volumes:
+      # Certificate storage
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+      # Shared SSL directory
+      - ./ssl:/ssl-output
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --deploy-hook "cp /etc/letsencrypt/live/*/fullchain.pem /ssl-output/ && cp /etc/letsencrypt/live/*/privkey.pem /ssl-output/ && cp /etc/letsencrypt/live/*/chain.pem /ssl-output/"; sleep 12h & wait $${!}; done;'
+    depends_on:
+      - gcrf-nginx
+    networks:
+      - gcrf-frontend-network
+    labels:
+      com.gcrf.service: "certbot"
+      com.gcrf.tier: "infrastructure"
+      com.gcrf.version: "1.0.0"
+      com.gcrf.component: "ssl-renewal"
+
+  # ============================================
+  # Override Gateway Service (remove direct port exposure)
+  # ============================================
+  # When using nginx as reverse proxy, gateway should not be directly exposed
+  gcrf-gateway-service:
+    ports: []  # Remove port exposure, nginx handles external traffic
+    expose:
+      - "8080"  # Internal only
+
+# ============================================
+# Network Configuration
+# ============================================
+networks:
+  gcrf-frontend-network:
+    external: true
+    name: gcrf-frontend-network
+
+  gcrf-backend-network:
+    external: true
+    name: gcrf-infrastructure-network
+
+# ============================================
+# Volume Configuration
+# ============================================
+volumes:
+  # Certificate storage volume (optional, using bind mounts above)
+  # gcrf-ssl-certs:
+  #   name: gcrf-ssl-certs
+  #   driver: local
+  #   labels:
+  #     com.gcrf.volume: "ssl"
+  #     com.gcrf.component: "certificates"
+
+  # Let's Encrypt configuration
+  # gcrf-letsencrypt:
+  #   name: gcrf-letsencrypt
+  #   driver: local
+  #   labels:
+  #     com.gcrf.volume: "letsencrypt"
+  #     com.gcrf.component: "certificates"

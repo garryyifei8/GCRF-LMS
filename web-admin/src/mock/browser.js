@@ -4,6 +4,8 @@ import { booksHandlers } from './handlers/books'
 import { readersHandlers } from './handlers/readers'
 import { circulationHandlers } from './handlers/circulation'
 import { analyticsHandlers } from './handlers/analytics'
+import { recommendHandlers } from './handlers/recommend'
+import { inventoryHandlers } from './handlers/inventory'
 
 // 合并所有handlers
 export const handlers = [
@@ -11,7 +13,9 @@ export const handlers = [
   ...booksHandlers,
   ...readersHandlers,
   ...circulationHandlers,
-  ...analyticsHandlers
+  ...analyticsHandlers,
+  ...recommendHandlers,
+  ...inventoryHandlers
 ]
 
 console.log('[MSW] Loading', handlers.length, 'request handlers')

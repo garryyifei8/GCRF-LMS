@@ -2,6 +2,7 @@ package com.gcrf.library.system.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gcrf.library.common.test.BaseIntegrationTest;
 import com.gcrf.library.system.dto.request.PermissionCreateRequest;
 import com.gcrf.library.system.dto.request.PermissionUpdateRequest;
 import com.gcrf.library.system.entity.Permission;
@@ -44,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional  // Rollback after each test
-class PermissionControllerIntegrationTest {
+class PermissionControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

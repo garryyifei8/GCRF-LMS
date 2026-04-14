@@ -3,6 +3,7 @@ package com.gcrf.library.book;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
  * 图书管理服务启动类
@@ -12,6 +13,7 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  */
 @SpringBootApplication(scanBasePackages = "com.gcrf.library")
 @EnableDiscoveryClient
+@EnableAsync
 public class BookServiceApplication {
 
     public static void main(String[] args) {

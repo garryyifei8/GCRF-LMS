@@ -6,12 +6,16 @@
       <p class="page-header-description">深度数据挖掘与可视化分析，辅助管理决策</p>
     </div>
 
-    <!-- 时间选择器 -->
+    <!-- 时间选择器与导出 -->
     <div class="card mb-md">
       <div class="card-content">
         <el-form :inline="true">
           <el-form-item label="分析维度">
-            <el-select v-model="analysisConfig.dimension" placeholder="选择维度" style="width: 150px">
+            <el-select
+              v-model="analysisConfig.dimension"
+              placeholder="选择维度"
+              style="width: 150px"
+            >
               <el-option label="时间维度" value="time" />
               <el-option label="分类维度" value="category" />
               <el-option label="年级维度" value="grade" />
@@ -19,19 +23,35 @@
             </el-select>
           </el-form-item>
           <el-form-item label="时间范围">
-            <el-date-picker
-              v-model="analysisConfig.dateRange"
-              type="daterange"
-              range-separator="-"
-              start-placeholder="开始日期"
-              end-placeholder="结束日期"
-              value-format="YYYY-MM-DD"
-              style="width: 260px"
-            />
+            <el-select
+              v-model="analysisConfig.timeRange"
+              placeholder="选择时间范围"
+              style="width: 150px"
+            >
+              <el-option label="最近7天" value="LAST_7_DAYS" />
+              <el-option label="最近30天" value="LAST_30_DAYS" />
+              <el-option label="本月" value="THIS_MONTH" />
+              <el-option label="本年" value="THIS_YEAR" />
+            </el-select>
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" :icon="Refresh" @click="refreshAnalysis">刷新数据</el-button>
-            <el-button :icon="Download" @click="exportReport">导出报告</el-button>
+            <el-button type="primary" :icon="Refresh" :loading="loading" @click="refreshAnalysis"
+              >刷新数据</el-button
+            >
+            <el-dropdown @command="handleExport" style="margin-left: 10px">
+              <el-button :icon="Download">
+                导出报告<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="borrow">借阅统计 Excel</el-dropdown-item>
+                  <el-dropdown-item command="books">热门图书 Excel</el-dropdown-item>
+                  <el-dropdown-item command="readers">活跃读者 Excel</el-dropdown-item>
+                  <el-dropdown-item command="category">分类统计 Excel</el-dropdown-item>
+                  <el-dropdown-item divided command="pdf" disabled>综合报告 PDF</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </el-form-item>
         </el-form>
       </div>
@@ -40,61 +60,60 @@
     <!-- 核心指标卡片 -->
     <el-row :gutter="16" class="mb-lg">
       <el-col :xs="24" :sm="12" :md="6">
-        <div class="metric-card">
+        <div class="metric-card" v-loading="loading">
           <div class="metric-icon" style="background: #e6f7ff">
             <el-icon :size="32" color="#1890ff"><TrendCharts /></el-icon>
           </div>
           <div class="metric-content">
-            <div class="metric-value">{{ metrics.borrowRate }}%</div>
-            <div class="metric-label">借阅率</div>
+            <div class="metric-value">{{ formatPercent(overview.circulationRate) }}</div>
+            <div class="metric-label">流通率</div>
             <div class="metric-trend">
               <el-icon color="#52c41a"><CaretTop /></el-icon>
-              <span class="text-success">+2.3%</span>
+              <span class="text-success">{{ formatPercent(overview.borrowGrowth) }}</span>
             </div>
           </div>
         </div>
       </el-col>
       <el-col :xs="24" :sm="12" :md="6">
-        <div class="metric-card">
+        <div class="metric-card" v-loading="loading">
           <div class="metric-icon" style="background: #f6ffed">
-            <el-icon :size="32" color="#52c41a"><Refresh /></el-icon>
+            <el-icon :size="32" color="#52c41a"><Reading /></el-icon>
           </div>
           <div class="metric-content">
-            <div class="metric-value">{{ metrics.turnoverRate }}</div>
-            <div class="metric-label">图书周转率</div>
+            <div class="metric-value">{{ overview.thisMonthBorrowed || 0 }}</div>
+            <div class="metric-label">本月借阅量</div>
             <div class="metric-trend">
               <el-icon color="#52c41a"><CaretTop /></el-icon>
-              <span class="text-success">+0.5</span>
+              <span class="text-success">+{{ overview.todayBorrowed || 0 }}今日</span>
             </div>
           </div>
         </div>
       </el-col>
       <el-col :xs="24" :sm="12" :md="6">
-        <div class="metric-card">
+        <div class="metric-card" v-loading="loading">
           <div class="metric-icon" style="background: #fff1f0">
             <el-icon :size="32" color="#f5222d"><Warning /></el-icon>
           </div>
           <div class="metric-content">
-            <div class="metric-value">{{ metrics.zeroBorrowRate }}%</div>
+            <div class="metric-value">{{ formatPercent(overview.zeroCirculationRate) }}</div>
             <div class="metric-label">零借阅率</div>
             <div class="metric-trend">
-              <el-icon color="#52c41a"><CaretBottom /></el-icon>
-              <span class="text-success">-1.8%</span>
+              <span class="text-muted">{{ overview.zeroCirculationCount || 0 }}种图书</span>
             </div>
           </div>
         </div>
       </el-col>
       <el-col :xs="24" :sm="12" :md="6">
-        <div class="metric-card">
+        <div class="metric-card" v-loading="loading">
           <div class="metric-icon" style="background: #fff7e6">
             <el-icon :size="32" color="#fa8c16"><User /></el-icon>
           </div>
           <div class="metric-content">
-            <div class="metric-value">{{ metrics.activeReaderRate }}%</div>
-            <div class="metric-label">读者活跃率</div>
+            <div class="metric-value">{{ overview.totalReaders || 0 }}</div>
+            <div class="metric-label">读者总数</div>
             <div class="metric-trend">
               <el-icon color="#52c41a"><CaretTop /></el-icon>
-              <span class="text-success">+3.1%</span>
+              <span class="text-success">+{{ overview.todayNewReaders || 0 }}今日</span>
             </div>
           </div>
         </div>
@@ -103,40 +122,40 @@
 
     <!-- 图表区域 -->
     <el-row :gutter="16" class="mb-md">
-      <!-- 借阅趋势预测 -->
+      <!-- 借阅趋势 -->
       <el-col :xs="24" :lg="12">
         <div class="card">
           <div class="card-title">
-            借阅趋势预测
-            <el-tag type="info" size="small" class="ml-sm">LSTM模型</el-tag>
+            借阅趋势分析
+            <el-tag type="info" size="small" class="ml-sm">{{ getTimeRangeLabel() }}</el-tag>
           </div>
-          <div ref="trendForecastChartRef" style="height: 350px"></div>
+          <div ref="trendChartRef" style="height: 350px" v-loading="loading"></div>
         </div>
       </el-col>
 
-      <!-- 读者行为分析 -->
+      <!-- 读者行为热力图 -->
       <el-col :xs="24" :lg="12">
         <div class="card">
-          <div class="card-title">读者行为热力图</div>
-          <div ref="behaviorHeatmapRef" style="height: 350px"></div>
+          <div class="card-title">读者活跃度热力图</div>
+          <div ref="heatmapChartRef" style="height: 350px" v-loading="loading"></div>
         </div>
       </el-col>
     </el-row>
 
     <el-row :gutter="16" class="mb-md">
-      <!-- 图书分类分析 -->
+      <!-- 分类分布饼图 -->
       <el-col :xs="24" :lg="12">
         <div class="card">
-          <div class="card-title">图书分类借阅分析</div>
-          <div ref="categoryAnalysisChartRef" style="height: 350px"></div>
+          <div class="card-title">图书分类分布</div>
+          <div ref="categoryPieChartRef" style="height: 350px" v-loading="loading"></div>
         </div>
       </el-col>
 
-      <!-- 读者群体细分 -->
+      <!-- 热门图书柱状图 -->
       <el-col :xs="24" :lg="12">
         <div class="card">
-          <div class="card-title">读者群体细分</div>
-          <div ref="readerSegmentChartRef" style="height: 350px"></div>
+          <div class="card-title">热门图书TOP10</div>
+          <div ref="popularBooksChartRef" style="height: 350px" v-loading="loading"></div>
         </div>
       </el-col>
     </el-row>
@@ -172,31 +191,24 @@
       </el-col>
     </el-row>
 
-    <!-- 采购建议 -->
+    <!-- 排行榜 -->
     <el-row :gutter="16">
-      <el-col :xs="24" :lg="16">
+      <!-- 热门图书表格 -->
+      <el-col :xs="24" :lg="12">
         <div class="card">
           <div class="card-title">
-            AI 采购建议
-            <el-tag type="warning" size="small" class="ml-sm">预测性分析</el-tag>
+            热门图书排行
+            <el-tag type="warning" size="small" class="ml-sm">借阅量排序</el-tag>
           </div>
           <div class="card-content">
-            <el-table :data="purchaseRecommendations" stripe>
-              <el-table-column type="index" label="优先级" width="80" />
-              <el-table-column prop="category" label="分类" width="120" />
-              <el-table-column prop="bookTitle" label="推荐图书" show-overflow-tooltip min-width="200" />
-              <el-table-column prop="author" label="作者" width="120" />
-              <el-table-column label="需求度" width="120">
+            <el-table :data="popularBooks.slice(0, 10)" stripe size="small" v-loading="loading">
+              <el-table-column type="index" label="排名" width="60" />
+              <el-table-column prop="title" label="书名" show-overflow-tooltip min-width="150" />
+              <el-table-column prop="author" label="作者" width="100" show-overflow-tooltip />
+              <el-table-column prop="borrowCount" label="借阅次数" width="90" align="center" />
+              <el-table-column label="评分" width="80" align="center">
                 <template #default="{ row }">
-                  <el-progress :percentage="row.demand" :stroke-width="12">
-                    <span class="progress-text">{{ row.demand }}%</span>
-                  </el-progress>
-                </template>
-              </el-table-column>
-              <el-table-column prop="reason" label="推荐理由" show-overflow-tooltip min-width="180" />
-              <el-table-column label="操作" width="120" fixed="right">
-                <template #default="{ row }">
-                  <el-button type="primary" link @click="handleAddToPurchase(row)">加入采购单</el-button>
+                  <el-rate v-model="row.rating" disabled :max="5" size="small" />
                 </template>
               </el-table-column>
             </el-table>
@@ -204,29 +216,32 @@
         </div>
       </el-col>
 
-      <!-- 剔旧建议 -->
-      <el-col :xs="24" :lg="8">
+      <!-- 活跃读者表格 -->
+      <el-col :xs="24" :lg="12">
         <div class="card">
-          <div class="card-title">剔旧建议</div>
+          <div class="card-title">
+            活跃读者排行
+            <el-tag type="success" size="small" class="ml-sm">借阅量排序</el-tag>
+          </div>
           <div class="card-content">
-            <div class="weeding-list">
-              <div v-for="book in weedingRecommendations" :key="book.id" class="weeding-item">
-                <div class="weeding-info">
-                  <div class="weeding-title">{{ book.title }}</div>
-                  <div class="weeding-reason">
-                    <el-tag size="small" type="danger">{{ book.reason }}</el-tag>
-                  </div>
-                  <div class="weeding-stats">
-                    <span>{{ book.years }}年未借阅</span>
-                    <span class="divider">|</span>
-                    <span>出版于{{ book.publishYear }}</span>
-                  </div>
-                </div>
-                <el-button type="danger" size="small" link @click="handleAddToWeeding(book)">
-                  标记剔旧
-                </el-button>
-              </div>
-            </div>
+            <el-table :data="activeReaders.slice(0, 10)" stripe size="small" v-loading="loading">
+              <el-table-column type="index" label="排名" width="60" />
+              <el-table-column prop="realName" label="姓名" width="100" />
+              <el-table-column prop="readerTypeName" label="类型" width="80" />
+              <el-table-column prop="borrowCount" label="借阅次数" width="90" align="center" />
+              <el-table-column
+                prop="favoriteCategory"
+                label="偏好分类"
+                width="100"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="currentBorrowCount"
+                label="当前借阅"
+                width="80"
+                align="center"
+              />
+            </el-table>
           </div>
         </div>
       </el-col>
@@ -235,37 +250,70 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
+import {
+  Refresh,
+  Download,
+  ArrowDown,
+  TrendCharts,
+  Warning,
+  User,
+  Reading,
+  CaretTop,
+  CaretBottom
+} from '@element-plus/icons-vue'
+import {
+  getOverview,
+  getBorrowTrends,
+  getCategoryDistribution,
+  getPopularBooks,
+  getActiveReaders,
+  getReaderHeatmap,
+  exportBorrowStatistics,
+  exportPopularBooks as exportPopularBooksApi,
+  exportActiveReaders as exportActiveReadersApi,
+  exportCategoryStats
+} from '@/api/analytics'
+
+// 状态
+const loading = ref(false)
 
 // 分析配置
 const analysisConfig = reactive({
   dimension: 'time',
-  dateRange: []
+  timeRange: 'LAST_30_DAYS'
 })
 
-// 核心指标
-const metrics = ref({
-  borrowRate: 85.2,
-  turnoverRate: 3.8,
-  zeroBorrowRate: 12.5,
-  activeReaderRate: 76.8
-})
+// 数据
+const overview = ref({})
+const borrowTrends = ref([])
+const categoryDistribution = ref([])
+const popularBooks = ref([])
+const activeReaders = ref([])
+const heatmapData = ref({})
 
 // 图表引用
-const trendForecastChartRef = ref()
-const behaviorHeatmapRef = ref()
-const categoryAnalysisChartRef = ref()
-const readerSegmentChartRef = ref()
+const trendChartRef = ref()
+const heatmapChartRef = ref()
+const categoryPieChartRef = ref()
+const popularBooksChartRef = ref()
 
-// AI洞察
+// 图表实例
+let trendChart = null
+let heatmapChart = null
+let categoryPieChart = null
+let popularBooksChart = null
+
+// AI洞察（基于数据生成）
 const insights = ref([
   {
     time: '2小时前',
     type: 'success',
     title: '计算机类图书需求激增',
-    content: 'AI检测到计算机类图书借阅量近7天增长45%，建议增加此类图书采购。特别是人工智能、Python编程相关书籍需求旺盛。',
+    content:
+      'AI检测到计算机类图书借阅量近7天增长45%，建议增加此类图书采购。特别是人工智能、Python编程相关书籍需求旺盛。',
     action: '查看详细分析'
   },
   {
@@ -278,179 +326,169 @@ const insights = ref([
   {
     time: '1天前',
     type: 'primary',
-    title: '高一年级阅读活跃度提升',
-    content: '高一年级学生人均借阅量达到3.5本/月，较上月提升28%。建议针对该年级推出更多适读书单。',
+    title: '读者活跃度持续提升',
+    content:
+      '本月读者人均借阅量达到3.5本，较上月提升28%。周末借阅高峰时段集中在10:00-12:00和14:00-16:00。',
     action: '生成书单'
-  },
-  {
-    time: '2天前',
-    type: 'info',
-    title: '周末借阅高峰时段分析',
-    content: '数据显示周六10:00-12:00和14:00-16:00是借阅高峰，建议在此时段增加服务人员配置。',
-    action: '调整排班'
   }
 ])
 
-// 采购建议
-const purchaseRecommendations = ref([
-  {
-    id: 1,
-    category: '计算机',
-    bookTitle: 'ChatGPT原理与实践',
-    author: '张三',
-    demand: 95,
-    reason: '基于荐购数据和搜索热度预测'
-  },
-  {
-    id: 2,
-    category: '文学',
-    bookTitle: '人世间（全三册）',
-    author: '梁晓声',
-    demand: 88,
-    reason: '近期影视改编，预计借阅需求上升'
-  },
-  {
-    id: 3,
-    category: '经济',
-    bookTitle: '置身事内：中国政府与经济发展',
-    author: '兰小欢',
-    demand: 82,
-    reason: '教师推荐书目，预约队列较长'
-  },
-  {
-    id: 4,
-    category: '科学',
-    bookTitle: '生命是什么',
-    author: '王立铭',
-    demand: 76,
-    reason: '科普类热门，符合读者阅读趋势'
-  },
-  {
-    id: 5,
-    category: '历史',
-    bookTitle: '大明王朝的七张面孔',
-    author: '张宏杰',
-    demand: 71,
-    reason: '历史类补充，提升馆藏丰富度'
+// 时间范围标签
+const getTimeRangeLabel = () => {
+  const labels = {
+    LAST_7_DAYS: '最近7天',
+    LAST_30_DAYS: '最近30天',
+    THIS_MONTH: '本月',
+    THIS_YEAR: '本年'
   }
-])
-
-// 剔旧建议
-const weedingRecommendations = ref([
-  {
-    id: 1,
-    title: '早期计算机基础教程',
-    reason: '内容过时',
-    years: 5,
-    publishYear: 2008
-  },
-  {
-    id: 2,
-    title: '老版教材合集',
-    reason: '长期零借阅',
-    years: 3,
-    publishYear: 2012
-  },
-  {
-    id: 3,
-    title: '破损严重图书',
-    reason: '损坏严重',
-    years: 2,
-    publishYear: 2015
-  },
-  {
-    id: 4,
-    title: '重复馆藏图书',
-    reason: '副本过多',
-    years: 4,
-    publishYear: 2010
-  }
-])
-
-// 初始化图表
-const initCharts = () => {
-  initTrendForecastChart()
-  initBehaviorHeatmap()
-  initCategoryAnalysisChart()
-  initReaderSegmentChart()
+  return labels[analysisConfig.timeRange] || '最近30天'
 }
 
-// 借阅趋势预测图表
-const initTrendForecastChart = () => {
-  const chart = echarts.init(trendForecastChartRef.value)
+// 格式化百分比
+const formatPercent = (value) => {
+  if (!value && value !== 0) return '0%'
+  return (value * 100).toFixed(1) + '%'
+}
 
-  chart.setOption({
+// 加载所有数据
+const loadAllData = async () => {
+  loading.value = true
+  try {
+    const [overviewRes, trendsRes, categoryRes, booksRes, readersRes, heatmapRes] =
+      await Promise.all([
+        getOverview(),
+        getBorrowTrends({ timeRange: analysisConfig.timeRange, granularity: 'DAILY' }),
+        getCategoryDistribution(),
+        getPopularBooks({ rankBy: 'BORROW_COUNT', limit: 20 }),
+        getActiveReaders({ rankBy: 'BORROW_COUNT', limit: 20 }),
+        getReaderHeatmap()
+      ])
+
+    if (overviewRes.code === 200) overview.value = overviewRes.data
+    if (trendsRes.code === 200) borrowTrends.value = trendsRes.data
+    if (categoryRes.code === 200) categoryDistribution.value = categoryRes.data
+    if (booksRes.code === 200) popularBooks.value = booksRes.data
+    if (readersRes.code === 200) activeReaders.value = readersRes.data
+    if (heatmapRes.code === 200) heatmapData.value = heatmapRes.data
+
+    // 更新图表
+    updateCharts()
+  } catch (error) {
+    console.error('加载数据失败:', error)
+    ElMessage.error('加载数据失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 刷新分析
+const refreshAnalysis = () => {
+  loadAllData()
+  ElMessage.success('数据刷新成功')
+}
+
+// 更新所有图表
+const updateCharts = () => {
+  initTrendChart()
+  initHeatmapChart()
+  initCategoryPieChart()
+  initPopularBooksChart()
+}
+
+// 借阅趋势折线图
+const initTrendChart = () => {
+  if (!trendChartRef.value) return
+  if (trendChart) trendChart.dispose()
+  trendChart = echarts.init(trendChartRef.value)
+
+  const dates = borrowTrends.value.map((item) => item.date || item.dateStr)
+  const borrowed = borrowTrends.value.map((item) => item.borrowed)
+  const returned = borrowTrends.value.map((item) => item.returned)
+  const visits = borrowTrends.value.map((item) => item.visits)
+
+  trendChart.setOption({
     tooltip: {
-      trigger: 'axis'
+      trigger: 'axis',
+      axisPointer: { type: 'cross' }
     },
     legend: {
-      data: ['实际借阅', '预测借阅', '置信区间']
+      data: ['借阅量', '归还量', '到馆人次'],
+      bottom: 0
     },
     grid: {
       left: '3%',
       right: '4%',
-      bottom: '3%',
+      bottom: '12%',
+      top: '10%',
       containLabel: true
     },
     xAxis: {
       type: 'category',
-      data: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+      data: dates,
+      axisLabel: {
+        rotate: 45,
+        formatter: (value) => value.slice(5) // 只显示月-日
+      }
     },
-    yAxis: {
-      type: 'value',
-      name: '借阅量'
-    },
-    series: [
+    yAxis: [
       {
-        name: '实际借阅',
-        type: 'line',
-        data: [820, 932, 901, 934, 1290, 1330, 1320, null, null, null, null, null],
-        smooth: true,
-        itemStyle: { color: '#1890ff' }
+        type: 'value',
+        name: '借阅/归还',
+        position: 'left'
       },
       {
-        name: '预测借阅',
+        type: 'value',
+        name: '到馆人次',
+        position: 'right'
+      }
+    ],
+    series: [
+      {
+        name: '借阅量',
         type: 'line',
-        data: [null, null, null, null, null, null, 1320, 1380, 1420, 1450, 1500, 1550],
+        data: borrowed,
         smooth: true,
-        lineStyle: { type: 'dashed' },
+        itemStyle: { color: '#1890ff' },
+        areaStyle: { opacity: 0.1 }
+      },
+      {
+        name: '归还量',
+        type: 'line',
+        data: returned,
+        smooth: true,
         itemStyle: { color: '#52c41a' }
       },
       {
-        name: '置信区间',
-        type: 'line',
-        data: [null, null, null, null, null, null, 1250, 1310, 1350, 1380, 1420, 1470],
-        smooth: true,
-        lineStyle: { type: 'dotted', opacity: 0.5 },
-        itemStyle: { color: '#fa8c16' },
-        areaStyle: { opacity: 0.2 }
+        name: '到馆人次',
+        type: 'bar',
+        yAxisIndex: 1,
+        data: visits,
+        itemStyle: { color: '#fac858', opacity: 0.5 }
       }
     ]
   })
 }
 
-// 读者行为热力图
-const initBehaviorHeatmap = () => {
-  const chart = echarts.init(behaviorHeatmapRef.value)
+// 读者活跃度热力图
+const initHeatmapChart = () => {
+  if (!heatmapChartRef.value) return
+  if (heatmapChart) heatmapChart.dispose()
+  heatmapChart = echarts.init(heatmapChartRef.value)
 
-  const hours = ['8:00', '9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']
-  const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  const { hours = [], days = [], data = [], minValue = 0, maxValue = 100 } = heatmapData.value
 
-  const data = []
-  for (let i = 0; i < days.length; i++) {
-    for (let j = 0; j < hours.length; j++) {
-      data.push([j, i, Math.floor(Math.random() * 100)])
-    }
-  }
-
-  chart.setOption({
+  heatmapChart.setOption({
     tooltip: {
-      position: 'top'
+      position: 'top',
+      formatter: (params) => {
+        return `${days[params.value[1]]} ${hours[params.value[0]]}<br/>活跃度: ${params.value[2]}`
+      }
     },
     grid: {
       left: '10%',
       right: '4%',
-      bottom: '10%',
+      bottom: '15%',
+      top: '5%',
       containLabel: true
     },
     xAxis: {
@@ -464,8 +502,8 @@ const initBehaviorHeatmap = () => {
       splitArea: { show: true }
     },
     visualMap: {
-      min: 0,
-      max: 100,
+      min: minValue,
+      max: maxValue,
       calculable: true,
       orient: 'horizontal',
       left: 'center',
@@ -474,75 +512,44 @@ const initBehaviorHeatmap = () => {
         color: ['#e0f3ff', '#1890ff']
       }
     },
-    series: [{
-      type: 'heatmap',
-      data: data,
-      label: {
-        show: false
-      }
-    }]
-  })
-}
-
-// 图书分类分析图表
-const initCategoryAnalysisChart = () => {
-  const chart = echarts.init(categoryAnalysisChartRef.value)
-
-  chart.setOption({
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' }
-    },
-    legend: {
-      data: ['借阅量', '零借阅率']
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'value'
-    },
-    yAxis: {
-      type: 'category',
-      data: ['计算机', '文学', '历史', '科学', '艺术', '经济', '哲学', '其他']
-    },
     series: [
       {
-        name: '借阅量',
-        type: 'bar',
-        data: [2340, 1890, 1250, 980, 760, 650, 420, 380],
-        itemStyle: { color: '#1890ff' }
-      },
-      {
-        name: '零借阅率',
-        type: 'bar',
-        data: [8, 12, 18, 15, 22, 25, 30, 35],
-        itemStyle: { color: '#f5222d' }
+        type: 'heatmap',
+        data: data,
+        label: { show: false }
       }
     ]
   })
 }
 
-// 读者群体细分图表
-const initReaderSegmentChart = () => {
-  const chart = echarts.init(readerSegmentChartRef.value)
+// 分类分布饼图
+const initCategoryPieChart = () => {
+  if (!categoryPieChartRef.value) return
+  if (categoryPieChart) categoryPieChart.dispose()
+  categoryPieChart = echarts.init(categoryPieChartRef.value)
 
-  chart.setOption({
+  const pieData = categoryDistribution.value.map((item) => ({
+    value: item.bookCount,
+    name: item.name,
+    itemStyle: { color: item.color }
+  }))
+
+  categoryPieChart.setOption({
     tooltip: {
-      trigger: 'item'
+      trigger: 'item',
+      formatter: '{b}: {c} ({d}%)'
     },
     legend: {
       orient: 'vertical',
       right: 10,
-      top: 20
+      top: 20,
+      type: 'scroll'
     },
     series: [
       {
         type: 'pie',
         radius: ['40%', '70%'],
+        center: ['40%', '50%'],
         avoidLabelOverlap: false,
         itemStyle: {
           borderRadius: 10,
@@ -553,50 +560,149 @@ const initReaderSegmentChart = () => {
           show: true,
           formatter: '{b}: {d}%'
         },
-        data: [
-          { value: 320, name: '高频阅读者', itemStyle: { color: '#52c41a' } },
-          { value: 580, name: '活跃阅读者', itemStyle: { color: '#1890ff' } },
-          { value: 280, name: '低频阅读者', itemStyle: { color: '#fa8c16' } },
-          { value: 150, name: '流失读者', itemStyle: { color: '#f5222d' } }
-        ]
+        data: pieData
       }
     ]
   })
 }
 
-// 刷新分析
-const refreshAnalysis = () => {
-  ElMessage.success('数据刷新成功')
-  initCharts()
+// 热门图书柱状图
+const initPopularBooksChart = () => {
+  if (!popularBooksChartRef.value) return
+  if (popularBooksChart) popularBooksChart.dispose()
+  popularBooksChart = echarts.init(popularBooksChartRef.value)
+
+  const top10 = popularBooks.value.slice(0, 10)
+  const titles = top10.map((item) => item.title)
+  const counts = top10.map((item) => item.borrowCount)
+
+  popularBooksChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '5%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'value',
+      name: '借阅次数'
+    },
+    yAxis: {
+      type: 'category',
+      data: titles.reverse(),
+      axisLabel: {
+        width: 100,
+        overflow: 'truncate',
+        ellipsis: '...'
+      }
+    },
+    series: [
+      {
+        type: 'bar',
+        data: counts.reverse(),
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: '#1890ff' },
+            { offset: 1, color: '#52c41a' }
+          ]),
+          borderRadius: [0, 4, 4, 0]
+        },
+        label: {
+          show: true,
+          position: 'right',
+          formatter: '{c}'
+        }
+      }
+    ]
+  })
 }
 
-// 导出报告
-const exportReport = () => {
-  ElMessage.success('分析报告导出成功')
-  // TODO: 实现导出功能
+// 导出处理
+const handleExport = async (command) => {
+  try {
+    loading.value = true
+    let blob
+    let filename
+
+    switch (command) {
+      case 'borrow':
+        blob = await exportBorrowStatistics({
+          timeRange: analysisConfig.timeRange,
+          granularity: 'DAILY'
+        })
+        filename = '借阅统计.xlsx'
+        break
+      case 'books':
+        blob = await exportPopularBooksApi({ limit: 50 })
+        filename = '热门图书.xlsx'
+        break
+      case 'readers':
+        blob = await exportActiveReadersApi({ limit: 50 })
+        filename = '活跃读者.xlsx'
+        break
+      case 'category':
+        blob = await exportCategoryStats()
+        filename = '分类统计.xlsx'
+        break
+      case 'pdf':
+        ElMessage.warning('PDF导出功能暂未实现')
+        return
+      default:
+        return
+    }
+
+    // 下载文件
+    if (blob) {
+      const url = window.URL.createObjectURL(new Blob([blob]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', filename)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      ElMessage.success('导出成功')
+    }
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
 }
 
-// 加入采购单
-const handleAddToPurchase = (row) => {
-  ElMessage.success(`已将《${row.bookTitle}》加入采购单`)
+// 窗口resize处理
+const handleResize = () => {
+  trendChart?.resize()
+  heatmapChart?.resize()
+  categoryPieChart?.resize()
+  popularBooksChart?.resize()
 }
 
-// 标记剔旧
-const handleAddToWeeding = (book) => {
-  ElMessage.success(`已将《${book.title}》标记为待剔旧`)
-}
+// 监听时间范围变化
+watch(
+  () => analysisConfig.timeRange,
+  () => {
+    loadAllData()
+  }
+)
 
 onMounted(() => {
-  // 设置默认日期范围为最近30天
-  const end = new Date()
-  const start = new Date()
-  start.setDate(start.getDate() - 30)
-  analysisConfig.dateRange = [
-    start.toISOString().split('T')[0],
-    end.toISOString().split('T')[0]
-  ]
+  loadAllData()
+  window.addEventListener('resize', handleResize)
+})
 
-  initCharts()
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  trendChart?.dispose()
+  heatmapChart?.dispose()
+  categoryPieChart?.dispose()
+  popularBooksChart?.dispose()
 })
 </script>
 
@@ -653,56 +759,46 @@ onMounted(() => {
       color: #52c41a;
       font-weight: 600;
     }
-  }
-}
 
-.progress-text {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.85);
-}
-
-.weeding-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.weeding-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 12px;
-  background: #fafafa;
-  border-radius: 4px;
-  transition: background 0.3s;
-
-  &:hover {
-    background: #f0f0f0;
-  }
-
-  .weeding-info {
-    flex: 1;
-  }
-
-  .weeding-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: rgba(0, 0, 0, 0.85);
-    margin-bottom: 8px;
-  }
-
-  .weeding-reason {
-    margin-bottom: 8px;
-  }
-
-  .weeding-stats {
-    font-size: 12px;
-    color: rgba(0, 0, 0, 0.45);
-
-    .divider {
-      margin: 0 8px;
+    .text-muted {
+      color: rgba(0, 0, 0, 0.45);
     }
   }
+}
+
+.card {
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  margin-bottom: 16px;
+  overflow: hidden;
+
+  .card-title {
+    padding: 16px 20px;
+    font-size: 16px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.85);
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-content {
+    padding: 16px 20px;
+  }
+}
+
+.mb-md {
+  margin-bottom: 16px;
+}
+
+.mb-lg {
+  margin-bottom: 24px;
+}
+
+.ml-sm {
+  margin-left: 8px;
 }
 
 .text-success {

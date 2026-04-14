@@ -1,14 +1,5 @@
 spring:
-  datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/book_service
-    username: postgres
-    password: gcrf_secure_2024
-    type: com.alibaba.druid.pool.DruidDataSource
-    druid:
-      initial-size: 1
-      min-idle: 1
-      max-active: 5
+  # Datasource is dynamically configured by BaseIntegrationTest via @DynamicPropertySource
 
   # Redis配置
   redis:
@@ -17,12 +8,33 @@ spring:
     password: gcrf_redis_2024
     database: 2  # Different from production
 
+  data:
+    redis:
+      host: localhost
+      port: 6379
+    elasticsearch:
+      repositories:
+        enabled: false
+
+  elasticsearch:
+    uris: http://localhost:9200
+
   cloud:
     nacos:
       discovery:
         enabled: false
       config:
         enabled: false
+
+# MinIO placeholder (tests either mock FileStorageService or don't exercise MinIO)
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket-covers: library-covers
+  bucket-pdfs: library-pdfs
+  max-cover-size: 5242880
+  max-pdf-size: 52428800
 
 logging:
   level:

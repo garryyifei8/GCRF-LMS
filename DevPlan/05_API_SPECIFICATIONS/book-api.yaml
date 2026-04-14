@@ -1,0 +1,413 @@
+openapi: 3.0.3
+info:
+  title: GCRF图书管理服务 API
+  version: 1.0.0
+  description: |
+    图书管理服务提供图书的增删改查、分类管理、库存管理、文件上传等功能
+    
+    **认证方式**: JWT Bearer Token
+    **API前缀**: `/api/v1/books`
+  contact:
+    name: GCRF Team
+    email: dev@gcrf.com
+
+servers:
+  - url: http://localhost:8080
+    description: 本地开发环境 (通过Gateway)
+  - url: http://localhost:8082
+    description: 本地开发环境 (直连服务)
+  - url: https://api.gcrf.com
+    description: 生产环境
+
+tags:
+  - name: 图书管理
+    description: 图书CRUD操作
+  - name: 分类管理
+    description: 图书分类管理
+  - name: 库存管理
+    description: 图书库存管理
+  - name: 文件管理
+    description: 图书封面和PDF文件管理
+
+paths:
+  # ==================== 图书管理 ====================
+  /api/v1/books:
+    get:
+      summary: 分页查询图书列表
+      tags: [图书管理]
+      operationId: queryBooks
+      parameters:
+        - $ref: './common/parameters.yaml#/components/parameters/PageNum'
+        - $ref: './common/parameters.yaml#/components/parameters/PageSize'
+        - $ref: './common/parameters.yaml#/components/parameters/Keyword'
+        - name: categoryId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: 分类ID
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [available, borrowed, reserved, maintenance]
+          description: 图书状态
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common/schemas.yaml#/components/schemas/PageResult'
+              example:
+                code: 200
+                message: "success"
+                data:
+                  records:
+                    - id: 1
+                      isbn: "978-7-111-42252-1"
+                      title: "深入理解计算机系统"
+                      author: "Randal E. Bryant"
+                      publisher: "机械工业出版社"
+                      publishYear: 2015
+                      category: "计算机科学"
+                      totalStock: 10
+                      availableStock: 3
+                      status: "available"
+                  total: 100
+                  pageNum: 1
+                  pageSize: 20
+                  pages: 5
+                timestamp: "2025-11-06T10:00:00Z"
+        '400':
+          $ref: './common/errors.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './common/errors.yaml#/components/responses/Unauthorized'
+
+    post:
+      summary: 创建图书
+      tags: [图书管理]
+      operationId: createBook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreateRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common/schemas.yaml#/components/schemas/Result'
+        '400':
+          $ref: './common/errors.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './common/errors.yaml#/components/responses/Unauthorized'
+
+  /api/v1/books/{id}:
+    get:
+      summary: 查询图书详情
+      tags: [图书管理]
+      operationId: getBook
+      parameters:
+        - $ref: './common/parameters.yaml#/components/parameters/ID'
+      responses:
+        '200':
+          description: 查询成功
+        '404':
+          $ref: './common/errors.yaml#/components/responses/NotFound'
+
+    put:
+      summary: 更新图书
+      tags: [图书管理]
+      operationId: updateBook
+      parameters:
+        - $ref: './common/parameters.yaml#/components/parameters/ID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+        '400':
+          $ref: './common/errors.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './common/errors.yaml#/components/responses/NotFound'
+
+    delete:
+      summary: 删除图书
+      tags: [图书管理]
+      operationId: deleteBook
+      parameters:
+        - $ref: './common/parameters.yaml#/components/parameters/ID'
+      responses:
+        '200':
+          description: 删除成功
+        '404':
+          $ref: './common/errors.yaml#/components/responses/NotFound'
+
+  # ==================== 分类管理 ====================
+  /api/v1/books/categories:
+    get:
+      summary: 查询图书分类列表
+      tags: [分类管理]
+      operationId: queryCategories
+      responses:
+        '200':
+          description: 查询成功
+
+    post:
+      summary: 创建图书分类
+      tags: [分类管理]
+      operationId: createCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreateRequest'
+      responses:
+        '200':
+          description: 创建成功
+
+  /api/v1/books/categories/{id}:
+    put:
+      summary: 更新图书分类
+      tags: [分类管理]
+      operationId: updateCategory
+      parameters:
+        - $ref: './common/parameters.yaml#/components/parameters/ID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+
+    delete:
+      summary: 删除图书分类
+      tags: [分类管理]
+      operationId: deleteCategory
+      parameters:
+        - $ref: './common/parameters.yaml#/components/parameters/ID'
+      responses:
+        '200':
+          description: 删除成功
+
+  # ==================== 库存管理 ====================
+  /api/v1/books/{id}/inventory:
+    get:
+      summary: 查询图书库存
+      tags: [库存管理]
+      operationId: getInventory
+      parameters:
+        - $ref: './common/parameters.yaml#/components/parameters/ID'
+      responses:
+        '200':
+          description: 查询成功
+
+    put:
+      summary: 调整图书库存
+      tags: [库存管理]
+      operationId: updateInventory
+      parameters:
+        - $ref: './common/parameters.yaml#/components/parameters/ID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+
+  # ==================== 搜索 ====================
+  /api/v1/books/search:
+    post:
+      summary: 全文检索图书
+      tags: [图书管理]
+      description: 使用PostgreSQL全文搜索
+      operationId: searchBooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookSearchRequest'
+      responses:
+        '200':
+          description: 搜索成功
+
+  # ==================== 文件管理 ====================
+  /api/v1/books/{id}/cover:
+    post:
+      summary: 上传图书封面
+      tags: [文件管理]
+      operationId: uploadCover
+      parameters:
+        - $ref: './common/parameters.yaml#/components/parameters/ID'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: 上传成功
+
+  /api/v1/books/{id}/pdf:
+    post:
+      summary: 上传图书PDF
+      tags: [文件管理]
+      operationId: uploadPdf
+      parameters:
+        - $ref: './common/parameters.yaml#/components/parameters/ID'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: 上传成功
+
+  /api/v1/books/{id}/download:
+    get:
+      summary: 下载图书文件
+      tags: [文件管理]
+      operationId: downloadBook
+      parameters:
+        - $ref: './common/parameters.yaml#/components/parameters/ID'
+      responses:
+        '200':
+          description: 下载成功
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+components:
+  schemas:
+    BookCreateRequest:
+      type: object
+      required: [isbn, title, author, publisher, categoryId, totalStock]
+      properties:
+        isbn:
+          type: string
+          example: "978-7-115-42803-3"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        author:
+          type: string
+        publisher:
+          type: string
+        publishYear:
+          type: integer
+        categoryId:
+          type: integer
+        totalStock:
+          type: integer
+          minimum: 1
+        price:
+          type: number
+          format: double
+
+    BookUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        author:
+          type: string
+        publisher:
+          type: string
+        publishYear:
+          type: integer
+        categoryId:
+          type: integer
+        price:
+          type: number
+
+    CategoryCreateRequest:
+      type: object
+      required: [categoryName]
+      properties:
+        categoryName:
+          type: string
+        parentId:
+          type: integer
+          nullable: true
+        description:
+          type: string
+
+    CategoryUpdateRequest:
+      type: object
+      properties:
+        categoryName:
+          type: string
+        description:
+          type: string
+
+    InventoryUpdateRequest:
+      type: object
+      required: [quantity, operationType]
+      properties:
+        quantity:
+          type: integer
+          description: 调整数量
+        operationType:
+          type: string
+          enum: [ADD, SUBTRACT]
+          description: 操作类型
+        reason:
+          type: string
+          description: 调整原因
+
+    BookSearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          description: 搜索关键词
+        categoryId:
+          type: integer
+          nullable: true
+        pageNum:
+          type: integer
+          default: 1
+        pageSize:
+          type: integer
+          default: 20
+
+  securitySchemes:
+    BearerAuth:
+      $ref: './common/security.yaml#/components/securitySchemes/BearerAuth'
+
+security:
+  - BearerAuth: []
