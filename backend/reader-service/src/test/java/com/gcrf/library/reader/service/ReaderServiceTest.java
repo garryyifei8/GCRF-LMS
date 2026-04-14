@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gcrf.library.common.exception.BusinessException;
 import com.gcrf.library.common.result.PageResult;
+import com.gcrf.library.common.result.Result;
+import com.gcrf.library.reader.client.CirculationServiceClient;
 import com.gcrf.library.reader.dto.ReaderCreateRequest;
 import com.gcrf.library.reader.dto.ReaderQueryRequest;
 import com.gcrf.library.reader.dto.ReaderUpdateRequest;
@@ -52,6 +54,9 @@ class ReaderServiceTest {
 
     @Mock
     private ReaderMapper readerMapper;
+
+    @Mock
+    private CirculationServiceClient circulationServiceClient;
 
     @InjectMocks
     private ReaderServiceImpl readerService;
@@ -558,5 +563,89 @@ class ReaderServiceTest {
         // Assert - Update succeeds even with potentially duplicate phone
         assertThat(result).isNotNull();
         verify(readerMapper, times(1)).updateById(any(Reader.class));
+    }
+
+    // ===== Borrow count validation (P1) =====
+
+    @Test
+    @DisplayName("deleteReader_whenReaderHasBorrows_shouldThrowException")
+    void deleteReader_whenReaderHasBorrows_shouldThrowException() {
+        // Arrange
+        Long id = 1L;
+        Reader reader = new Reader();
+        reader.setId(id);
+        reader.setReaderId("R001");
+        when(readerMapper.selectById(id)).thenReturn(reader);
+
+        Result<Integer> borrowCount = Result.success(3);
+        when(circulationServiceClient.getCurrentBorrowCount(id)).thenReturn(borrowCount);
+
+        // Act & Assert
+        assertThatThrownBy(() -> readerService.deleteReader(id))
+            .isInstanceOf(BusinessException.class)
+            .hasMessageContaining("3");
+
+        verify(readerMapper, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("deleteReader_whenCirculationServiceUnavailable_shouldProceedWithWarning")
+    void deleteReader_whenCirculationServiceUnavailable_shouldProceedWithWarning() {
+        // Arrange
+        Long id = 1L;
+        Reader reader = new Reader();
+        reader.setId(id);
+        when(readerMapper.selectById(id)).thenReturn(reader);
+
+        when(circulationServiceClient.getCurrentBorrowCount(id))
+            .thenThrow(new RuntimeException("circulation-service unavailable"));
+
+        // Act
+        readerService.deleteReader(id);
+
+        // Assert: delete still happens despite failed borrow check
+        verify(readerMapper).deleteById(id);
+    }
+
+    @Test
+    @DisplayName("cancelCard_whenReaderHasBorrows_shouldThrowException")
+    void cancelCard_whenReaderHasBorrows_shouldThrowException() {
+        // Arrange
+        Long id = 1L;
+        Reader reader = new Reader();
+        reader.setId(id);
+        reader.setReaderId("R001");
+        reader.setStatus("ACTIVE");
+        when(readerMapper.selectById(id)).thenReturn(reader);
+
+        Result<Integer> borrowCount = Result.success(2);
+        when(circulationServiceClient.getCurrentBorrowCount(id)).thenReturn(borrowCount);
+
+        // Act & Assert
+        assertThatThrownBy(() -> readerService.cancelCard(id))
+            .isInstanceOf(BusinessException.class)
+            .hasMessageContaining("2");
+
+        verify(readerMapper, never()).updateById(any(Reader.class));
+    }
+
+    @Test
+    @DisplayName("cancelCard_whenCirculationServiceUnavailable_shouldProceedWithWarning")
+    void cancelCard_whenCirculationServiceUnavailable_shouldProceedWithWarning() {
+        // Arrange
+        Long id = 1L;
+        Reader reader = new Reader();
+        reader.setId(id);
+        reader.setStatus("ACTIVE");
+        when(readerMapper.selectById(id)).thenReturn(reader);
+
+        when(circulationServiceClient.getCurrentBorrowCount(id))
+            .thenThrow(new RuntimeException("circulation-service unavailable"));
+
+        // Act
+        readerService.cancelCard(id);
+
+        // Assert: cancel still happens
+        verify(readerMapper).updateById(any(Reader.class));
     }
 }
