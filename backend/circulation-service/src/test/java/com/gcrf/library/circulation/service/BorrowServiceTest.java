@@ -15,6 +15,7 @@ import com.gcrf.library.circulation.dto.response.BorrowVO;
 import com.gcrf.library.circulation.entity.Borrow;
 import com.gcrf.library.circulation.mapper.BorrowMapper;
 import com.gcrf.library.circulation.service.impl.BorrowServiceImpl;
+import com.gcrf.library.circulation.service.CirculationEventPublisher;
 import com.gcrf.library.common.exception.BusinessException;
 import com.gcrf.library.common.exception.SystemException;
 import com.gcrf.library.common.result.PageResult;
@@ -67,6 +68,9 @@ class BorrowServiceTest {
 
     @Mock
     private ReaderServiceClient readerServiceClient;
+
+    @Mock
+    private CirculationEventPublisher eventPublisher;
 
     @InjectMocks
     private BorrowServiceImpl borrowService;

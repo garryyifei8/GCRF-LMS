@@ -27,6 +27,25 @@ spring:
   redis:
     host: localhost
     port: 6379
+    password: gcrf_redis_2024
+
+  # RabbitMQ Configuration
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: gcrf_rabbitmq
+    password: rabbitmq_2024
+    virtual-host: gcrf
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 1
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1000
 
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*Mapper.xml

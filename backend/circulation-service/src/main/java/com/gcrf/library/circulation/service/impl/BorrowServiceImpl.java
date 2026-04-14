@@ -13,8 +13,11 @@ import com.gcrf.library.circulation.dto.ReturnRequest;
 import com.gcrf.library.circulation.dto.response.BorrowDetailVO;
 import com.gcrf.library.circulation.dto.response.BorrowVO;
 import com.gcrf.library.circulation.entity.Borrow;
+import com.gcrf.library.circulation.event.OverdueDetectedEvent;
+import com.gcrf.library.circulation.event.ReturnCompletedEvent;
 import com.gcrf.library.circulation.mapper.BorrowMapper;
 import com.gcrf.library.circulation.service.BorrowService;
+import com.gcrf.library.circulation.service.CirculationEventPublisher;
 import com.gcrf.library.common.exception.BusinessException;
 import com.gcrf.library.common.exception.SystemException;
 import com.gcrf.library.common.result.PageResult;
@@ -46,6 +49,12 @@ public class BorrowServiceImpl implements BorrowService {
     private final BorrowMapper borrowMapper;
     private final BookServiceClient bookServiceClient;
     private final ReaderServiceClient readerServiceClient;
+    private final CirculationEventPublisher eventPublisher;
+
+    /**
+     * 免费宽限期（天）
+     */
+    private static final int FREE_GRACE_DAYS = 3;
 
     /**
      * 每日逾期罚金(元)
@@ -228,6 +237,9 @@ public class BorrowServiceImpl implements BorrowService {
         borrowMapper.updateById(borrow);
         log.info("还书成功, borrowId: {}, bookId: {}", borrow.getBorrowId(), borrow.getBookId());
 
+        // 8. 发布归还完成事件
+        publishReturnCompletedEvent(borrow);
+
         return convertToBorrowDetailVO(borrow);
     }
 
@@ -306,6 +318,9 @@ public class BorrowServiceImpl implements BorrowService {
             borrow.setStatus("OVERDUE");
             borrowMapper.updateById(borrow);
             updatedCount++;
+
+            // 发布逾期检测事件
+            publishOverdueDetectedEvent(borrow);
         }
 
         log.info("批量更新逾期状态完成, 更新记录数: {}", updatedCount);
@@ -475,5 +490,126 @@ public class BorrowServiceImpl implements BorrowService {
             return phone;
         }
         return phone.substring(0, 3) + "****" + phone.substring(7);
+    }
+
+    // ==================== 事件发布方法 ====================
+
+    /**
+     * 发布逾期检测事件
+     */
+    private void publishOverdueDetectedEvent(Borrow borrow) {
+        try {
+            // 计算逾期天数（考虑宽限期）
+            long totalOverdueDays = ChronoUnit.DAYS.between(borrow.getDueDate(), LocalDateTime.now());
+            int actualOverdueDays = totalOverdueDays > FREE_GRACE_DAYS
+                    ? (int)(totalOverdueDays - FREE_GRACE_DAYS)
+                    : 0;
+
+            // 计算当前罚金
+            BigDecimal currentFine = BigDecimal.ZERO;
+            if (actualOverdueDays > 0) {
+                currentFine = new BigDecimal("0.10").multiply(new BigDecimal(actualOverdueDays));
+                if (currentFine.compareTo(new BigDecimal("50.00")) > 0) {
+                    currentFine = new BigDecimal("50.00");
+                }
+            }
+
+            OverdueDetectedEvent event = OverdueDetectedEvent.builder()
+                    .borrowId(borrow.getId())
+                    .borrowIdStr(borrow.getBorrowId())
+                    .readerId(borrow.getReaderId())
+                    .bookId(borrow.getBookId())
+                    .bookBarcode(borrow.getBookBarcode())
+                    .dueDate(borrow.getDueDate())
+                    .overdueDays(actualOverdueDays)
+                    .currentFineAmount(currentFine)
+                    .notificationType("EMAIL")
+                    .build();
+
+            // 尝试获取读者和图书详细信息
+            try {
+                Result<ReaderDTO> readerResult = readerServiceClient.getReaderById(borrow.getReaderId());
+                if (readerResult.isSuccess() && readerResult.getData() != null) {
+                    ReaderDTO reader = readerResult.getData();
+                    event.setReaderName(reader.getName());
+                    event.setReaderEmail(reader.getEmail());
+                    event.setReaderPhone(reader.getPhone());
+                }
+            } catch (Exception e) {
+                log.warn("获取读者信息失败: readerId={}", borrow.getReaderId());
+            }
+
+            try {
+                Result<BookDTO> bookResult = bookServiceClient.getBookById(borrow.getBookId());
+                if (bookResult.isSuccess() && bookResult.getData() != null) {
+                    BookDTO book = bookResult.getData();
+                    event.setBookTitle(book.getTitle());
+                }
+            } catch (Exception e) {
+                log.warn("获取图书信息失败: bookId={}", borrow.getBookId());
+            }
+
+            eventPublisher.publishOverdueDetectedEvent(event);
+        } catch (Exception e) {
+            log.warn("发布逾期检测事件失败: borrowId={}, error={}", borrow.getId(), e.getMessage());
+        }
+    }
+
+    /**
+     * 发布归还完成事件
+     */
+    private void publishReturnCompletedEvent(Borrow borrow) {
+        try {
+            // 计算逾期天数
+            long overdueDays = 0;
+            boolean isOverdue = false;
+            if (borrow.getReturnDate() != null && borrow.getReturnDate().isAfter(borrow.getDueDate())) {
+                overdueDays = ChronoUnit.DAYS.between(borrow.getDueDate(), borrow.getReturnDate());
+                if (overdueDays > FREE_GRACE_DAYS) {
+                    isOverdue = true;
+                    overdueDays = overdueDays - FREE_GRACE_DAYS;
+                } else {
+                    overdueDays = 0;
+                }
+            }
+
+            ReturnCompletedEvent event = ReturnCompletedEvent.builder()
+                    .borrowId(borrow.getId())
+                    .borrowIdStr(borrow.getBorrowId())
+                    .readerId(borrow.getReaderId())
+                    .bookId(borrow.getBookId())
+                    .bookBarcode(borrow.getBookBarcode())
+                    .borrowDate(borrow.getBorrowDate())
+                    .dueDate(borrow.getDueDate())
+                    .returnDate(borrow.getReturnDate())
+                    .isOverdue(isOverdue)
+                    .overdueDays((int) overdueDays)
+                    .fineAmount(borrow.getFineAmount())
+                    .finePaid(borrow.getFinePaid())
+                    .build();
+
+            // 尝试获取读者和图书信息
+            try {
+                Result<ReaderDTO> readerResult = readerServiceClient.getReaderById(borrow.getReaderId());
+                if (readerResult.isSuccess() && readerResult.getData() != null) {
+                    event.setReaderName(readerResult.getData().getName());
+                }
+            } catch (Exception e) {
+                log.warn("获取读者信息失败: readerId={}", borrow.getReaderId());
+            }
+
+            try {
+                Result<BookDTO> bookResult = bookServiceClient.getBookById(borrow.getBookId());
+                if (bookResult.isSuccess() && bookResult.getData() != null) {
+                    event.setBookTitle(bookResult.getData().getTitle());
+                }
+            } catch (Exception e) {
+                log.warn("获取图书信息失败: bookId={}", borrow.getBookId());
+            }
+
+            eventPublisher.publishReturnCompletedEvent(event);
+        } catch (Exception e) {
+            log.warn("发布归还完成事件失败: borrowId={}, error={}", borrow.getId(), e.getMessage());
+        }
     }
 }
