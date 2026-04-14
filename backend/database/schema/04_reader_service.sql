@@ -140,3 +140,31 @@ CREATE INDEX idx_reader_notifications_is_read ON reader_notifications(is_read);
 -- ON TABLE reader_favorites IS '读者收藏表';
 -- ON TABLE reader_reviews IS '读者评价表';
 -- ON TABLE reader_notifications IS '读者通知表';
+
+-- 7. 读者类型表
+CREATE TABLE IF NOT EXISTS reader_types (
+    id BIGSERIAL PRIMARY KEY,
+    type_code VARCHAR(50) NOT NULL UNIQUE,
+    type_name VARCHAR(100) NOT NULL,
+    max_borrow_count INTEGER NOT NULL DEFAULT 5,
+    max_borrow_days INTEGER NOT NULL DEFAULT 30,
+    max_renew_count INTEGER NOT NULL DEFAULT 1,
+    deposit_amount INTEGER NOT NULL DEFAULT 0,
+    description VARCHAR(500),
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_reader_types_type_code ON reader_types(type_code);
+CREATE INDEX IF NOT EXISTS idx_reader_types_status ON reader_types(status);
+
+-- 初始数据
+INSERT INTO reader_types (type_code, type_name, max_borrow_count, max_borrow_days, max_renew_count, sort_order) VALUES
+    ('STUDENT', '学生', 10, 30, 2, 1),
+    ('TEACHER', '教师', 20, 60, 3, 2),
+    ('STAFF', '教职工', 15, 45, 2, 3),
+    ('EXTERNAL', '校外读者', 3, 15, 1, 4)
+ON CONFLICT (type_code) DO NOTHING;
