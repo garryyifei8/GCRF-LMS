@@ -100,6 +100,9 @@
 
         <!-- TTL -->
         <transmittable-thread-local.version>2.14.4</transmittable-thread-local.version>
+
+        <!-- Flyway -->
+        <flyway.version>10.8.1</flyway.version>
     </properties>
 
     <dependencyManagement>
@@ -324,11 +327,13 @@
             <dependency>
                 <groupId>org.flywaydb</groupId>
                 <artifactId>flyway-core</artifactId>
+                <version>${flyway.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>org.flywaydb</groupId>
                 <artifactId>flyway-database-postgresql</artifactId>
+                <version>${flyway.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
