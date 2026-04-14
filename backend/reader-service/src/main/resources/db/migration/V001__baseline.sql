@@ -7,35 +7,23 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. Readers table
+-- 1. Readers table (aligned with Reader entity - 15 fields + audit)
 CREATE TABLE IF NOT EXISTS readers (
     id BIGSERIAL PRIMARY KEY,
-    reader_id VARCHAR(50) UNIQUE NOT NULL,
-    card_number VARCHAR(50) UNIQUE,
-    reader_name VARCHAR(100) NOT NULL,
-    reader_type VARCHAR(20) NOT NULL DEFAULT 'STUDENT',
-    gender VARCHAR(10),
-    id_card VARCHAR(18) UNIQUE,
+    reader_id VARCHAR(20) UNIQUE NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    id_card VARCHAR(18),
     phone VARCHAR(20),
     email VARCHAR(100),
-    department VARCHAR(200),
-    major VARCHAR(200),
-    grade VARCHAR(20),
-    class_name VARCHAR(50),
-    student_type VARCHAR(20),
-    photo_url VARCHAR(500),
-    face_features TEXT,
-    deposit_amount DECIMAL(10,2) DEFAULT 0,
-    credit_score INT DEFAULT 100,
-    max_borrow_quantity INT DEFAULT 10,
-    current_borrow_count INT DEFAULT 0,
-    total_borrow_count INT DEFAULT 0,
-    overdue_count INT DEFAULT 0,
-    card_status VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
-    account_balance DECIMAL(10,2) DEFAULT 0,
-    issue_date DATE,
-    expire_date DATE,
-    remarks TEXT,
+    reader_type VARCHAR(20) NOT NULL,
+    department VARCHAR(100),
+    student_no VARCHAR(50),
+    employee_no VARCHAR(50),
+    max_borrow_count INTEGER NOT NULL DEFAULT 5,
+    max_borrow_days INTEGER NOT NULL DEFAULT 30,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    expiry_date DATE,
+    avatar_url VARCHAR(500),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
@@ -131,11 +119,10 @@ CREATE TABLE IF NOT EXISTS reader_types (
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_readers_reader_id ON readers(reader_id);
-CREATE INDEX IF NOT EXISTS idx_readers_card_number ON readers(card_number);
 CREATE INDEX IF NOT EXISTS idx_readers_phone ON readers(phone);
-CREATE INDEX IF NOT EXISTS idx_readers_email ON readers(email);
+CREATE INDEX IF NOT EXISTS idx_readers_id_card ON readers(id_card);
 CREATE INDEX IF NOT EXISTS idx_readers_reader_type ON readers(reader_type);
-CREATE INDEX IF NOT EXISTS idx_readers_card_status ON readers(card_status);
+CREATE INDEX IF NOT EXISTS idx_readers_status ON readers(status);
 CREATE INDEX IF NOT EXISTS idx_card_records_reader_id ON card_records(reader_id);
 CREATE INDEX IF NOT EXISTS idx_reader_behavior_logs_reader_id ON reader_behavior_logs(reader_id);
 CREATE INDEX IF NOT EXISTS idx_reader_behavior_logs_created_at ON reader_behavior_logs(created_at);

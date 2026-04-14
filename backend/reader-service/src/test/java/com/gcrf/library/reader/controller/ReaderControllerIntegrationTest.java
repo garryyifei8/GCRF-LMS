@@ -2,7 +2,9 @@ package com.gcrf.library.reader.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gcrf.library.common.result.Result;
 import com.gcrf.library.common.test.BaseIntegrationTest;
+import com.gcrf.library.reader.client.CirculationServiceClient;
 import com.gcrf.library.reader.dto.ReaderCreateRequest;
 import com.gcrf.library.reader.dto.ReaderUpdateRequest;
 import com.gcrf.library.reader.entity.Reader;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -20,9 +23,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -59,6 +65,9 @@ class ReaderControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private ReaderMapper readerMapper;
+
+    @MockBean
+    private CirculationServiceClient circulationServiceClient;
 
     private Reader testReader;
 
@@ -504,5 +513,148 @@ class ReaderControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").value("Reader Service is running"));
+    }
+
+    // ========== P0新增端点测试 (5 tests) ==========
+
+    @Test
+    void batchDelete_shouldDeleteMultipleReaders() throws Exception {
+        // Arrange - Create two readers to delete
+        Reader r1 = new Reader();
+        r1.setReaderId("INTTEST002");
+        r1.setName("批删读者1");
+        r1.setIdCard("110101199002020001");
+        r1.setPhone("13900139021");
+        r1.setEmail("batch1@test.com");
+        r1.setReaderType("STUDENT");
+        r1.setDepartment("数学学院");
+        r1.setStudentNo("2021002001");
+        r1.setMaxBorrowCount(10);
+        r1.setMaxBorrowDays(30);
+        r1.setStatus("ACTIVE");
+        r1.setExpiryDate(LocalDate.of(2025, 12, 31));
+        r1.setCreatedAt(LocalDateTime.now());
+        r1.setUpdatedAt(LocalDateTime.now());
+        readerMapper.insert(r1);
+
+        Reader r2 = new Reader();
+        r2.setReaderId("INTTEST003");
+        r2.setName("批删读者2");
+        r2.setIdCard("110101199003030002");
+        r2.setPhone("13900139022");
+        r2.setEmail("batch2@test.com");
+        r2.setReaderType("STUDENT");
+        r2.setDepartment("物理学院");
+        r2.setStudentNo("2021003002");
+        r2.setMaxBorrowCount(10);
+        r2.setMaxBorrowDays(30);
+        r2.setStatus("ACTIVE");
+        r2.setExpiryDate(LocalDate.of(2025, 12, 31));
+        r2.setCreatedAt(LocalDateTime.now());
+        r2.setUpdatedAt(LocalDateTime.now());
+        readerMapper.insert(r2);
+
+        // Mock no active borrows
+        when(circulationServiceClient.getCurrentBorrowCount(anyLong()))
+                .thenReturn(Result.success(0));
+
+        // Act & Assert
+        mockMvc.perform(delete("/api/v1/readers/batch")
+                        .param("ids", r1.getId() + "," + r2.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        // Verify both readers were soft-deleted
+        Reader deleted1 = readerMapper.selectById(r1.getId());
+        Reader deleted2 = readerMapper.selectById(r2.getId());
+        org.junit.jupiter.api.Assertions.assertNull(deleted1);
+        org.junit.jupiter.api.Assertions.assertNull(deleted2);
+    }
+
+    @Test
+    void issueCard_shouldActivateCard() throws Exception {
+        // Arrange - Create a suspended reader
+        Reader suspended = new Reader();
+        suspended.setReaderId("INTTEST004");
+        suspended.setName("办证读者");
+        suspended.setIdCard("110101199004040003");
+        suspended.setPhone("13900139023");
+        suspended.setEmail("issuecard@test.com");
+        suspended.setReaderType("STUDENT");
+        suspended.setDepartment("化学学院");
+        suspended.setStudentNo("2021004001");
+        suspended.setMaxBorrowCount(10);
+        suspended.setMaxBorrowDays(30);
+        suspended.setStatus("SUSPENDED");
+        suspended.setExpiryDate(LocalDate.of(2025, 12, 31));
+        suspended.setCreatedAt(LocalDateTime.now());
+        suspended.setUpdatedAt(LocalDateTime.now());
+        readerMapper.insert(suspended);
+
+        Map<String, Object> body = Map.of(
+                "cardExpireDate", "2027-12-31",
+                "depositAmount", 100
+        );
+
+        // Act & Assert
+        mockMvc.perform(post("/api/v1/readers/{id}/card", suspended.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+    }
+
+    @Test
+    void updateReaderStatus_suspended_shouldSuspendCard() throws Exception {
+        // testReader is ACTIVE - suspend it
+        Map<String, String> body = Map.of("status", "suspended");
+
+        mockMvc.perform(put("/api/v1/readers/{id}/status", testReader.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.status").value("SUSPENDED"));
+    }
+
+    @Test
+    void updateReaderStatus_active_shouldActivateCard() throws Exception {
+        // Arrange - Create a suspended reader
+        Reader suspended = new Reader();
+        suspended.setReaderId("INTTEST005");
+        suspended.setName("激活读者");
+        suspended.setIdCard("110101199005050004");
+        suspended.setPhone("13900139024");
+        suspended.setEmail("activate@test.com");
+        suspended.setReaderType("STUDENT");
+        suspended.setDepartment("生物学院");
+        suspended.setStudentNo("2021005001");
+        suspended.setMaxBorrowCount(10);
+        suspended.setMaxBorrowDays(30);
+        suspended.setStatus("SUSPENDED");
+        suspended.setExpiryDate(LocalDate.of(2025, 12, 31));
+        suspended.setCreatedAt(LocalDateTime.now());
+        suspended.setUpdatedAt(LocalDateTime.now());
+        readerMapper.insert(suspended);
+
+        Map<String, String> body = Map.of("status", "active");
+
+        mockMvc.perform(put("/api/v1/readers/{id}/status", suspended.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+    }
+
+    @Test
+    void getReaderByCardNumber_shouldReturnReader() throws Exception {
+        // testReader has readerId "INTTEST001" - use it as the card number
+        mockMvc.perform(get("/api/v1/readers/card/{cardNumber}", "INTTEST001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.readerId").value("INTTEST001"))
+                .andExpect(jsonPath("$.data.name").value("集成测试读者"));
     }
 }
