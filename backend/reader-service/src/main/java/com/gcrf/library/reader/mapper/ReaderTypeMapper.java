@@ -21,7 +21,7 @@ public interface ReaderTypeMapper extends BaseMapper<ReaderType> {
     @Select("SELECT COUNT(*) FROM reader_types " +
             "WHERE type_code = #{typeCode} " +
             "AND deleted_at IS NULL " +
-            "AND (#{excludeId} IS NULL OR id != #{excludeId})")
+            "AND (CAST(#{excludeId} AS BIGINT) IS NULL OR id != #{excludeId})")
     int existsByTypeCode(@Param("typeCode") String typeCode, @Param("excludeId") Long excludeId);
 
     /**
