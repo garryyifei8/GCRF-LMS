@@ -10,6 +10,7 @@ import com.gcrf.library.circulation.dto.ReserveRequest;
 import com.gcrf.library.circulation.entity.Reserve;
 import com.gcrf.library.circulation.mapper.ReserveMapper;
 import com.gcrf.library.common.result.Result;
+import com.gcrf.library.common.test.BaseIntegrationTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -51,8 +53,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
+@Transactional
 @ActiveProfiles("test")
-class ReserveControllerIntegrationTest {
+class ReserveControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
