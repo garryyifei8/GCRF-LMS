@@ -24,7 +24,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -451,5 +453,36 @@ class ReserveControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").value("Circulation Service (Reserve) is running"));
+    }
+
+    // ========== 通知预约记录测试 (1 test) ==========
+
+    @Test
+    void notifyReserve_shouldIncrementNotifyCount() throws Exception {
+        // Arrange: create a RESERVED reservation with notifyCount=0
+        Reserve reserve = new Reserve();
+        reserve.setReserveId("RV-NOTIFY-001");
+        reserve.setReaderId(1L);
+        reserve.setBookId(1L);
+        reserve.setReserveDate(LocalDateTime.now());
+        reserve.setExpiryDate(LocalDateTime.now().plusDays(7));
+        reserve.setStatus("RESERVED");
+        reserve.setNotifyCount(0);
+        reserve.setNotifySent(false);
+        reserve.setCreatedAt(LocalDateTime.now());
+        reserve.setUpdatedAt(LocalDateTime.now());
+        reserveMapper.insert(reserve);
+
+        // Act
+        mockMvc.perform(post("/api/v1/reserves/" + reserve.getId() + "/notify")
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200));
+
+        // Assert: verify count and flags in DB
+        Reserve updated = reserveMapper.selectById(reserve.getId());
+        assertThat(updated.getNotifyCount()).isEqualTo(1);
+        assertThat(updated.getNotifySent()).isTrue();
+        assertThat(updated.getNotifySentDate()).isNotNull();
     }
 }
