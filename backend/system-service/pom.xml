@@ -91,6 +91,12 @@
             <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
 
+        <!-- Spring Cloud LoadBalancer (required by Feign when using service discovery) -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+
         <!-- Sentinel -->
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
