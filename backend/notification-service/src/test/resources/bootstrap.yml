@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: notification-service
+  # Disable Nacos discovery/config during integration tests (Testcontainers-based)
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
