@@ -53,13 +53,6 @@ spring:
             - Path=/api/v1/readers/**
           # 不使用StripPrefix，保留完整路径 /api/v1/readers/**
 
-        # 流通服务路由
-        - id: circulation-service
-          uri: lb://circulation-service
-          predicates:
-            - Path=/api/v1/circulation/**
-          # 不使用StripPrefix，保留完整路径 /api/v1/circulation/**
-
         # 推荐服务路由
         - id: recommend-service
           uri: lb://recommend-service
