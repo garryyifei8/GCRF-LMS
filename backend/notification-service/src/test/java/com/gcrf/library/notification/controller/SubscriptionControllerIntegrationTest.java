@@ -113,7 +113,7 @@ class SubscriptionControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.data.emailEnabled").value(false))
                 .andExpect(jsonPath("$.data.smsEnabled").value(true))
                 .andExpect(jsonPath("$.data.notificationEnabled").value(true))
-                .andExpect(jsonPath("$.data.subscribedTypes").value("[\"SYSTEM\",\"USER\"]"))
+                .andExpect(jsonPath("$.data.subscribedTypes").value("[\"SYSTEM\", \"USER\"]"))
                 .andExpect(jsonPath("$.data.createdAt").isNotEmpty())
                 .andExpect(jsonPath("$.data.updatedAt").isNotEmpty());
     }
