@@ -26,9 +26,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
@@ -478,5 +482,70 @@ class BorrowControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").value("Circulation Service (Borrow) is running"));
+    }
+
+    // ========== 批量还书测试 (1 test) ==========
+
+    @Test
+    void batchReturn_shouldProcessMultipleBorrowsWithMixedResults() throws Exception {
+        // Arrange - Mock Feign client response (same as testReturnBook_Success)
+        when(bookServiceClient.increaseAvailableCopies(anyLong())).thenReturn(Result.success());
+
+        // Arrange: create 3 borrows — 2 active (returnable), 1 already returned (will fail)
+        Borrow active1 = new Borrow();
+        active1.setBorrowId("BW-BATCH-001");
+        active1.setReaderId(1L);
+        active1.setBookId(1L);
+        active1.setBookBarcode("BATCH-BC-001");
+        active1.setBorrowDate(LocalDateTime.now().minusDays(5));
+        active1.setDueDate(LocalDateTime.now().plusDays(25));
+        active1.setStatus("BORROWED");
+        active1.setRenewCount(0);
+        active1.setMaxRenewCount(2);
+        borrowMapper.insert(active1);
+
+        Borrow active2 = new Borrow();
+        active2.setBorrowId("BW-BATCH-002");
+        active2.setReaderId(1L);
+        active2.setBookId(2L);
+        active2.setBookBarcode("BATCH-BC-002");
+        active2.setBorrowDate(LocalDateTime.now().minusDays(5));
+        active2.setDueDate(LocalDateTime.now().plusDays(25));
+        active2.setStatus("BORROWED");
+        active2.setRenewCount(0);
+        active2.setMaxRenewCount(2);
+        borrowMapper.insert(active2);
+
+        Borrow returned = new Borrow();
+        returned.setBorrowId("BW-BATCH-003");
+        returned.setReaderId(1L);
+        returned.setBookId(3L);
+        returned.setBookBarcode("BATCH-BC-003");
+        returned.setBorrowDate(LocalDateTime.now().minusDays(30));
+        returned.setDueDate(LocalDateTime.now().minusDays(1));
+        returned.setReturnDate(LocalDateTime.now().minusDays(2));
+        returned.setStatus("RETURNED");
+        returned.setRenewCount(0);
+        returned.setMaxRenewCount(2);
+        borrowMapper.insert(returned);
+
+        Map<String, Object> request = Map.of(
+            "borrowIds", List.of(
+                active1.getId(),
+                active2.getId(),
+                returned.getId()
+            )
+        );
+
+        // Act & Assert
+        mockMvc.perform(post("/api/v1/borrows/batch-return")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data", hasSize(3)))
+            .andExpect(jsonPath("$.data[0].success").value(true))
+            .andExpect(jsonPath("$.data[1].success").value(true))
+            .andExpect(jsonPath("$.data[2].success").value(false));
     }
 }
