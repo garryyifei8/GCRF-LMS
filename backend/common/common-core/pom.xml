@@ -93,5 +93,23 @@
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- Testcontainers - optional so downstream services don't pull it at runtime -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Spring Boot test support - optional for the same reason -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 </project>
