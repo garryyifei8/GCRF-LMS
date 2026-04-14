@@ -9,11 +9,11 @@ spring:
       min-idle: 1
       max-active: 5
 
-  # Redis配置 (Redisson)
+  # Redis配置 (Redisson) - password empty for local test env; override via env var in CI
   redis:
-    host: localhost
-    port: 6379
-    password: gcrf_redis_2024
+    host: ${TEST_REDIS_HOST:localhost}
+    port: ${TEST_REDIS_PORT:6379}
+    password: ${TEST_REDIS_PASSWORD:}
     database: 1
 
   cloud:
