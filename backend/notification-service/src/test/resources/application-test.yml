@@ -6,6 +6,8 @@ spring:
       initial-size: 1
       min-idle: 1
       max-active: 5
+      # Allow MyBatis-Plus to write String values into JSONB columns (variables, extra_data, subscribed_types).
+      connection-properties: stringtype=unspecified
 
   # Flyway migrations are automatically executed for schema initialization
   flyway:
