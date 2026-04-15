@@ -25,11 +25,11 @@ SERVICES=(
   "book:8082"
   "circulation:8083"
   "reader:8084"
-  "notification:8085"
-  "analytics:8087"
-  "chat:8088"
-  "recommend:8089"
-  "system:8090"
+  "system:8085"
+  "recommend:8086"
+  "chat:8087"
+  "analytics:8089"
+  "notification:8090"
 )
 TIMEOUT_PER_SERVICE=180
 FAILED=()
