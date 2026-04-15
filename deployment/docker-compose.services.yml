@@ -4,36 +4,45 @@ version: '3.8'
 # GCRF Library Management System
 # Application Services Orchestration
 # ============================================
-# This file orchestrates the microservices for the GCRF Library System
-# including Gateway Service, Auth Service, and Web Admin (placeholder).
+# This file orchestrates all microservices for the GCRF Library System.
 #
 # Prerequisites:
 #   - Infrastructure services must be running (docker-compose.infrastructure.yml)
-#   - Service images must be built (Phase 3)
+#   - Service images must be built
 #   - Copy ../.env.prod.example to ../.env and set all values
 #
 # Usage:
 #   docker-compose -f docker-compose.infrastructure.yml up -d
 #   docker-compose -f docker-compose.services.yml up -d
+#
+# Port Mapping:
+#   gateway-service      -> 8080
+#   auth-service         -> 8081
+#   book-service         -> 8082
+#   circulation-service  -> 8083
+#   reader-service       -> 8084
+#   system-service       -> 8085
+#   recommend-service    -> 8086
+#   chat-service         -> 8087
+#   analytics-service    -> 8089
+#   notification-service -> 8090
+#   web-admin            -> 3011
 # ============================================
 
 services:
   # ============================================
-  # API Gateway Service
+  # Authentication Service (8081)
   # ============================================
-  # Central entry point for all API requests
-  # Routes traffic to appropriate microservices
-  gcrf-gateway-service:
-    image: gcrf-library/gateway-service:latest
-    container_name: gcrf-gateway-service
+  # Handles user authentication and authorization
+  # Manages JWT tokens and user sessions
+  gcrf-auth-service:
+    image: gcrf-library/auth-service:latest
+    container_name: gcrf-auth-service
     restart: unless-stopped
-    ports:
-      # Expose gateway to host for external access
-      - "8080:8080"
+    expose:
+      - "8081"
     environment:
-      # Spring profile for production configuration
       SPRING_PROFILES_ACTIVE: prod
-      # JVM settings for production
       JAVA_OPTS: >
         -Xms512m
         -Xmx1024m
@@ -42,27 +51,100 @@ services:
         -XX:+ParallelRefProcEnabled
         -Djava.security.egd=file:/dev/./urandom
         -Dspring.config.location=/app/config/application.yml
-      # Service discovery
       NACOS_SERVER_ADDR: nacos:8848
       NACOS_NAMESPACE: ${NACOS_NAMESPACE:-public}
       NACOS_USERNAME: ${NACOS_USERNAME}
       NACOS_PASSWORD: ${NACOS_PASSWORD}
-      # Redis configuration
+      DB_HOST: postgres-primary
+      DB_PORT: 5432
+      DB_NAME: gcrf_auth
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis-master
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      # JWT configuration
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400}
-      # Logging
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800}
+      BCRYPT_STRENGTH: ${BCRYPT_STRENGTH:-10}
       LOGGING_LEVEL_ROOT: INFO
       LOGGING_LEVEL_COM_GCRF: ${LOGGING_LEVEL:-INFO}
     env_file:
       - ../.env
     volumes:
-      # Log volume for persistent logging
+      - ./logs/auth:/app/logs
+      - ../backend/auth-service/src/main/resources/application-prod.yml:/app/config/application.yml:ro
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gcrf-backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.gcrf.service,com.gcrf.tier"
+    labels:
+      com.gcrf.service: "auth"
+      com.gcrf.tier: "backend"
+      com.gcrf.version: "1.0.0"
+      com.gcrf.component: "authentication"
+
+  # ============================================
+  # API Gateway Service (8080)
+  # ============================================
+  # Central entry point for all API requests
+  # Routes traffic to appropriate microservices
+  gcrf-gateway-service:
+    image: gcrf-library/gateway-service:latest
+    container_name: gcrf-gateway-service
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: >
+        -Xms512m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=100
+        -XX:+ParallelRefProcEnabled
+        -Djava.security.egd=file:/dev/./urandom
+        -Dspring.config.location=/app/config/application.yml
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-public}
+      NACOS_USERNAME: ${NACOS_USERNAME}
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400}
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_GCRF: ${LOGGING_LEVEL:-INFO}
+    env_file:
+      - ../.env
+    volumes:
       - ./logs/gateway:/app/logs
-      # Mount production configuration (read-only)
       - ../backend/gateway-service/src/main/resources/application-prod.yml:/app/config/application.yml:ro
     depends_on:
       nacos:
@@ -78,7 +160,6 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      # Connect to both backend and frontend networks
       - gcrf-backend-network
       - gcrf-frontend-network
     deploy:
@@ -102,163 +183,17 @@ services:
       com.gcrf.component: "api-gateway"
 
   # ============================================
-  # Authentication Service
-  # ============================================
-  # Handles user authentication and authorization
-  # Manages JWT tokens and user sessions
-  gcrf-auth-service:
-    image: gcrf-library/auth-service:latest
-    container_name: gcrf-auth-service
-    restart: unless-stopped
-    # No port exposure - internal service only
-    expose:
-      - "8081"
-    environment:
-      # Spring profile for production configuration
-      SPRING_PROFILES_ACTIVE: prod
-      # JVM settings for production
-      JAVA_OPTS: >
-        -Xms512m
-        -Xmx1024m
-        -XX:+UseG1GC
-        -XX:MaxGCPauseMillis=100
-        -XX:+ParallelRefProcEnabled
-        -Djava.security.egd=file:/dev/./urandom
-        -Dspring.config.location=/app/config/application.yml
-      # Service discovery
-      NACOS_SERVER_ADDR: nacos:8848
-      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-public}
-      NACOS_USERNAME: ${NACOS_USERNAME}
-      NACOS_PASSWORD: ${NACOS_PASSWORD}
-      # Database configuration
-      DB_HOST: postgres-primary
-      DB_PORT: 5432
-      DB_NAME: gcrf_auth
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      # Redis configuration
-      REDIS_HOST: redis-master
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      # JWT configuration
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400}
-      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800}
-      # Security settings
-      BCRYPT_STRENGTH: ${BCRYPT_STRENGTH:-10}
-      # Logging
-      LOGGING_LEVEL_ROOT: INFO
-      LOGGING_LEVEL_COM_GCRF: ${LOGGING_LEVEL:-INFO}
-    env_file:
-      - ../.env
-    volumes:
-      # Log volume for persistent logging
-      - ./logs/auth:/app/logs
-      # Mount production configuration (read-only)
-      - ../backend/auth-service/src/main/resources/application-prod.yml:/app/config/application.yml:ro
-    depends_on:
-      postgres-primary:
-        condition: service_healthy
-      redis-master:
-        condition: service_healthy
-      nacos:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    networks:
-      # Backend network only - no direct external access
-      - gcrf-backend-network
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "com.gcrf.service,com.gcrf.tier"
-    labels:
-      com.gcrf.service: "auth"
-      com.gcrf.tier: "backend"
-      com.gcrf.version: "1.0.0"
-      com.gcrf.component: "authentication"
-
-  # ============================================
-  # Web Admin Frontend (Placeholder for Phase 3)
-  # ============================================
-  # Vue.js based administrative interface
-  # Uncomment and configure when frontend image is ready
-  #
-  # gcrf-web-admin:
-  #   image: gcrf-library/web-admin:latest
-  #   container_name: gcrf-web-admin
-  #   restart: unless-stopped
-  #   ports:
-  #     # Expose web UI on port 80
-  #     - "80:80"
-  #     # Alternative HTTPS port (configure nginx SSL)
-  #     # - "443:443"
-  #   environment:
-  #     # API Gateway URL for backend communication
-  #     VUE_APP_API_BASE_URL: http://gcrf-gateway-service:8080
-  #     # Environment mode
-  #     VUE_APP_ENV: production
-  #   depends_on:
-  #     gcrf-gateway-service:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:80/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 30s
-  #   networks:
-  #     # Frontend network only - communicates via gateway
-  #     - gcrf-frontend-network
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '0.5'
-  #         memory: 256M
-  #       reservations:
-  #         cpus: '0.25'
-  #         memory: 128M
-  #   logging:
-  #     driver: "json-file"
-  #     options:
-  #       max-size: "10m"
-  #       max-file: "3"
-  #       labels: "com.gcrf.service,com.gcrf.tier"
-  #   labels:
-  #     com.gcrf.service: "web-admin"
-  #     com.gcrf.tier: "frontend"
-  #     com.gcrf.version: "1.0.0"
-  #     com.gcrf.component: "web-ui"
-
-  # ============================================
-  # Book Service
+  # Book Service (8082)
   # ============================================
   # Handles book management, categories, inventory, and file storage
   gcrf-book-service:
     image: gcrf-library/book-service:latest
     container_name: gcrf-book-service
     restart: unless-stopped
-    # No port exposure - internal service only
     expose:
       - "8082"
     environment:
-      # Spring profile for production configuration
       SPRING_PROFILES_ACTIVE: prod
-      # JVM settings for production
       JAVA_OPTS: >
         -Xms512m
         -Xmx1024m
@@ -266,39 +201,28 @@ services:
         -XX:MaxGCPauseMillis=100
         -XX:+ParallelRefProcEnabled
         -Djava.security.egd=file:/dev/./urandom
-        -Dspring.config.location=/app/config/application.yml
-      # Service discovery
       NACOS_SERVER_ADDR: nacos:8848
       NACOS_NAMESPACE: ${NACOS_NAMESPACE:-public}
       NACOS_USERNAME: ${NACOS_USERNAME}
       NACOS_PASSWORD: ${NACOS_PASSWORD}
-      # Database configuration
       DB_HOST: postgres-primary
       DB_PORT: 5432
       DB_NAME: gcrf_book
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
-      # Redis configuration
       REDIS_HOST: redis-master
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      # MinIO configuration
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-gcrf-books}
-      # Elasticsearch configuration
-      ELASTICSEARCH_URIS: http://elasticsearch:9200
-      # Logging
       LOGGING_LEVEL_ROOT: INFO
       LOGGING_LEVEL_COM_GCRF: ${LOGGING_LEVEL:-INFO}
     env_file:
       - ../.env
     volumes:
-      # Log volume for persistent logging
       - ./logs/book:/app/logs
-      # Mount production configuration (read-only)
-      - ../backend/book-service/src/main/resources/application-prod.yml:/app/config/application.yml:ro
     depends_on:
       postgres-primary:
         condition: service_healthy
@@ -308,8 +232,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
       interval: 30s
@@ -317,7 +239,6 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      # Backend network only - no direct external access
       - gcrf-backend-network
     deploy:
       resources:
@@ -340,16 +261,575 @@ services:
       com.gcrf.component: "book-management"
 
   # ============================================
-  # Additional Microservices (Phase 3)
+  # Circulation Service (8083)
   # ============================================
-  # Reader Service, Circulation Service, System Service, etc.
-  # Will be added as they are developed and containerized
+  # Handles borrowing, returning, renewals, reservations, and fines
+  gcrf-circulation-service:
+    image: gcrf-library/circulation-service:latest
+    container_name: gcrf-circulation-service
+    restart: unless-stopped
+    expose:
+      - "8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: >
+        -Xms512m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=100
+        -XX:+ParallelRefProcEnabled
+        -Djava.security.egd=file:/dev/./urandom
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-public}
+      NACOS_USERNAME: ${NACOS_USERNAME}
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
+      DB_HOST: postgres-primary
+      DB_PORT: 5432
+      DB_NAME: gcrf_circulation
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_VHOST: gcrf
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_GCRF: ${LOGGING_LEVEL:-INFO}
+    env_file:
+      - ../.env
+    volumes:
+      - ./logs/circulation:/app/logs
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gcrf-backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.gcrf.service,com.gcrf.tier"
+    labels:
+      com.gcrf.service: "circulation"
+      com.gcrf.tier: "backend"
+      com.gcrf.version: "1.0.0"
+      com.gcrf.component: "circulation-management"
+
+  # ============================================
+  # Reader Service (8084)
+  # ============================================
+  # Manages reader information, reader types, and reader cards
+  gcrf-reader-service:
+    image: gcrf-library/reader-service:latest
+    container_name: gcrf-reader-service
+    restart: unless-stopped
+    expose:
+      - "8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: >
+        -Xms512m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=100
+        -XX:+ParallelRefProcEnabled
+        -Djava.security.egd=file:/dev/./urandom
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-public}
+      NACOS_USERNAME: ${NACOS_USERNAME}
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
+      DB_HOST: postgres-primary
+      DB_PORT: 5432
+      DB_NAME: gcrf_reader
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_GCRF: ${LOGGING_LEVEL:-INFO}
+    env_file:
+      - ../.env
+    volumes:
+      - ./logs/reader:/app/logs
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gcrf-backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.gcrf.service,com.gcrf.tier"
+    labels:
+      com.gcrf.service: "reader"
+      com.gcrf.tier: "backend"
+      com.gcrf.version: "1.0.0"
+      com.gcrf.component: "reader-management"
+
+  # ============================================
+  # System Service (8085)
+  # ============================================
+  # Manages users, roles, permissions, and department configurations
+  gcrf-system-service:
+    image: gcrf-library/system-service:latest
+    container_name: gcrf-system-service
+    restart: unless-stopped
+    expose:
+      - "8085"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: >
+        -Xms512m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=100
+        -XX:+ParallelRefProcEnabled
+        -Djava.security.egd=file:/dev/./urandom
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-public}
+      NACOS_USERNAME: ${NACOS_USERNAME}
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
+      DB_HOST: postgres-primary
+      DB_PORT: 5432
+      DB_NAME: gcrf_system
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_GCRF: ${LOGGING_LEVEL:-INFO}
+    env_file:
+      - ../.env
+    volumes:
+      - ./logs/system:/app/logs
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gcrf-backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.gcrf.service,com.gcrf.tier"
+    labels:
+      com.gcrf.service: "system"
+      com.gcrf.tier: "backend"
+      com.gcrf.version: "1.0.0"
+      com.gcrf.component: "system-management"
+
+  # ============================================
+  # Recommend Service (8086)
+  # ============================================
+  # AI-powered book recommendation engine
+  gcrf-recommend-service:
+    image: gcrf-library/recommend-service:latest
+    container_name: gcrf-recommend-service
+    restart: unless-stopped
+    expose:
+      - "8086"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: >
+        -Xms512m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=100
+        -XX:+ParallelRefProcEnabled
+        -Djava.security.egd=file:/dev/./urandom
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-public}
+      NACOS_USERNAME: ${NACOS_USERNAME}
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
+      DB_HOST: postgres-primary
+      DB_PORT: 5432
+      DB_NAME: gcrf_recommend
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_GCRF: ${LOGGING_LEVEL:-INFO}
+    env_file:
+      - ../.env
+    volumes:
+      - ./logs/recommend:/app/logs
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gcrf-backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.gcrf.service,com.gcrf.tier"
+    labels:
+      com.gcrf.service: "recommend"
+      com.gcrf.tier: "backend"
+      com.gcrf.version: "1.0.0"
+      com.gcrf.component: "recommendation-engine"
+
+  # ============================================
+  # Chat Service (8087)
+  # ============================================
+  # Intelligent Q&A and library assistant chatbot
+  gcrf-chat-service:
+    image: gcrf-library/chat-service:latest
+    container_name: gcrf-chat-service
+    restart: unless-stopped
+    expose:
+      - "8087"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: >
+        -Xms512m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=100
+        -XX:+ParallelRefProcEnabled
+        -Djava.security.egd=file:/dev/./urandom
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-public}
+      NACOS_USERNAME: ${NACOS_USERNAME}
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
+      DB_HOST: postgres-primary
+      DB_PORT: 5432
+      DB_NAME: gcrf_chat
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_GCRF: ${LOGGING_LEVEL:-INFO}
+    env_file:
+      - ../.env
+    volumes:
+      - ./logs/chat:/app/logs
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gcrf-backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.gcrf.service,com.gcrf.tier"
+    labels:
+      com.gcrf.service: "chat"
+      com.gcrf.tier: "backend"
+      com.gcrf.version: "1.0.0"
+      com.gcrf.component: "intelligent-chat"
+
+  # ============================================
+  # Analytics Service (8089)
+  # ============================================
+  # Data statistics and reporting for library operations
+  gcrf-analytics-service:
+    image: gcrf-library/analytics-service:latest
+    container_name: gcrf-analytics-service
+    restart: unless-stopped
+    expose:
+      - "8089"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: >
+        -Xms512m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=100
+        -XX:+ParallelRefProcEnabled
+        -Djava.security.egd=file:/dev/./urandom
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-public}
+      NACOS_USERNAME: ${NACOS_USERNAME}
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
+      DB_HOST: postgres-primary
+      DB_PORT: 5432
+      DB_NAME: gcrf_analytics
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_GCRF: ${LOGGING_LEVEL:-INFO}
+    env_file:
+      - ../.env
+    volumes:
+      - ./logs/analytics:/app/logs
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8089/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gcrf-backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.gcrf.service,com.gcrf.tier"
+    labels:
+      com.gcrf.service: "analytics"
+      com.gcrf.tier: "backend"
+      com.gcrf.version: "1.0.0"
+      com.gcrf.component: "data-analytics"
+
+  # ============================================
+  # Notification Service (8090)
+  # ============================================
+  # Message push and notification delivery service
+  gcrf-notification-service:
+    image: gcrf-library/notification-service:latest
+    container_name: gcrf-notification-service
+    restart: unless-stopped
+    expose:
+      - "8090"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: >
+        -Xms512m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=100
+        -XX:+ParallelRefProcEnabled
+        -Djava.security.egd=file:/dev/./urandom
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_NAMESPACE: ${NACOS_NAMESPACE:-public}
+      NACOS_USERNAME: ${NACOS_USERNAME}
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
+      DB_HOST: postgres-primary
+      DB_PORT: 5432
+      DB_NAME: gcrf_notification
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis-master
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_VHOST: gcrf
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_GCRF: ${LOGGING_LEVEL:-INFO}
+    env_file:
+      - ../.env
+    volumes:
+      - ./logs/notification:/app/logs
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gcrf-backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.gcrf.service,com.gcrf.tier"
+    labels:
+      com.gcrf.service: "notification"
+      com.gcrf.tier: "backend"
+      com.gcrf.version: "1.0.0"
+      com.gcrf.component: "notification-service"
+
+  # ============================================
+  # Web Admin Frontend (3011 -> 80)
+  # ============================================
+  # Vue.js based administrative interface
+  gcrf-web-admin:
+    image: gcrf-library/web-admin:latest
+    build:
+      context: ../web-admin
+      dockerfile: Dockerfile
+    container_name: gcrf-web-admin
+    restart: unless-stopped
+    ports:
+      - "3011:80"
+    environment:
+      VUE_APP_API_BASE_URL: http://gcrf-gateway-service:8080
+      VUE_APP_ENV: production
+    depends_on:
+      gcrf-gateway-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - gcrf-frontend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.gcrf.service,com.gcrf.tier"
+    labels:
+      com.gcrf.service: "web-admin"
+      com.gcrf.tier: "frontend"
+      com.gcrf.version: "1.0.0"
+      com.gcrf.component: "web-ui"
 
 # ============================================
 # Network Configuration
 # ============================================
 networks:
-  # Backend network - connects to infrastructure network
+  # Backend network - bridges to infrastructure network
   gcrf-backend-network:
     external: true
     name: gcrf-infrastructure-network
@@ -358,30 +838,9 @@ networks:
   gcrf-frontend-network:
     driver: bridge
     name: gcrf-frontend-network
-    internal: false  # Exposed to host for web access
+    internal: false
     ipam:
       driver: default
       config:
         - subnet: 172.29.0.0/16
           gateway: 172.29.0.1
-
-# ============================================
-# Volume Configuration (Optional)
-# ============================================
-# Service-specific volumes can be added here if needed
-# Currently using bind mounts for logs
-#
-# volumes:
-#   gateway-logs:
-#     name: gcrf-gateway-logs
-#     driver: local
-#     labels:
-#       com.gcrf.volume: "logs"
-#       com.gcrf.service: "gateway"
-#
-#   auth-logs:
-#     name: gcrf-auth-logs
-#     driver: local
-#     labels:
-#       com.gcrf.volume: "logs"
-#       com.gcrf.service: "auth"
