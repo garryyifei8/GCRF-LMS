@@ -18,20 +18,21 @@ export const readersHandlers = [
     let filteredReaders = readersData
 
     if (keyword) {
-      filteredReaders = filteredReaders.filter(reader =>
-        reader.realName.includes(keyword) ||
-        reader.cardNo.includes(keyword) ||
-        reader.phone.includes(keyword) ||
-        reader.email.includes(keyword)
+      filteredReaders = filteredReaders.filter(
+        (reader) =>
+          reader.realName.includes(keyword) ||
+          reader.cardNo.includes(keyword) ||
+          reader.phone.includes(keyword) ||
+          reader.email.includes(keyword)
       )
     }
 
     if (readerType) {
-      filteredReaders = filteredReaders.filter(reader => reader.readerType === readerType)
+      filteredReaders = filteredReaders.filter((reader) => reader.readerType === readerType)
     }
 
     if (status) {
-      filteredReaders = filteredReaders.filter(reader => reader.status === status)
+      filteredReaders = filteredReaders.filter((reader) => reader.status === status)
     }
 
     // 分页
@@ -53,16 +54,34 @@ export const readersHandlers = [
     })
   }),
 
+  // 按借阅证号查询读者
+  http.get('/api/v1/readers/card/:cardNumber', ({ params }) => {
+    return HttpResponse.json({
+      code: 200,
+      data: {
+        id: 1,
+        readerId: params.cardNumber,
+        realName: '张三',
+        readerType: 'student',
+        status: 'active',
+        currentBorrows: 2
+      }
+    })
+  }),
+
   // 获取读者详情
   http.get('/api/v1/readers/:id', ({ params }) => {
     const { id } = params
-    const reader = readersData.find(r => r.id === parseInt(id))
+    const reader = readersData.find((r) => r.id === parseInt(id))
 
     if (!reader) {
-      return HttpResponse.json({
-        code: 404,
-        message: '读者不存在'
-      }, { status: 404 })
+      return HttpResponse.json(
+        {
+          code: 404,
+          message: '读者不存在'
+        },
+        { status: 404 }
+      )
     }
 
     return HttpResponse.json({
@@ -75,7 +94,7 @@ export const readersHandlers = [
   // 新增读者
   http.post('/api/v1/readers', async ({ request }) => {
     const data = await request.json()
-    const readerType = readerTypes.find(t => t.value === data.readerType)
+    const readerType = readerTypes.find((t) => t.value === data.readerType)
 
     const newReader = {
       id: readersData.length + 1,
@@ -108,13 +127,16 @@ export const readersHandlers = [
   http.put('/api/v1/readers/:id', async ({ params, request }) => {
     const { id } = params
     const data = await request.json()
-    const index = readersData.findIndex(r => r.id === parseInt(id))
+    const index = readersData.findIndex((r) => r.id === parseInt(id))
 
     if (index === -1) {
-      return HttpResponse.json({
-        code: 404,
-        message: '读者不存在'
-      }, { status: 404 })
+      return HttpResponse.json(
+        {
+          code: 404,
+          message: '读者不存在'
+        },
+        { status: 404 }
+      )
     }
 
     readersData[index] = {
@@ -133,13 +155,16 @@ export const readersHandlers = [
   // 删除读者
   http.delete('/api/v1/readers/:id', ({ params }) => {
     const { id } = params
-    const index = readersData.findIndex(r => r.id === parseInt(id))
+    const index = readersData.findIndex((r) => r.id === parseInt(id))
 
     if (index === -1) {
-      return HttpResponse.json({
-        code: 404,
-        message: '读者不存在'
-      }, { status: 404 })
+      return HttpResponse.json(
+        {
+          code: 404,
+          message: '读者不存在'
+        },
+        { status: 404 }
+      )
     }
 
     readersData.splice(index, 1)
@@ -153,9 +178,13 @@ export const readersHandlers = [
   // 批量删除读者
   http.delete('/api/v1/readers/batch', ({ request }) => {
     const url = new URL(request.url)
-    const ids = url.searchParams.get('ids')?.split(',').map(id => parseInt(id)) || []
+    const ids =
+      url.searchParams
+        .get('ids')
+        ?.split(',')
+        .map((id) => parseInt(id)) || []
 
-    readersData = readersData.filter(r => !ids.includes(r.id))
+    readersData = readersData.filter((r) => !ids.includes(r.id))
 
     return HttpResponse.json({
       code: 200,
@@ -176,13 +205,16 @@ export const readersHandlers = [
   http.post('/api/v1/readers/:id/card', async ({ params, request }) => {
     const { id } = params
     const data = await request.json()
-    const index = readersData.findIndex(r => r.id === parseInt(id))
+    const index = readersData.findIndex((r) => r.id === parseInt(id))
 
     if (index === -1) {
-      return HttpResponse.json({
-        code: 404,
-        message: '读者不存在'
-      }, { status: 404 })
+      return HttpResponse.json(
+        {
+          code: 404,
+          message: '读者不存在'
+        },
+        { status: 404 }
+      )
     }
 
     readersData[index] = {
@@ -202,13 +234,16 @@ export const readersHandlers = [
   http.put('/api/v1/readers/:id/status', async ({ params, request }) => {
     const { id } = params
     const { status } = await request.json()
-    const index = readersData.findIndex(r => r.id === parseInt(id))
+    const index = readersData.findIndex((r) => r.id === parseInt(id))
 
     if (index === -1) {
-      return HttpResponse.json({
-        code: 404,
-        message: '读者不存在'
-      }, { status: 404 })
+      return HttpResponse.json(
+        {
+          code: 404,
+          message: '读者不存在'
+        },
+        { status: 404 }
+      )
     }
 
     readersData[index].status = status

@@ -542,6 +542,14 @@ export const inventoryHandlers = [
     })
   }),
 
+  // 导出盘点任务报告
+  http.get('/api/v1/inventory/tasks/:id/export', () => {
+    return new HttpResponse('Mock CSV: inventory task export', {
+      status: 200,
+      headers: { 'Content-Type': 'application/octet-stream' }
+    })
+  }),
+
   // 获取库存统计
   http.get('/api/v1/inventory/stats', () => {
     const totalBooks = inventoryData.length

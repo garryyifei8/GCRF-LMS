@@ -287,8 +287,83 @@ export const circulationHandlers = [
     })
   }),
 
-  // 获取流通统计数据
+  // 获取单条借阅记录
+  http.get('/api/v1/borrows/:id', ({ params }) => {
+    const record = circulationData.find((r) => r.id === parseInt(params.id))
+    if (!record) {
+      return HttpResponse.json({ code: 404, message: '借阅记录不存在' }, { status: 404 })
+    }
+    return HttpResponse.json({ code: 200, message: 'success', data: record })
+  }),
+
+  // 批量还书
+  http.post('/api/v1/borrows/batch-return', async ({ request }) => {
+    const { recordIds } = await request.json()
+    if (Array.isArray(recordIds)) {
+      recordIds.forEach((id) => {
+        const index = circulationData.findIndex((r) => r.id === id)
+        if (index !== -1) {
+          circulationData[index] = {
+            ...circulationData[index],
+            returnDate: new Date().toISOString(),
+            status: circulationStatus.RETURNED,
+            updatedAt: new Date().toISOString()
+          }
+        }
+      })
+    }
+    return HttpResponse.json({ code: 200, message: 'success' })
+  }),
+
+  // 获取逾期记录
+  http.get('/api/v1/borrows/overdue', ({ request }) => {
+    const url = new URL(request.url)
+    const pageNum = parseInt(url.searchParams.get('pageNum') || '1')
+    const pageSize = parseInt(url.searchParams.get('pageSize') || '10')
+
+    const overdueRecords = circulationData.filter((r) => r.isOverdue)
+    const total = overdueRecords.length
+    const start = (pageNum - 1) * pageSize
+    const records = overdueRecords.slice(start, start + pageSize)
+
+    return HttpResponse.json({
+      code: 200,
+      message: 'success',
+      data: { records, total, pageNum, pageSize, pages: Math.ceil(total / pageSize) }
+    })
+  }),
+
+  // 预约取书
+  http.post('/api/v1/reserves/:id/pickup', ({ params }) => {
+    const reservationId = parseInt(params.id)
+    const index = reservationData.findIndex((r) => r.id === reservationId)
+    if (index !== -1) {
+      reservationData[index] = {
+        ...reservationData[index],
+        status: reservationStatus.PICKED_UP || 'PICKED_UP',
+        pickupDate: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    }
+    return HttpResponse.json({ code: 200, message: 'success' })
+  }),
+
+  // 预约通知
+  http.post('/api/v1/reserves/:id/notify', ({ params }) => {
+    return HttpResponse.json({ code: 200, message: 'success' })
+  }),
+
+  // 获取流通统计数据 (旧路径 legacy)
   http.get('/api/v1/circulation/stats', () => {
+    return HttpResponse.json({
+      code: 200,
+      message: 'success',
+      data: generateCirculationStats()
+    })
+  }),
+
+  // 获取流通统计数据 (前端调用路径)
+  http.get('/api/v1/analytics/circulation', () => {
     return HttpResponse.json({
       code: 200,
       message: 'success',

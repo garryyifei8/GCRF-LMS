@@ -164,5 +164,48 @@ export const analyticsHandlers = [
       message: 'success',
       data: generateYearlyCirculation()
     })
+  }),
+
+  // 导出借阅统计
+  http.get('/api/v1/analytics/export/borrow-statistics', () => {
+    return new HttpResponse('Mock CSV content for borrow statistics\nDate,Count\n2026-04-01,42', {
+      status: 200,
+      headers: { 'Content-Type': 'application/octet-stream' }
+    })
+  }),
+
+  // 导出热门图书
+  http.get('/api/v1/analytics/export/popular-books', () => {
+    return new HttpResponse('Mock CSV content for popular books\nTitle,BorrowCount\n图书A,120', {
+      status: 200,
+      headers: { 'Content-Type': 'application/octet-stream' }
+    })
+  }),
+
+  // 导出活跃读者
+  http.get('/api/v1/analytics/export/active-readers', () => {
+    return new HttpResponse('Mock CSV content for active readers\nName,BorrowCount\n张三,30', {
+      status: 200,
+      headers: { 'Content-Type': 'application/octet-stream' }
+    })
+  }),
+
+  // 导出分类统计
+  http.get('/api/v1/analytics/export/category-stats', () => {
+    return new HttpResponse('Mock CSV content for category stats\nCategory,Count\n文学,200', {
+      status: 200,
+      headers: { 'Content-Type': 'application/octet-stream' }
+    })
+  }),
+
+  // 导出综合报告
+  http.get('/api/v1/analytics/export/comprehensive-report', () => {
+    return new HttpResponse(
+      'Mock CSV content for comprehensive report\nSection,Data\n借阅总量,1500',
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/octet-stream' }
+      }
+    )
   })
 ]

@@ -51,20 +51,26 @@ export const authHandlers = [
   http.post('/api/v1/auth/login', async ({ request }) => {
     const { username, password } = await request.json()
 
-    const user = users.find(u => u.username === username && u.password === password)
+    const user = users.find((u) => u.username === username && u.password === password)
 
     if (!user) {
-      return HttpResponse.json({
-        code: 401,
-        message: '用户名或密码错误'
-      }, { status: 401 })
+      return HttpResponse.json(
+        {
+          code: 401,
+          message: '用户名或密码错误'
+        },
+        { status: 401 }
+      )
     }
 
     if (user.status !== 'active') {
-      return HttpResponse.json({
-        code: 403,
-        message: '账号已被禁用'
-      }, { status: 403 })
+      return HttpResponse.json(
+        {
+          code: 403,
+          message: '账号已被禁用'
+        },
+        { status: 403 }
+      )
     }
 
     // 生成token(实际应该使用JWT)
@@ -80,7 +86,7 @@ export const authHandlers = [
       data: {
         token,
         user: {
-          userId: id,  // 前端期望的字段名
+          userId: id, // 前端期望的字段名
           ...restUserInfo
         }
       }
@@ -100,15 +106,89 @@ export const authHandlers = [
     })
   }),
 
-  // 获取当前用户信息
+  // 注册
+  http.post('/api/v1/auth/register', async ({ request }) => {
+    const data = await request.json()
+    const newUser = {
+      id: users.length + 1,
+      username: data.username,
+      password: data.password,
+      realName: data.realName || data.username,
+      role: 'operator',
+      roleName: '操作员',
+      avatar: 'https://i.pravatar.cc/150?img=10',
+      email: data.email || '',
+      phone: data.phone || '',
+      status: 'active',
+      permissions: []
+    }
+    users.push(newUser)
+    return HttpResponse.json({
+      code: 200,
+      message: '注册成功',
+      data: { userId: newUser.id, username: newUser.username }
+    })
+  }),
+
+  // 刷新Token
+  http.post('/api/v1/auth/refresh', ({ request }) => {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    if (!token || !tokens.has(token)) {
+      return HttpResponse.json(
+        {
+          code: 401,
+          message: '未登录或登录已过期'
+        },
+        { status: 401 }
+      )
+    }
+    const newToken = `mock-token-refresh-${Date.now()}`
+    const user = tokens.get(token)
+    tokens.delete(token)
+    tokens.set(newToken, user)
+    return HttpResponse.json({
+      code: 200,
+      message: 'success',
+      data: { token: newToken }
+    })
+  }),
+
+  // 获取当前用户信息 (前端调用路径)
+  http.get('/api/v1/auth/info', ({ request }) => {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+
+    if (!token || !tokens.has(token)) {
+      return HttpResponse.json(
+        {
+          code: 401,
+          message: '未登录或登录已过期'
+        },
+        { status: 401 }
+      )
+    }
+
+    const user = tokens.get(token)
+    const { password: _, ...userInfo } = user
+
+    return HttpResponse.json({
+      code: 200,
+      message: 'success',
+      data: userInfo
+    })
+  }),
+
+  // 获取当前用户信息 (旧路径 legacy)
   http.get('/api/v1/auth/user/info', ({ request }) => {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '')
 
     if (!token || !tokens.has(token)) {
-      return HttpResponse.json({
-        code: 401,
-        message: '未登录或登录已过期'
-      }, { status: 401 })
+      return HttpResponse.json(
+        {
+          code: 401,
+          message: '未登录或登录已过期'
+        },
+        { status: 401 }
+      )
     }
 
     const user = tokens.get(token)
@@ -127,23 +207,29 @@ export const authHandlers = [
     const { oldPassword, newPassword } = await request.json()
 
     if (!token || !tokens.has(token)) {
-      return HttpResponse.json({
-        code: 401,
-        message: '未登录或登录已过期'
-      }, { status: 401 })
+      return HttpResponse.json(
+        {
+          code: 401,
+          message: '未登录或登录已过期'
+        },
+        { status: 401 }
+      )
     }
 
     const user = tokens.get(token)
 
     if (user.password !== oldPassword) {
-      return HttpResponse.json({
-        code: 400,
-        message: '原密码错误'
-      }, { status: 400 })
+      return HttpResponse.json(
+        {
+          code: 400,
+          message: '原密码错误'
+        },
+        { status: 400 }
+      )
     }
 
     // 更新密码
-    const userIndex = users.findIndex(u => u.id === user.id)
+    const userIndex = users.findIndex((u) => u.id === user.id)
     users[userIndex].password = newPassword
 
     return HttpResponse.json({
@@ -158,14 +244,17 @@ export const authHandlers = [
     const updateData = await request.json()
 
     if (!token || !tokens.has(token)) {
-      return HttpResponse.json({
-        code: 401,
-        message: '未登录或登录已过期'
-      }, { status: 401 })
+      return HttpResponse.json(
+        {
+          code: 401,
+          message: '未登录或登录已过期'
+        },
+        { status: 401 }
+      )
     }
 
     const user = tokens.get(token)
-    const userIndex = users.findIndex(u => u.id === user.id)
+    const userIndex = users.findIndex((u) => u.id === user.id)
 
     // 更新用户信息(除了密码和权限)
     const { password, permissions, ...allowedUpdates } = updateData
