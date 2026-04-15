@@ -1,5 +1,5 @@
 server:
-  port: 8087
+  port: 8086
 
 spring:
   application:
@@ -83,10 +83,23 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,prometheus
+      base-path: /actuator
   endpoint:
     health:
       show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      service: recommend-service
+  health:
+    defaults:
+      enabled: true
 
 # SpringDoc
 springdoc:

@@ -1,5 +1,5 @@
 server:
-  port: 8085
+  port: 8090
 
 spring:
   application:
@@ -67,7 +67,20 @@ management:
   endpoints:
     web:
       exposure:
-        include: '*'
+        include: health,info,prometheus
+      base-path: /actuator
   endpoint:
     health:
       show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      service: notification-service
+  health:
+    defaults:
+      enabled: true

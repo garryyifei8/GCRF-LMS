@@ -1,5 +1,5 @@
 server:
-  port: 8087
+  port: 8089
 
 spring:
   application:
@@ -79,3 +79,26 @@ knife4j:
   setting:
     language: zh_cn
     swagger-model-name: 实体类列表
+
+# Management
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      service: analytics-service
+  health:
+    defaults:
+      enabled: true
