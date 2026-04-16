@@ -2,6 +2,8 @@ package com.gcrf.library.system.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.gcrf.library.common.exception.BusinessException;
+import com.gcrf.library.common.result.Result;
+import com.gcrf.library.system.client.AuthServiceClient;
 import com.gcrf.library.system.dto.request.MenuCreateRequest;
 import com.gcrf.library.system.dto.request.MenuUpdateRequest;
 import com.gcrf.library.system.dto.response.MenuTreeVO;
@@ -38,6 +40,9 @@ class MenuServiceTest {
 
     @Mock
     private RoleMenuMapper roleMenuMapper;
+
+    @Mock
+    private AuthServiceClient authServiceClient;
 
     @InjectMocks
     private MenuServiceImpl menuService;
@@ -144,6 +149,9 @@ class MenuServiceTest {
     @Test
     void testGetUserMenus_Success() {
         // Given
+        when(authServiceClient.getUserRoleIds(1L))
+            .thenReturn(Result.success(Arrays.asList(1L)));
+
         RoleMenu rm1 = new RoleMenu();
         rm1.setRoleId(1L);
         rm1.setMenuId(1L);
@@ -168,6 +176,8 @@ class MenuServiceTest {
     @Test
     void testGetUserMenus_EmptyResult() {
         // Given
+        when(authServiceClient.getUserRoleIds(1L))
+            .thenReturn(Result.success(Arrays.asList(1L)));
         when(roleMenuMapper.selectList(any(LambdaQueryWrapper.class)))
             .thenReturn(List.of());
 
@@ -278,6 +288,9 @@ class MenuServiceTest {
     void testGetUserMenus_FiltersByRole() {
         // Given
         childMenu.setIsVisible(false); // 不可见菜单
+
+        when(authServiceClient.getUserRoleIds(1L))
+            .thenReturn(Result.success(Arrays.asList(1L)));
 
         RoleMenu rm = new RoleMenu();
         rm.setMenuId(2L);

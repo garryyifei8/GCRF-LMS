@@ -1,5 +1,6 @@
 package com.gcrf.library.auth.config;
 
+import com.gcrf.library.common.test.BaseIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -30,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-class SecurityConfigTest {
+class SecurityConfigTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
