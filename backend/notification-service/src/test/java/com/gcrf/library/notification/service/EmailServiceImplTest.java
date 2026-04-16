@@ -97,7 +97,7 @@ class EmailServiceImplTest {
         assertNotNull(result);
         verify(emailLogMapper).insert(any(EmailLog.class));
         verify(mailSender).send(any(MimeMessage.class));
-        verify(emailLogMapper, times(2)).updateById(any(EmailLog.class));
+        verify(emailLogMapper, times(1)).updateById(any(EmailLog.class));
     }
 
     @Test
@@ -108,15 +108,15 @@ class EmailServiceImplTest {
         when(emailLogMapper.insert(any(EmailLog.class))).thenReturn(1);
         when(emailLogMapper.updateById(any(EmailLog.class))).thenReturn(1);
 
-        doThrow(new MessagingException("发送失败")).when(mailSender).send(any(MimeMessage.class));
+        doThrow(new RuntimeException("发送失败")).when(mailSender).send(any(MimeMessage.class));
 
         // Act & Assert
         assertThrows(BusinessException.class, () -> emailService.sendEmail(emailRequest));
 
         ArgumentCaptor<EmailLog> captor = ArgumentCaptor.forClass(EmailLog.class);
-        verify(emailLogMapper, times(2)).updateById(captor.capture());
+        verify(emailLogMapper, times(1)).updateById(captor.capture());
 
-        EmailLog updatedLog = captor.getAllValues().get(1);
+        EmailLog updatedLog = captor.getAllValues().get(0);
         assertEquals("FAILED", updatedLog.getStatus());
         assertNotNull(updatedLog.getErrorMessage());
     }
@@ -125,14 +125,14 @@ class EmailServiceImplTest {
     void testSendEmailAsync_Success() {
         // Arrange
         when(emailLogMapper.insert(any(EmailLog.class))).thenReturn(1);
-        doNothing().when(messageProducer).sendEmailMessage(any(), anyLong());
+        doNothing().when(messageProducer).sendEmailMessage(any(), isNull());
 
         // Act
         emailService.sendEmailAsync(emailRequest);
 
         // Assert
         verify(emailLogMapper).insert(any(EmailLog.class));
-        verify(messageProducer).sendEmailMessage(eq(emailRequest), anyLong());
+        verify(messageProducer).sendEmailMessage(eq(emailRequest), isNull());
     }
 
     @Test

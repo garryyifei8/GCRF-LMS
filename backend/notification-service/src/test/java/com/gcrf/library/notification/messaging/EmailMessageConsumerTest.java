@@ -117,7 +117,7 @@ class EmailMessageConsumerTest {
 
         MimeMessage mimeMessage = mock(MimeMessage.class);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-        doThrow(new MessagingException("发送失败")).when(mailSender).send(any(MimeMessage.class));
+        doThrow(new RuntimeException("发送失败")).when(mailSender).send(any(MimeMessage.class));
 
         // Act & Assert
         assertThrows(RuntimeException.class, () -> emailConsumer.consumeEmailMessage(message));
@@ -139,7 +139,7 @@ class EmailMessageConsumerTest {
 
         MimeMessage mimeMessage = mock(MimeMessage.class);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-        doThrow(new MessagingException("发送失败")).when(mailSender).send(any(MimeMessage.class));
+        doThrow(new RuntimeException("发送失败")).when(mailSender).send(any(MimeMessage.class));
 
         // Act - 不应该抛出异常,因为已达到最大重试次数
         emailConsumer.consumeEmailMessage(message);

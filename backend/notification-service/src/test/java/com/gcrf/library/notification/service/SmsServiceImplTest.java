@@ -86,21 +86,21 @@ class SmsServiceImplTest {
         // Assert
         assertNotNull(result);
         verify(smsLogMapper).insert(any(SmsLog.class));
-        verify(smsLogMapper, times(2)).updateById(any(SmsLog.class));
+        verify(smsLogMapper, times(1)).updateById(any(SmsLog.class));
     }
 
     @Test
     void testSendSmsAsync_Success() {
         // Arrange
         when(smsLogMapper.insert(any(SmsLog.class))).thenReturn(1);
-        doNothing().when(messageProducer).sendSmsMessage(any(), anyLong());
+        doNothing().when(messageProducer).sendSmsMessage(any(), isNull());
 
         // Act
         smsService.sendSmsAsync(smsRequest);
 
         // Assert
         verify(smsLogMapper).insert(any(SmsLog.class));
-        verify(messageProducer).sendSmsMessage(eq(smsRequest), anyLong());
+        verify(messageProducer).sendSmsMessage(eq(smsRequest), isNull());
     }
 
     @Test

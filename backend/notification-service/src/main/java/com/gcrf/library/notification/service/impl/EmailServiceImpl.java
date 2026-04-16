@@ -74,8 +74,8 @@ public class EmailServiceImpl implements EmailService {
 
             log.info("邮件发送成功, recipient: {}, subject: {}", request.getRecipient(), request.getSubject());
 
-        } catch (MessagingException e) {
-            // 更新状态为失败
+        } catch (Exception e) {
+            // 更新状态为失败 (catches MessagingException from helper setup and MailException from send)
             emailLog.setStatus("FAILED");
             emailLog.setErrorMessage(e.getMessage());
             emailLog.setRetryCount(emailLog.getRetryCount() + 1);

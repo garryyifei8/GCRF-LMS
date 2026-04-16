@@ -88,7 +88,7 @@ class WebSocketNotificationServiceImplTest {
     void testBroadcastToAll_Success() {
         // Arrange
         when(userRegistry.getUserCount()).thenReturn(10);
-        doNothing().when(messagingTemplate).convertAndSend(anyString(), any());
+        doNothing().when(messagingTemplate).convertAndSend(anyString(), (Object) any());
 
         // Act
         webSocketService.broadcastToAll(notification);
@@ -96,7 +96,7 @@ class WebSocketNotificationServiceImplTest {
         // Assert
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/notifications"),
-                eq(notification)
+                (Object) eq(notification)
         );
     }
 
@@ -123,7 +123,7 @@ class WebSocketNotificationServiceImplTest {
     void testPushToTopic_Success() {
         // Arrange
         String topic = "announcements";
-        doNothing().when(messagingTemplate).convertAndSend(anyString(), any());
+        doNothing().when(messagingTemplate).convertAndSend(anyString(), (Object) any());
 
         // Act
         webSocketService.pushToTopic(topic, notification);
@@ -131,7 +131,7 @@ class WebSocketNotificationServiceImplTest {
         // Assert
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/" + topic),
-                eq(notification)
+                (Object) eq(notification)
         );
     }
 
@@ -173,7 +173,7 @@ class WebSocketNotificationServiceImplTest {
         request.setPriority("HIGH");
 
         when(userRegistry.getUserCount()).thenReturn(10);
-        doNothing().when(messagingTemplate).convertAndSend(anyString(), any());
+        doNothing().when(messagingTemplate).convertAndSend(anyString(), (Object) any());
 
         // Act
         webSocketService.pushAsync(request);
@@ -181,7 +181,7 @@ class WebSocketNotificationServiceImplTest {
         // Assert
         verify(messagingTemplate, atLeastOnce()).convertAndSend(
                 eq("/topic/notifications"),
-                any(NotificationVO.class)
+                (Object) any(NotificationVO.class)
         );
     }
 
@@ -196,7 +196,7 @@ class WebSocketNotificationServiceImplTest {
         request.setNotificationType("BUSINESS");
         request.setPriority("MEDIUM");
 
-        doNothing().when(messagingTemplate).convertAndSend(anyString(), any());
+        doNothing().when(messagingTemplate).convertAndSend(anyString(), (Object) any());
 
         // Act
         webSocketService.pushAsync(request);
@@ -204,7 +204,7 @@ class WebSocketNotificationServiceImplTest {
         // Assert
         verify(messagingTemplate, atLeastOnce()).convertAndSend(
                 eq("/topic/announcements"),
-                any(NotificationVO.class)
+                (Object) any(NotificationVO.class)
         );
     }
 
