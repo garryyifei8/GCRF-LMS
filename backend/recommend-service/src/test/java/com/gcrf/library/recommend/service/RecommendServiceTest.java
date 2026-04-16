@@ -1,6 +1,8 @@
 package com.gcrf.library.recommend.service;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.gcrf.library.common.result.PageResult;
 import com.gcrf.library.recommend.algorithm.HybridRecommender;
 import com.gcrf.library.recommend.algorithm.ItemBasedCF;
@@ -13,8 +15,9 @@ import com.gcrf.library.recommend.entity.RecommendationLog;
 import com.gcrf.library.recommend.mapper.BorrowHistoryMapper;
 import com.gcrf.library.recommend.mapper.RecommendationLogMapper;
 import com.gcrf.library.recommend.service.impl.RecommendServiceImpl;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,6 +68,14 @@ class RecommendServiceTest {
 
     private RecommendationVO rec1;
     private RecommendationVO rec2;
+
+    @BeforeAll
+    static void initMapper() {
+        TableInfoHelper.initTableInfo(
+            new MapperBuilderAssistant(new MybatisConfiguration(), ""),
+            RecommendationLog.class
+        );
+    }
 
     @BeforeEach
     void setUp() {
@@ -220,7 +231,6 @@ class RecommendServiceTest {
     }
 
     @Test
-    @Disabled("TODO: MyBatis-Plus lambda cache missing for RecommendationLog — add TableInfoHelper.initTableInfo in @BeforeAll")
     @DisplayName("recordClick_normalCase_shouldUpdateClickedStatus")
     void recordClick_normalCase_shouldUpdateClickedStatus() {
         // Arrange
@@ -234,7 +244,6 @@ class RecommendServiceTest {
     }
 
     @Test
-    @Disabled("TODO: MyBatis-Plus lambda cache missing for RecommendationLog — add TableInfoHelper.initTableInfo in @BeforeAll")
     @DisplayName("recordBorrow_normalCase_shouldUpdateBorrowedStatus")
     void recordBorrow_normalCase_shouldUpdateBorrowedStatus() {
         // Arrange
