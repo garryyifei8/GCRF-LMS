@@ -13,7 +13,6 @@ import com.gcrf.library.chat.entity.HotQuestionStats;
 import com.gcrf.library.chat.mapper.*;
 import com.gcrf.library.chat.service.impl.ChatServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -211,7 +210,6 @@ class ChatServiceTest {
     }
 
     @Test
-    @Disabled("TODO: mock chain produces 87.5% not 80% — investigate selectCount call order in impl")
     @DisplayName("getChatStats_withFeedback_shouldCalculateSuccessRate")
     void getChatStats_withFeedback_shouldCalculateSuccessRate() {
         // Arrange - mock message counts
@@ -223,10 +221,11 @@ class ChatServiceTest {
         when(chatSessionMapper.selectCount(any(LambdaQueryWrapper.class)))
                 .thenReturn(5L);
 
-        // mock feedback counts
+        // First call: helpfulCount uses LambdaQueryWrapper; second call: totalFeedback uses null wrapper
         when(chatFeedbackMapper.selectCount(any(LambdaQueryWrapper.class)))
-                .thenReturn(80L)   // helpful count
-                .thenReturn(100L); // total feedback
+                .thenReturn(80L);  // helpful count
+        when(chatFeedbackMapper.selectCount(isNull()))
+                .thenReturn(100L); // total feedback (selectCount(null))
 
         // Act
         ChatStatsVO result = chatService.getChatStats();
