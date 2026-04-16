@@ -95,6 +95,14 @@ jobs:
           name: backend-test-reports
           path: backend/**/target/surefire-reports/
 
+      - name: Upload JaCoCo reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-jacoco-reports
+          path: backend/**/target/site/jacoco/
+          retention-days: 14
+
   docker-build-smoke:
     name: Docker Build Smoke
     runs-on: ubuntu-latest
