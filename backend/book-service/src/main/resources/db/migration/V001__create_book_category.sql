@@ -392,7 +392,7 @@ WITH RECURSIVE category_tree AS (
         category_code,
         path,
         level,
-        category_name AS full_name,
+        category_name::TEXT AS full_name,
         book_count,
         child_count,
         sort_order,

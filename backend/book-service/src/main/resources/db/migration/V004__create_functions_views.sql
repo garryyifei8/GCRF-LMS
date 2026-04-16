@@ -335,7 +335,7 @@ WITH RECURSIVE category_tree AS (
         c.category_code,
         c.path,
         c.level,
-        c.category_name AS full_path,
+        c.category_name::TEXT AS full_path,
         c.book_count,
         c.child_count,
         c.sort_order,

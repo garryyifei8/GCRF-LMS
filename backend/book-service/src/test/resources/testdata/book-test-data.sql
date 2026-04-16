@@ -29,12 +29,12 @@ VALUES
      'http://example.com/cover1.jpg', NULL, NULL, NULL,
      10, 8, 2, 0, 0, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
-    -- Book 2: Out of stock book
+    -- Book 2: Out of stock book (total=5, available=0, borrowed=5, reserved=0 to satisfy consistency)
     (1001, '9781234567891', 'Test Book 2', 'Advanced Testing', 'Jane Smith', 'Tom Brown',
      'Tech Publisher', '2023-06-15', '2nd Edition', 450, 69.99, 'Hardcover', 'English',
      'CS.AI', 'testing, advanced, automation', 'Advanced testing techniques',
      'http://example.com/cover2.jpg', 'http://example.com/book2.pdf', 'book2.pdf', 1048576,
-     5, 0, 5, 2, 0, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+     5, 0, 5, 0, 0, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
     -- Book 3: Inactive book
     (1002, '9781234567892', 'Test Book 3', 'Legacy Testing', 'Old Author', NULL,

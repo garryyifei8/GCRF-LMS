@@ -132,17 +132,15 @@ CREATE INDEX IF NOT EXISTS idx_attachments_downloads
 -- 6. Statistical and Reporting Indexes
 -- =========================================
 
--- Index for books added in recent periods
+-- Index for books added in recent periods (no time-based predicate: CURRENT_DATE is not immutable)
 CREATE INDEX IF NOT EXISTS idx_books_created_recent
     ON books(created_at DESC)
-    WHERE deleted_at IS NULL
-        AND created_at > CURRENT_DATE - INTERVAL '90 days';
+    WHERE deleted_at IS NULL;
 
--- Index for frequently updated books
+-- Index for frequently updated books (no time-based predicate: CURRENT_DATE is not immutable)
 CREATE INDEX IF NOT EXISTS idx_books_updated_recent
     ON books(updated_at DESC)
-    WHERE deleted_at IS NULL
-        AND updated_at > CURRENT_DATE - INTERVAL '30 days';
+    WHERE deleted_at IS NULL;
 
 -- Index for version control (optimistic locking)
 CREATE INDEX IF NOT EXISTS idx_books_version_high
