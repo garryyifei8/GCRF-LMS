@@ -418,6 +418,43 @@
                         <skipTests>false</skipTests>
                     </configuration>
                 </plugin>
+
+                <!-- JaCoCo Maven Plugin -->
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.11</version>
+                    <executions>
+                        <execution>
+                            <id>prepare-agent</id>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>report</id>
+                            <phase>test</phase>
+                            <goals>
+                                <goal>report</goal>
+                            </goals>
+                            <configuration>
+                                <formats>
+                                    <format>XML</format>
+                                    <format>HTML</format>
+                                </formats>
+                            </configuration>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <excludes>
+                            <exclude>**/entity/**</exclude>
+                            <exclude>**/dto/**</exclude>
+                            <exclude>**/vo/**</exclude>
+                            <exclude>**/*Application.class</exclude>
+                            <exclude>**/config/**</exclude>
+                        </excludes>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -425,6 +462,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
