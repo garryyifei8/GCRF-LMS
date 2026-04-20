@@ -227,18 +227,15 @@ router.beforeEach((to, from, next) => {
     ? `${to.meta.title} - 国创睿峰智能图书馆管理系统`
     : '国创睿峰智能图书馆管理系统'
 
-  // 权限验证 - 临时禁用用于集成测试
-  // const userStore = useUserStore()
-  // const requiresAuth = to.matched.some((record) => record.meta.requiresAuth !== false)
+  // 权限验证
+  const userStore = useUserStore()
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth !== false)
 
-  // if (requiresAuth && !userStore.token) {
-  //   next({ name: 'Login', query: { redirect: to.fullPath } })
-  // } else {
-  //   next()
-  // }
-
-  // 临时允许所有路由访问（集成测试）
-  next()
+  if (requiresAuth && !userStore.token) {
+    next({ name: 'Login', query: { redirect: to.fullPath } })
+  } else {
+    next()
+  }
 })
 
 router.afterEach(() => {
