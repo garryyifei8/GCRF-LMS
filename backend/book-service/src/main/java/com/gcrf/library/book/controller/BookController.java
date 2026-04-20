@@ -1,5 +1,6 @@
 package com.gcrf.library.book.controller;
 
+import com.gcrf.library.common.exception.BusinessException;
 import com.gcrf.library.book.dto.BookQueryRequest;
 import com.gcrf.library.book.dto.request.BarcodeGenerateRequest;
 import com.gcrf.library.book.dto.request.BatchDeleteRequest;
@@ -97,6 +98,39 @@ public class BookController {
     public Result<Void> deleteBook(@PathVariable Long id) {
         log.info("删除图书: id={}", id);
         bookService.deleteBook(id);
+        return Result.success();
+    }
+
+    /**
+     * 检查图书可借状态（供流通服务 Feign 调用）
+     */
+    @GetMapping("/{bookId}/availability")
+    @Operation(summary = "检查图书可借状态", description = "检查指定图书是否有可借副本，供流通服务调用")
+    public Result<Boolean> checkAvailability(@PathVariable Long bookId) {
+        log.info("检查图书可借状态: bookId={}", bookId);
+        boolean available = bookService.checkAvailability(bookId);
+        return Result.success(available);
+    }
+
+    /**
+     * 减少图书可借数量（借书时调用，供流通服务 Feign 调用）
+     */
+    @PostMapping("/{bookId}/decrease-copies")
+    @Operation(summary = "减少可借数量", description = "借书时减少图书可借副本数量，供流通服务调用")
+    public Result<Void> decreaseAvailableCopies(@PathVariable Long bookId) {
+        log.info("减少图书可借数量: bookId={}", bookId);
+        bookService.decreaseAvailableQuantity(bookId);
+        return Result.success();
+    }
+
+    /**
+     * 增加图书可借数量（还书时调用，供流通服务 Feign 调用）
+     */
+    @PostMapping("/{bookId}/increase-copies")
+    @Operation(summary = "增加可借数量", description = "还书时增加图书可借副本数量，供流通服务调用")
+    public Result<Void> increaseAvailableCopies(@PathVariable Long bookId) {
+        log.info("增加图书可借数量: bookId={}", bookId);
+        bookService.increaseAvailableQuantity(bookId);
         return Result.success();
     }
 

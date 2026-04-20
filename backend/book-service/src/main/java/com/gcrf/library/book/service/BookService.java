@@ -55,6 +55,14 @@ public interface BookService {
     void deleteBook(Long id);
 
     /**
+     * 检查图书是否可借
+     *
+     * @param bookId 图书ID
+     * @return true=可借, false=不可借或不存在
+     */
+    boolean checkAvailability(Long bookId);
+
+    /**
      * 减少可借数量
      *
      * @param bookId 图书ID

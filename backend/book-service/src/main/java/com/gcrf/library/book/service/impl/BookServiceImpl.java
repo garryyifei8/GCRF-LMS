@@ -233,6 +233,18 @@ public class BookServiceImpl implements BookService {
     }
 
     /**
+     * 检查图书是否可借
+     */
+    @Override
+    public boolean checkAvailability(Long bookId) {
+        Book book = bookMapper.selectById(bookId);
+        if (book == null || book.getDeletedAt() != null) {
+            return false;
+        }
+        return book.getAvailableQuantity() != null && book.getAvailableQuantity() > 0;
+    }
+
+    /**
      * 减少可借数量
      */
     @Override
