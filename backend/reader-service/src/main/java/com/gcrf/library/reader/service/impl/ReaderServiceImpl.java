@@ -263,6 +263,20 @@ public class ReaderServiceImpl implements ReaderService {
         return ReaderDetailVO.from(reader);
     }
 
+    @Override
+    public boolean validateReaderStatus(Long readerId) {
+        Reader reader = readerMapper.selectById(readerId);
+        if (reader == null || reader.getDeletedAt() != null) {
+            log.info("验证读者状态: readerId={}, 结果=false (读者不存在或已删除)", readerId);
+            return false;
+        }
+        boolean isActive = "ACTIVE".equalsIgnoreCase(reader.getStatus());
+        boolean notExpired = reader.getExpiryDate() == null || reader.getExpiryDate().isAfter(LocalDate.now());
+        boolean valid = isActive && notExpired;
+        log.info("验证读者状态: readerId={}, status={}, expiryDate={}, 结果={}", readerId, reader.getStatus(), reader.getExpiryDate(), valid);
+        return valid;
+    }
+
     /**
      * 根据读者类型获取默认最大借阅数量
      */

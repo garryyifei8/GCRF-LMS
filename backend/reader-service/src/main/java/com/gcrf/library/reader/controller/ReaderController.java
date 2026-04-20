@@ -275,6 +275,20 @@ public class ReaderController {
     }
 
     /**
+     * 验证读者状态（是否可以借书）
+     * - 状态为 ACTIVE
+     * - 未过期（expiryDate > now）
+     */
+    @Operation(summary = "验证读者状态", description = "验证读者是否处于可借书状态（供流通服务Feign调用）")
+    @Parameter(name = "readerId", description = "读者ID", required = true)
+    @GetMapping("/{readerId}/validate-status")
+    public Result<Boolean> validateReaderStatus(@PathVariable Long readerId) {
+        log.info("验证读者状态: readerId={}", readerId);
+        boolean valid = readerService.validateReaderStatus(readerId);
+        return Result.success(valid);
+    }
+
+    /**
      * 健康检查
      */
     @GetMapping("/health")

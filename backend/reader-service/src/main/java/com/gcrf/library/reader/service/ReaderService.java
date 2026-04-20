@@ -83,4 +83,12 @@ public interface ReaderService {
      * @return 读者详情
      */
     ReaderDetailVO cancelCard(Long id);
+
+    /**
+     * 验证读者状态（是否可以借书）
+     *
+     * @param readerId 读者ID
+     * @return true表示状态正常可借书，false表示不可借书
+     */
+    boolean validateReaderStatus(Long readerId);
 }
