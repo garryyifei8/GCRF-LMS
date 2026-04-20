@@ -58,4 +58,11 @@ public interface AnalyticsService {
      * @return 热力图数据
      */
     HeatmapDataVO getReaderActivityHeatmap();
+
+    /**
+     * 获取分类统计数据（仪表盘用，与分类分布数据相同结构）
+     *
+     * @return 分类统计列表
+     */
+    List<CategoryDistributionVO> getCategoryStats();
 }

@@ -97,6 +97,17 @@ public class AnalyticsController {
     }
 
     /**
+     * 获取分类统计数据（仪表盘专用）
+     */
+    @Operation(summary = "获取分类统计", description = "获取图书分类统计数据，供仪表盘图表使用")
+    @GetMapping("/category-stats")
+    public Result<List<CategoryDistributionVO>> getCategoryStats() {
+        log.info("获取分类统计数据");
+        List<CategoryDistributionVO> stats = analyticsService.getCategoryStats();
+        return Result.success(stats);
+    }
+
+    /**
      * 健康检查
      */
     @GetMapping("/health")

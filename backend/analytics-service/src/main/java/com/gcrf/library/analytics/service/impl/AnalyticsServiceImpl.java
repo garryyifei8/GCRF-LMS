@@ -298,6 +298,13 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .build();
     }
 
+    @Override
+    public List<CategoryDistributionVO> getCategoryStats() {
+        log.info("获取分类统计数据");
+        // 复用分类分布逻辑，返回相同结构的数据
+        return getCategoryDistribution();
+    }
+
     // ==================== 辅助方法 ====================
 
     private int getDaysFromTimeRange(String timeRange) {
