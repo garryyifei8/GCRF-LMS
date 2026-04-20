@@ -1,0 +1,11 @@
+# Local dev profile: direct service URLs (no Nacos required)
+spring:
+  cloud:
+    discovery:
+      client:
+        simple:
+          instances:
+            reader-service:
+              - uri: http://localhost:18084
+            book-service:
+              - uri: http://localhost:18082
