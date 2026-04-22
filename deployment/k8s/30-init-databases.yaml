@@ -1,0 +1,25 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gcrf-init-db
+  namespace: gcrf-prod
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: init-db
+          image: postgres:15-alpine
+          command: ["sh", "-c"]
+          args:
+            - |
+              for db in gcrf_auth gcrf_book gcrf_circulation gcrf_reader gcrf_system gcrf_analytics gcrf_chat gcrf_recommend; do
+                echo "Creating database: $db"
+                PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_HOST -U $POSTGRES_USER -tc "SELECT 1 FROM pg_database WHERE datname='$db'" | grep -q 1 || \
+                PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_HOST -U $POSTGRES_USER -c "CREATE DATABASE $db"
+              done
+              echo "All GCRF databases created."
+          envFrom:
+            - secretRef: { name: gcrf-db-secret }
