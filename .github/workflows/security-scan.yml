@@ -100,7 +100,7 @@ jobs:
           fi
 
       - name: Upload image artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.service }}-image
           path: /tmp/${{ matrix.service }}.tar.gz
@@ -210,7 +210,7 @@ jobs:
           fi
 
       - name: Upload scan reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: trivy-reports-${{ matrix.service }}
@@ -281,7 +281,7 @@ jobs:
           output: 'sbom-${{ matrix.service }}.spdx.json'
 
       - name: Upload SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ matrix.service }}
           path: sbom-${{ matrix.service }}.spdx.json
@@ -369,7 +369,7 @@ jobs:
           EOF
 
       - name: Upload consolidated report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: consolidated-security-report
           path: consolidated-report.md
