@@ -11,6 +11,12 @@ const routes = [
     meta: { title: '登录', requiresAuth: false }
   },
   {
+    path: '/init',
+    name: 'Init',
+    component: () => import('@/views/init/index.vue'),
+    meta: { title: '系统初始化', requiresAuth: false }
+  },
+  {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     redirect: '/dashboard',
@@ -187,6 +193,24 @@ const routes = [
             name: 'ProfilePassword',
             component: () => import('@/views/profile/password.vue'),
             meta: { title: '修改密码' }
+          },
+          {
+            path: 'help',
+            name: 'ProfileHelp',
+            component: () => import('@/views/profile/help.vue'),
+            meta: { title: '帮助' }
+          },
+          {
+            path: 'feedback',
+            name: 'ProfileFeedback',
+            component: () => import('@/views/profile/feedback.vue'),
+            meta: { title: '问题反馈' }
+          },
+          {
+            path: 'messages',
+            name: 'ProfileMessages',
+            component: () => import('@/views/profile/messages.vue'),
+            meta: { title: '消息中心' }
           }
         ]
       },
@@ -219,7 +243,7 @@ const router = createRouter({
 })
 
 // 全局前置守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   NProgress.start()
 
   // 设置页面标题
@@ -227,15 +251,37 @@ router.beforeEach((to, from, next) => {
     ? `${to.meta.title} - 国创睿峰智能图书馆管理系统`
     : '国创睿峰智能图书馆管理系统'
 
-  // 权限验证
   const userStore = useUserStore()
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth !== false)
 
+  // 1. 登录页 / 初始化页 — 直接放行
+  if (to.name === 'Login' || to.name === 'Init') {
+    next()
+    return
+  }
+
+  // 2. 未登录 — 跳转登录
   if (requiresAuth && !userStore.token) {
     next({ name: 'Login', query: { redirect: to.fullPath } })
-  } else {
-    next()
+    return
   }
+
+  // 3. 已登录时检查系统是否已初始化
+  if (userStore.token && to.name !== 'Init') {
+    try {
+      const { checkInitialized } = await import('@/api/system')
+      const res = await checkInitialized()
+      if (res?.code === 200 && res.data === false) {
+        next({ name: 'Init' })
+        return
+      }
+    } catch (e) {
+      // API 异常不阻断正常访问（可能是网络抖动）
+      console.warn('init check failed:', e)
+    }
+  }
+
+  next()
 })
 
 router.afterEach(() => {

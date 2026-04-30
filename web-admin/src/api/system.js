@@ -125,6 +125,87 @@ export function batchDeleteUsers(ids) {
 }
 
 // ========================================
+// 消息中心 API
+// ========================================
+
+/**
+ * 获取用户消息列表
+ * @param {Object} params - 查询参数
+ * @param {number} params.userId - 用户ID
+ * @param {number} params.pageNum - 页码
+ * @param {number} params.pageSize - 每页数量
+ * @returns {Promise}
+ */
+export function getMessages(params) {
+  return request({
+    url: '/api/v1/system/messages',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取未读消息数量
+ * @param {number} userId - 用户ID
+ * @returns {Promise}
+ */
+export function getUnreadCount(userId) {
+  return request({
+    url: '/api/v1/system/messages/unread-count',
+    method: 'get',
+    params: { userId }
+  })
+}
+
+/**
+ * 标记消息为已读
+ * @param {number} id - 消息ID
+ * @returns {Promise}
+ */
+export function markMessageRead(id) {
+  return request({
+    url: `/api/v1/system/messages/${id}/read`,
+    method: 'put'
+  })
+}
+
+// ========================================
+// 问题反馈 API
+// ========================================
+
+/**
+ * 提交反馈
+ * @param {Object} data - 反馈数据
+ * @param {number} data.userId - 用户ID
+ * @param {string} data.userName - 用户名称
+ * @param {string} data.title - 反馈标题
+ * @param {string} data.content - 反馈内容
+ * @param {string} data.feedbackType - 反馈类型 (BUG/FEATURE/OTHER)
+ * @returns {Promise}
+ */
+export function submitFeedback(data) {
+  return request({
+    url: '/api/v1/system/feedback',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 获取用户反馈列表
+ * @param {Object} params - 查询参数
+ * @param {number} params.userId - 用户ID
+ * @returns {Promise}
+ */
+export function getFeedback(params) {
+  return request({
+    url: '/api/v1/system/feedback',
+    method: 'get',
+    params
+  })
+}
+
+// ========================================
 // 角色管理 API
 // ========================================
 
@@ -344,5 +425,96 @@ export function deleteDepartment(id) {
   return request({
     url: `/api/v1/system/departments/${id}`,
     method: 'delete'
+  })
+}
+
+// ========================================
+// 系统配置 API
+// ========================================
+
+/**
+ * 检查系统是否已完成初始化
+ * @returns {Promise<{code: number, data: boolean}>}
+ */
+export function checkInitialized() {
+  return request({
+    url: '/api/v1/system/config/initialized',
+    method: 'get'
+  })
+}
+
+/**
+ * 提交系统初始化配置（首次部署向导）
+ * @param {Record<string,string>} data - 初始化配置 kv 对象
+ * @returns {Promise<{code: number, data: null}>}
+ */
+export function initializeSystem(data) {
+  return request({
+    url: '/api/v1/system/config/initialize',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 获取所有系统配置项
+ * @returns {Promise<{code: number, data: Record<string,string>}>}
+ */
+export function getSystemConfig() {
+  return request({
+    url: '/api/v1/system/config',
+    method: 'get'
+  })
+}
+
+/**
+ * 批量保存系统配置项
+ * @param {Record<string,string>} data - kv 对象
+ * @returns {Promise}
+ */
+export function saveSystemConfig(data) {
+  return request({
+    url: '/api/v1/system/config',
+    method: 'put',
+    data
+  })
+}
+
+// ========================================
+// 数据备份 API
+// ========================================
+
+/**
+ * 触发一次手动备份
+ * @returns {Promise<{code: number, data: object}>}
+ */
+export function createBackup() {
+  return request({
+    url: '/api/v1/system/backup',
+    method: 'post'
+  })
+}
+
+/**
+ * 获取最近 10 条备份记录
+ * @returns {Promise<{code: number, data: Array}>}
+ */
+export function listBackups() {
+  return request({
+    url: '/api/v1/system/backup',
+    method: 'get'
+  })
+}
+
+/**
+ * 下载备份文件
+ * @param {number|string} id - 备份记录 ID
+ * @returns {Promise<Blob>}
+ */
+export function downloadBackup(id) {
+  return request({
+    url: `/api/v1/system/backup/${id}/download`,
+    method: 'get',
+    responseType: 'blob'
   })
 }
