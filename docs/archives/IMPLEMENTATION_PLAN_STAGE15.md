@@ -12,6 +12,7 @@
 After completing 14 stages with 144 passing tests (100% success rate), we now need to prepare the system for production deployment. This includes:
 
 **Current State**:
+
 - ✅ Backend: Auth service (96 tests), Gateway service (21 tests), Common modules (155 tests)
 - ✅ Frontend: 20+ pages with purple gradient theme
 - ✅ Infrastructure: PostgreSQL, Redis, Nacos configured locally
@@ -22,6 +23,7 @@ After completing 14 stages with 144 passing tests (100% success rate), we now ne
 - ❌ **Missing**: Operational runbooks
 
 **Key Requirements**:
+
 1. One-command deployment for entire stack
 2. Environment-specific configurations (dev/staging/prod)
 3. Health checks for all services
@@ -70,11 +72,13 @@ After completing 14 stages with 144 passing tests (100% success rate), we now ne
 ## Phases
 
 ### Phase 1: Environment Configuration & Secrets Management ✅
+
 **Status**: COMPLETE
 **Completed**: 2025-11-01
 **Deliverables**: Production configuration files, secrets management strategy
 
 **Tasks**:
+
 1. Create production application.yml for each service
 2. Implement environment variable injection
 3. Set up secrets management (`.env` files with documentation)
@@ -82,6 +86,7 @@ After completing 14 stages with 144 passing tests (100% success rate), we now ne
 5. Document configuration parameters
 
 **Configuration Files** (8 services):
+
 - `gateway-service/src/main/resources/application-prod.yml`
 - `auth-service/src/main/resources/application-prod.yml`
 - `book-service/src/main/resources/application-prod.yml` (future)
@@ -92,6 +97,7 @@ After completing 14 stages with 144 passing tests (100% success rate), we now ne
 - `file-service/src/main/resources/application-prod.yml` (future)
 
 **Security Checklist**:
+
 - [ ] Strong JWT secret (64+ characters)
 - [ ] Secure database passwords
 - [ ] Redis password configured
@@ -102,6 +108,7 @@ After completing 14 stages with 144 passing tests (100% success rate), we now ne
 - [ ] XSS protection headers
 
 **Success Criteria**:
+
 - All services can start with production config
 - No hardcoded secrets in config files
 - Environment variables documented
@@ -110,9 +117,11 @@ After completing 14 stages with 144 passing tests (100% success rate), we now ne
 ---
 
 ### Phase 2: Docker Compose Orchestration ✅
+
 **Status**: COMPLETE
 **Completed**: 2025-11-01
 **Deliverables**:
+
 - 40+ files created (16,800+ lines)
 - Complete Docker Compose infrastructure
 - 12 automation scripts
@@ -120,6 +129,7 @@ After completing 14 stages with 144 passing tests (100% success rate), we now ne
 - 3-tier network security architecture
 
 **Architecture**:
+
 ```yaml
 services:
   # Infrastructure
@@ -157,22 +167,26 @@ services:
 ```
 
 **Network Design**:
+
 - `gcrf-backend-network` - Backend services + infrastructure
 - `gcrf-frontend-network` - Frontend + Gateway
 - `gcrf-monitoring-network` - Monitoring stack
 
 **Volume Strategy**:
+
 - Database: Named volumes with backup paths
 - Redis: Named volumes for persistence
 - Logs: Bind mounts to host for centralized logging
 - Config: Read-only bind mounts
 
 **Health Checks**:
+
 - Infrastructure: TCP port checks + custom health endpoints
 - Services: Spring Boot Actuator `/actuator/health`
 - Frontend: HTTP 200 on root path
 
 **Startup Order**:
+
 1. Infrastructure (postgres, redis, nacos)
 2. Core services (auth-service)
 3. Gateway service
@@ -181,6 +195,7 @@ services:
 6. Monitoring
 
 **Tasks**:
+
 1. Create master `docker-compose.yml`
 2. Create `docker-compose.override.yml` for local dev
 3. Create `docker-compose.prod.yml` for production
@@ -191,6 +206,7 @@ services:
 8. Implement graceful shutdown
 
 **Success Criteria**:
+
 - `docker-compose up -d` starts entire stack
 - All services pass health checks within 5 minutes
 - Services can communicate via internal networks
@@ -200,9 +216,11 @@ services:
 ---
 
 ### Phase 3: Service Dockerization ✅
+
 **Status**: COMPLETE
 **Completed**: 2025-11-01
 **Deliverables**:
+
 - 35 files created (18,010 lines)
 - Gateway & Auth Dockerfiles (optimized)
 - 77-88% build time reduction
@@ -211,12 +229,14 @@ services:
 - $32,000/year CI/CD cost savings
 
 **Dockerfile Strategy**:
+
 - Multi-stage builds for minimal image size
 - Non-root user execution
 - Layered caching for fast rebuilds
 - Security scanning with Trivy
 
 **Template Dockerfile** (Spring Boot services):
+
 ```dockerfile
 # Build stage
 FROM eclipse-temurin:21-jdk-alpine AS builder
@@ -238,16 +258,19 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
 
 **Services to Dockerize**:
+
 1. Gateway Service (port 8080)
 2. Auth Service (port 8081)
 3. Web Admin (Nginx, port 80)
 
 **Build Scripts**:
+
 - `backend/build-all-services.sh` - Build all Java services
 - `web-admin/build-image.sh` - Build frontend image
 - `build-and-push.sh` - Build and push to registry (future)
 
 **Tasks**:
+
 1. Create/verify Dockerfiles for each service
 2. Create `.dockerignore` files
 3. Test multi-stage builds
@@ -257,6 +280,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 7. Document image tagging strategy
 
 **Success Criteria**:
+
 - All service images build successfully
 - Images follow security best practices
 - Build time < 10 minutes for all services
@@ -268,17 +292,20 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 ## Completed Phases Summary
 
 ### ✅ Phase 1: Environment Configuration (Complete)
+
 - 60+ environment variables documented
 - Configuration validation automation
 - Production-ready config files
 
 ### ✅ Phase 2: Docker Compose Orchestration (Complete)
+
 - Complete infrastructure orchestration
 - 40+ files, 16,800+ lines
 - 12 automation scripts
 - Network security architecture
 
 ### ✅ Phase 3: Service Dockerization (Complete)
+
 - 2 services containerized (Gateway, Auth)
 - 77-88% faster builds
 - Comprehensive security scanning
@@ -289,10 +316,12 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 ---
 
 ### Phase 4: Monitoring & Observability Stack ⏳
+
 **Status**: Pending
 **Deliverables**: Prometheus + Grafana setup with dashboards
 
 **Monitoring Architecture**:
+
 ```
 Services (Spring Boot Actuator) → Prometheus → Grafana Dashboards
                                       ↓
@@ -300,34 +329,36 @@ Services (Spring Boot Actuator) → Prometheus → Grafana Dashboards
 ```
 
 **Prometheus Configuration**:
+
 ```yaml
 scrape_configs:
   # Spring Boot services (all expose /actuator/prometheus)
-  - job_name: 'gateway-service'
-    metrics_path: '/actuator/prometheus'
+  - job_name: "gateway-service"
+    metrics_path: "/actuator/prometheus"
     static_configs:
-      - targets: ['gateway-service:8080']
+      - targets: ["gateway-service:8080"]
 
-  - job_name: 'auth-service'
-    metrics_path: '/actuator/prometheus'
+  - job_name: "auth-service"
+    metrics_path: "/actuator/prometheus"
     static_configs:
-      - targets: ['auth-service:8081']
+      - targets: ["auth-service:8081"]
 
   # Infrastructure exporters
-  - job_name: 'postgres'
+  - job_name: "postgres"
     static_configs:
-      - targets: ['postgres-exporter:9187']
+      - targets: ["postgres-exporter:9187"]
 
-  - job_name: 'redis'
+  - job_name: "redis"
     static_configs:
-      - targets: ['redis-exporter:9121']
+      - targets: ["redis-exporter:9121"]
 
-  - job_name: 'node'
+  - job_name: "node"
     static_configs:
-      - targets: ['node-exporter:9100']
+      - targets: ["node-exporter:9100"]
 ```
 
 **Grafana Dashboards** (5 dashboards):
+
 1. **System Overview**: CPU, memory, disk, network for all hosts
 2. **Spring Boot Services**: JVM metrics, HTTP requests, response times
 3. **Database Performance**: PostgreSQL connections, queries, locks
@@ -335,6 +366,7 @@ scrape_configs:
 5. **Business Metrics**: User logins, books borrowed, API errors
 
 **Alert Rules** (Critical alerts):
+
 - Service down for > 2 minutes
 - CPU > 80% for 5 minutes
 - Memory > 85% for 5 minutes
@@ -345,6 +377,7 @@ scrape_configs:
 - API response time P95 > 1 second
 
 **Tasks**:
+
 1. Add `micrometer-registry-prometheus` to all services
 2. Configure Prometheus scraping
 3. Set up Grafana with data sources
@@ -355,6 +388,7 @@ scrape_configs:
 8. Document dashboard usage
 
 **Success Criteria**:
+
 - Prometheus scraping all services
 - 5 Grafana dashboards operational
 - Alert rules tested and functional
@@ -364,12 +398,14 @@ scrape_configs:
 ---
 
 ### Phase 5: Deployment Automation Scripts ⏳
+
 **Status**: Pending
 **Deliverables**: Shell scripts for deployment, health checks, rollback
 
 **Scripts to Create**:
 
 1. **`deploy.sh`** - Main deployment script
+
 ```bash
 #!/bin/bash
 # Deploys entire stack or specific services
@@ -377,6 +413,7 @@ scrape_configs:
 ```
 
 2. **`health-check.sh`** - Verify all services healthy
+
 ```bash
 #!/bin/bash
 # Checks health of all services
@@ -384,6 +421,7 @@ scrape_configs:
 ```
 
 3. **`backup.sh`** - Backup databases and configurations
+
 ```bash
 #!/bin/bash
 # Performs full backup of PostgreSQL and Redis
@@ -391,6 +429,7 @@ scrape_configs:
 ```
 
 4. **`restore.sh`** - Restore from backup
+
 ```bash
 #!/bin/bash
 # Restores databases from backup
@@ -398,6 +437,7 @@ scrape_configs:
 ```
 
 5. **`rollback.sh`** - Rollback to previous version
+
 ```bash
 #!/bin/bash
 # Rolls back services to previous image tags
@@ -405,6 +445,7 @@ scrape_configs:
 ```
 
 6. **`logs.sh`** - Centralized log viewer
+
 ```bash
 #!/bin/bash
 # Tails logs from all services
@@ -412,6 +453,7 @@ scrape_configs:
 ```
 
 7. **`scale.sh`** - Scale services up/down
+
 ```bash
 #!/bin/bash
 # Scales service replicas
@@ -419,6 +461,7 @@ scrape_configs:
 ```
 
 **Deployment Workflow**:
+
 1. Pre-deployment checks (disk space, ports)
 2. Build/pull images
 3. Run database migrations
@@ -430,6 +473,7 @@ scrape_configs:
 9. Post-deployment smoke tests
 
 **Tasks**:
+
 1. Create all 7 scripts
 2. Add error handling and logging
 3. Implement pre-flight checks
@@ -439,6 +483,7 @@ scrape_configs:
 7. Test rollback procedure
 
 **Success Criteria**:
+
 - `./deploy.sh all` deploys entire stack successfully
 - Health checks verify all services operational
 - Backup/restore tested and verified
@@ -448,6 +493,7 @@ scrape_configs:
 ---
 
 ### Phase 6: Operational Documentation ⏳
+
 **Status**: Pending
 **Deliverables**: Comprehensive operations manual
 
@@ -503,6 +549,7 @@ scrape_configs:
    - Capacity planning
 
 **Documentation Standards**:
+
 - Clear step-by-step instructions
 - Screenshots for Grafana dashboards
 - Command examples with expected output
@@ -511,6 +558,7 @@ scrape_configs:
 - Contact information for escalation
 
 **Tasks**:
+
 1. Write all 6 documentation files
 2. Add diagrams (architecture, data flow, network)
 3. Create deployment checklist
@@ -520,6 +568,7 @@ scrape_configs:
 7. Create quick reference cards
 
 **Success Criteria**:
+
 - New team member can deploy using DEPLOYMENT_GUIDE.md
 - All common issues covered in TROUBLESHOOTING_GUIDE.md
 - Disaster recovery tested and documented
@@ -529,6 +578,7 @@ scrape_configs:
 ---
 
 ### Phase 7: Testing & Validation ⏳
+
 **Status**: Pending
 **Deliverables**: Validated production deployment package
 
@@ -579,6 +629,7 @@ scrape_configs:
    - Verify security headers
 
 **Load Testing** (Optional but recommended):
+
 - Use JMeter or Gatling
 - Simulate 100 concurrent users
 - Target: P95 response time < 500ms
@@ -586,6 +637,7 @@ scrape_configs:
 - Target: Graceful degradation under overload
 
 **Tasks**:
+
 1. Create test scripts for each scenario
 2. Execute all 7 test scenarios
 3. Document test results
@@ -595,6 +647,7 @@ scrape_configs:
 7. Document testing procedures
 
 **Success Criteria**:
+
 - All 7 test scenarios pass
 - No critical issues found
 - Documentation validated through testing
@@ -623,19 +676,23 @@ scrape_configs:
 ## Technical Considerations
 
 ### 1. Infrastructure Sizing (MVP deployment)
+
 **Minimum Requirements**:
+
 - CPU: 8 cores
 - Memory: 16GB RAM
 - Disk: 100GB SSD
 - Network: 1Gbps
 
 **Recommended for Production**:
+
 - CPU: 16 cores
 - Memory: 32GB RAM
 - Disk: 500GB SSD (with monitoring)
 - Network: 10Gbps
 
 ### 2. Port Allocation
+
 ```
 Infrastructure:
 - 5432: PostgreSQL Primary
@@ -674,7 +731,9 @@ Monitoring:
 ```
 
 ### 3. Environment Variables
+
 **Required for all services**:
+
 - `SPRING_PROFILES_ACTIVE` - Active profile (dev/prod)
 - `JWT_SECRET` - JWT signing secret (64+ chars)
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
@@ -682,6 +741,7 @@ Monitoring:
 - `NACOS_SERVER_ADDR`
 
 ### 4. Security Hardening
+
 - Change all default passwords
 - Use strong JWT secret (64+ characters, random)
 - Enable HTTPS (SSL/TLS) for production
@@ -693,6 +753,7 @@ Monitoring:
 - Backup encryption
 
 ### 5. Backup Strategy
+
 - **Daily**: Incremental PostgreSQL backup (retain 7 days)
 - **Weekly**: Full PostgreSQL backup (retain 4 weeks)
 - **Monthly**: Full system backup (retain 12 months)
@@ -704,16 +765,16 @@ Monitoring:
 
 ## Risks & Mitigations
 
-| Risk | Impact | Likelihood | Mitigation |
-|------|--------|------------|------------|
-| Port conflicts in production | High | Medium | Document all ports, check availability pre-deployment |
-| Out of memory during startup | High | Medium | Set JVM heap limits, stagger service startup |
-| Database migration failures | High | Low | Test migrations in staging, backup before migration |
-| Network connectivity issues | High | Low | Health checks, retry logic, circuit breakers |
-| Monitoring overhead | Medium | Medium | Limit metrics collection, optimize queries |
-| Secrets exposed in logs | Critical | Low | Sanitize logs, use secret management |
-| Insufficient disk space | High | Medium | Monitor disk usage, set alerts at 80% |
-| Service startup timeout | Medium | Medium | Increase health check intervals, optimize startup |
+| Risk                         | Impact   | Likelihood | Mitigation                                            |
+| ---------------------------- | -------- | ---------- | ----------------------------------------------------- |
+| Port conflicts in production | High     | Medium     | Document all ports, check availability pre-deployment |
+| Out of memory during startup | High     | Medium     | Set JVM heap limits, stagger service startup          |
+| Database migration failures  | High     | Low        | Test migrations in staging, backup before migration   |
+| Network connectivity issues  | High     | Low        | Health checks, retry logic, circuit breakers          |
+| Monitoring overhead          | Medium   | Medium     | Limit metrics collection, optimize queries            |
+| Secrets exposed in logs      | Critical | Low        | Sanitize logs, use secret management                  |
+| Insufficient disk space      | High     | Medium     | Monitor disk usage, set alerts at 80%                 |
+| Service startup timeout      | Medium   | Medium     | Increase health check intervals, optimize startup     |
 
 ---
 
@@ -744,12 +805,14 @@ Monitoring:
 ## Deliverables Summary
 
 **Configuration Files**:
+
 - `docker-compose.yml` (master)
 - `docker-compose.prod.yml` (production overrides)
 - `.env.example` (environment variable template)
 - `application-prod.yml` for each service
 
 **Scripts** (`/deployment/scripts/`):
+
 - `deploy.sh`
 - `health-check.sh`
 - `backup.sh`
@@ -759,6 +822,7 @@ Monitoring:
 - `scale.sh`
 
 **Documentation** (`/deployment/docs/`):
+
 - `DEPLOYMENT_GUIDE.md`
 - `OPERATIONS_MANUAL.md`
 - `TROUBLESHOOTING_GUIDE.md`
@@ -767,6 +831,7 @@ Monitoring:
 - `MONITORING_GUIDE.md`
 
 **Monitoring Configuration**:
+
 - `prometheus/prometheus.yml`
 - `prometheus/alerts.yml`
 - `grafana/dashboards/*.json` (5 dashboards)

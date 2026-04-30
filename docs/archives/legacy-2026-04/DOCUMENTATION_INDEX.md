@@ -15,6 +15,7 @@ All documentation has been reorganized into a clear hierarchical structure under
 ## Primary Documentation (Root Level)
 
 ### 📋 Essential Guidelines & Status
+
 - **`CLAUDE.md`** (ROOT)
   - **Status**: ✅ Current (2025-10-25)
   - **Purpose**: Official development guidelines and instructions
@@ -36,6 +37,7 @@ All documentation has been reorganized into a clear hierarchical structure under
 ## 📚 Documentation Center (`docs/`)
 
 ### 🏗️ Architecture & Technical Specs (`docs/architecture/`)
+
 - **`docs/architecture/architect.md`** ⚠️ AUTHORITATIVE
   - **Status**: ✅ Current (1570 lines)
   - **Purpose**: Complete technical specification (database schemas, API contracts, architecture)
@@ -62,6 +64,7 @@ All documentation has been reorganized into a clear hierarchical structure under
   - **Purpose**: Use case diagrams (Chinese)
 
 ### 💻 Development Documentation (`docs/development/`)
+
 - **`DEVELOPMENT_PROGRESS.md`**
   - **Status**: ✅ Current (2025-11-01)
   - **Purpose**: Comprehensive progress tracker with all completed stages
@@ -81,6 +84,7 @@ All documentation has been reorganized into a clear hierarchical structure under
 ### 🚀 Deployment & Infrastructure (`docs/deployment/`)
 
 #### Docker Documentation (`docs/deployment/docker/`)
+
 - **`DOCKER_BUILD_MASTER_GUIDE.md`** ⚠️ PRIMARY BUILD GUIDE (1,737 lines)
   - **Purpose**: Complete Docker build lifecycle documentation
   - **Topics**: Multi-stage builds, optimization, security, CI/CD
@@ -113,11 +117,13 @@ All documentation has been reorganized into a clear hierarchical structure under
   - **Purpose**: 3-tier network security architecture
 
 #### Deployment Summaries (`docs/deployment/`)
+
 - **`CONFIG_VALIDATION_SUMMARY.md`**
 - **`SERVICE_DISCOVERY_SUMMARY.md`**
 - **`SECURITY_SCANNING_IMPLEMENTATION_REPORT.md`**
 
 ### 🧪 Testing Documentation (`docs/testing/`)
+
 - **`INTEGRATION_TEST_PATTERNS.md`**
   - **Status**: ✅ Current (500+ lines)
   - **Purpose**: Testing patterns and best practices for microservices
@@ -127,6 +133,7 @@ All documentation has been reorganized into a clear hierarchical structure under
   - **Purpose**: Test results and coverage metrics
 
 ### 🎨 Frontend Documentation (`docs/frontend/`)
+
 - **`FRONTEND_DESIGN_SPEC_V2.md`**
   - **Purpose**: UI/UX specifications and requirements
 
@@ -148,6 +155,7 @@ All documentation has been reorganized into a clear hierarchical structure under
 ### 🔧 Services Documentation (`docs/services/`)
 
 #### System Service (`docs/services/system-service/`)
+
 - **`IMPLEMENTATION_SUMMARY.md`**
   - **Status**: ✅ Complete (2025-10-29)
   - **Purpose**: System service implementation details
@@ -156,10 +164,12 @@ All documentation has been reorganized into a clear hierarchical structure under
   - **Purpose**: Quick API and usage reference
 
 #### Reader Service (`docs/services/reader-service/`)
+
 - **`ARCHITECTURE.md`**
   - **Purpose**: Reader service architecture and design
 
 ### 📦 Archives (`docs/archives/`)
+
 - **`PHASE2_DETAILED_PLAN.md`**
   - **Status**: ✅ Complete (historical reference)
 
@@ -243,6 +253,7 @@ GCRF_LibraryManagementSystem/
 ## Documentation Usage Guidelines
 
 ### For New Developers
+
 1. Start with `CLAUDE.md` - Understand development workflow
 2. Navigate to `docs/README.md` - Explore documentation center
 3. Read `docs/development/DEVELOPMENT_PROGRESS.md` - See current status
@@ -250,6 +261,7 @@ GCRF_LibraryManagementSystem/
 5. Review `docs/testing/INTEGRATION_TEST_PATTERNS.md` - Learn testing practices
 
 ### For Finding Specific Documentation
+
 1. **Architecture** → `docs/architecture/` (architect.md is authoritative)
 2. **API Documentation** → `docs/api/`
 3. **Development Progress** → `docs/development/`
@@ -260,6 +272,7 @@ GCRF_LibraryManagementSystem/
 8. **Historical/Completed** → `docs/archives/`
 
 ### Authority Order (for conflicts)
+
 1. `docs/architecture/architect.md` - Technical decisions
 2. `CLAUDE.md` - Development process
 3. `PROJECT_STATUS_SUMMARY.md` - Current status
@@ -270,6 +283,7 @@ GCRF_LibraryManagementSystem/
 ## Recent Changes (2025-11-01)
 
 ### Documentation Reorganization (Phase 3)
+
 - ✅ Moved 17 documents from `doc/` to `docs/` with categorization
 - ✅ Deleted `doc/` and `backend/doc/` directories
 - ✅ Created new `docs/architecture/` (7 files) and `docs/api/` (3 files) categories
@@ -277,6 +291,7 @@ GCRF_LibraryManagementSystem/
 - ✅ Total cleanup: 36+ documents moved, 13 obsolete documents deleted across all phases
 
 ### Deleted Documents
+
 - ❌ `backend/system-service/FINAL_REPORT.md` (obsolete)
 - ❌ `backend/reader-service/REFACTORING_COMPLETE.md` (obsolete)
 - ❌ `backend/infrastructure/postgresql/DEPLOYMENT_REPORT.md` (obsolete)
@@ -289,6 +304,7 @@ GCRF_LibraryManagementSystem/
 ## Quick Links by Role
 
 ### Backend Developers
+
 - Guidelines: `CLAUDE.md`
 - Architecture: `docs/architecture/architect.md`
 - API Design: `docs/api/API-Design.md`
@@ -296,17 +312,20 @@ GCRF_LibraryManagementSystem/
 - Progress: `docs/development/DEVELOPMENT_PROGRESS.md`
 
 ### Frontend Developers
+
 - Design Specs: `docs/frontend/FRONTEND_DESIGN_SPEC_V2.md`
 - Components: `docs/frontend/UI_COMPONENTS_LIB.md`
 - Requirements: `docs/frontend/UI_DESIGN_REQUIREMENTS.md`
 
 ### DevOps Engineers
+
 - Docker Guide: `docs/deployment/docker/DOCKER_BUILD_MASTER_GUIDE.md`
 - Infrastructure: `docs/deployment/docker/INFRASTRUCTURE_README.md`
 - Security: `docs/deployment/docker/SECURITY_SCANNING.md`
 - Quick Ref: `docs/deployment/docker/DOCKER_BUILD_QUICK_REFERENCE.md`
 
 ### Project Managers
+
 - Status: `PROJECT_STATUS_SUMMARY.md`
 - Progress: `docs/development/DEVELOPMENT_PROGRESS.md`
 - Current Stage: `docs/development/IMPLEMENTATION_PLAN_STAGE15.md`
@@ -316,6 +335,7 @@ GCRF_LibraryManagementSystem/
 ## Test Documentation Summary
 
 ### Test Files by Service
+
 - **Auth Service**: 96 tests in `auth-service/src/test/`
 - **Gateway Service**: 21 tests in `gateway-service/src/test/`
 - **Common Core**: 129 tests in `common/common-core/src/test/`
@@ -336,6 +356,7 @@ GCRF_LibraryManagementSystem/
 ---
 
 **Questions or Issues?**
+
 - Check `docs/README.md` for navigation
 - Review `CLAUDE.md` for guidelines
 - Consult `docs/architecture/architect.md` for technical answers

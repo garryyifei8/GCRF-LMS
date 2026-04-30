@@ -10,6 +10,7 @@
 ### 1. **冗余重复文档** (建议归档/删除)
 
 #### deployment/scripts/ 完成总结文档 (重复)
+
 - `TASK3_NETWORK_SECURITY_COMPLETION.md` → 已在Phase 3完成
 - `TASK4_COMPLETION_SUMMARY.md` → 已在Phase 3完成
 - `TASK5_BUILD_AUTOMATION_COMPLETION.md` → 已在Phase 3完成
@@ -17,28 +18,33 @@
 - `PHASE4_DAY1_SUMMARY.md` → 已在PHASE4_COMPLETION_SUMMARY.md中
 
 #### docs/deployment/docker/ 多版本指南 (冗余)
+
 - `DOCKER_BUILD.md` → 基础版
 - `DOCKER_BUILD_MASTER_GUIDE.md` → 综合版
 - `DOCKER_BUILD_QUICK_REFERENCE.md` → 快速参考
 - **建议**: 保留 MASTER_GUIDE, 归档其余
 
 #### docs/deployment/docker/ 镜像构建文档 (部分过期)
+
 - `BUILD_OPTIMIZATION.md` → Phase 3完成
 - `BUILD_OPTIMIZATION_QUICK_START.md` → 与上一个重复
 - `BUILD_SCRIPTS_GUIDE.md` → 已被 AUTOMATION_GUIDE 替代
 - `TASK3_DOCKER_BUILD_OPTIMIZATION_REPORT.md` → Phase 3报告
 
 #### docs/deployment/docker/ 安全扫描文档 (重复)
+
 - `SECURITY_SCANNING.md`
 - `SECURITY_SCANNING_QUICKSTART.md`
 - **建议**: 合并为一个文档
 
 #### docs/deployment/ 服务发现文档 (重复)
+
 - `SERVICE_DISCOVERY_SUMMARY.md` (docs/)
 - `SERVICE_DISCOVERY_README.md` (scripts/)
 - **建议**: 保留一个权威版本
 
 #### docs/api/ Mock API文档 (前期文档,可能过期)
+
 - `Mock-API-Implementation-Summary.md`
 - `Mock-API-Strategy.md`
 - **建议**: 检查是否还在使用
@@ -46,11 +52,13 @@
 ### 2. **过期文档** (建议归档)
 
 #### backend/doc/
+
 - `ARCHITECTURE.md` → ⚠️ **重要**: 与 docs/architecture/ARCHITECTURE.md 重复
   - 标记为 "Overview only (may be outdated)"
   - CLAUDE.md 已说明: architect.md 是权威文档
 
 #### library-backend/ (旧后端目录,已废弃)
+
 - `README.md`
 - `infrastructure/README.md`
 - `infrastructure/DELIVERABLES.md`
@@ -59,6 +67,7 @@
 - **建议**: 整个 library-backend/ 目录可能已废弃
 
 #### docs/archives/
+
 - `DevPlan.md` → 归档
 - `IMPLEMENTATION_PLAN_STAGE14.md` → 归档
 - `PHASE2_DETAILED_PLAN.md` → 归档
@@ -68,17 +77,20 @@
 ### 3. **权威保留文档**
 
 #### 核心架构文档
+
 - ✅ `backend/doc/architect.md` (1570 lines) → **权威**
 - ✅ `docs/architecture/ARCHITECTURE.md` → 概览版,保留
 - ✅ `CLAUDE.md` → 开发指南,保留
 
 #### Phase 4-5 完成文档
+
 - ✅ `deployment/monitoring/PHASE4_COMPLETION_SUMMARY.md` → 保留
 - ✅ `docs/deployment/MONITORING_GUIDE.md` → 保留
 - ✅ `docs/deployment/TROUBLESHOOTING_METRICS.md` → 保留
 - ✅ `docs/deployment/AUTOMATION_GUIDE.md` → 保留
 
 #### 专项文档
+
 - ✅ `deployment/monitoring/GRAFANA_QUICKSTART.md` → 保留
 - ✅ `deployment/monitoring/ACTUATOR_CONFIG_TEMPLATE.md` → 保留
 - ✅ `deployment/monitoring/ALERTS_GUIDE.md` → 保留
@@ -86,6 +98,7 @@
 - ✅ `docs/deployment/docker/SERVICES_ARCHITECTURE.md` → 保留
 
 #### 基础设施 README
+
 - ✅ `backend/infrastructure/nacos/README.md` → 保留
 - ✅ `backend/infrastructure/postgresql/README.md` → 保留
 - ✅ `backend/infrastructure/postgresql/QUICKSTART.md` → 保留

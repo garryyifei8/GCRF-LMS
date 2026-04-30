@@ -10,9 +10,11 @@
 ## 📋 Phase 6 概述
 
 ### 目标
+
 创建完整的项目文档体系,涵盖架构设计、API参考、运维手册、开发指南等,为团队协作和项目交接提供全面的知识支持。
 
 ### 交付物
+
 - 8个核心文档(约5000+ lines)
 - OpenAPI 3.0规范文件
 - JavaDoc代码文档
@@ -29,6 +31,7 @@
 
 **任务描述**:
 创建全面的系统架构文档,包含:
+
 - 系统总体架构 (C4模型: Context → Container → Component)
 - 微服务架构设计
 - 技术栈选型说明
@@ -36,10 +39,12 @@
 - 架构决策记录 (ADR)
 
 **输出文件**:
+
 - `docs/architecture/SYSTEM_ARCHITECTURE.md` (1000+ lines)
 - `docs/architecture/diagrams/` (Mermaid图表)
 
 **关键内容**:
+
 1. **系统上下文图 (C4 Level 1)**
    - 外部用户/系统交互
    - 系统边界
@@ -75,6 +80,7 @@
 
 **任务描述**:
 使用OpenAPI 3.0规范创建完整的API文档,包含:
+
 - RESTful API端点定义
 - 请求/响应示例
 - 认证授权说明
@@ -82,6 +88,7 @@
 - 交互式API测试界面
 
 **输出文件**:
+
 - `docs/api/openapi.yaml` (OpenAPI 3.0规范)
 - `docs/api/API_REFERENCE.md` (Markdown格式参考)
 - `docs/api/AUTHENTICATION.md` (认证指南)
@@ -122,6 +129,7 @@
 
 **任务描述**:
 创建完整的部署和运维手册,包含:
+
 - 环境准备
 - 部署步骤 (开发/测试/生产)
 - 配置管理
@@ -130,6 +138,7 @@
 - 故障应急预案
 
 **输出文件**:
+
 - `docs/deployment/DEPLOYMENT_GUIDE.md` (1000+ lines)
 - `docs/deployment/ENVIRONMENT_SETUP.md` (环境配置)
 - `docs/deployment/CONFIGURATION_MANAGEMENT.md` (配置管理)
@@ -184,6 +193,7 @@
 
 **任务描述**:
 创建面向开发者的详细指南,包含:
+
 - 项目结构说明
 - 开发环境搭建
 - 编码规范
@@ -192,6 +202,7 @@
 - 常见问题FAQ
 
 **输出文件**:
+
 - `docs/developer/DEVELOPER_GUIDE.md` (1200+ lines)
 - `docs/developer/CODING_STANDARDS.md` (编码规范)
 - `docs/developer/TESTING_GUIDE.md` (测试指南)
@@ -207,6 +218,7 @@
    - 验证运行
 
 2. **项目结构**
+
    ```
    backend/
    ├── common/           # 共享模块
@@ -264,6 +276,7 @@
 创建全面的故障排查手册,涵盖常见问题和诊断步骤。
 
 **输出文件**:
+
 - `docs/troubleshooting/TROUBLESHOOTING_GUIDE.md` (800+ lines)
 - `docs/troubleshooting/COMMON_ISSUES.md` (常见问题快速索引)
 
@@ -314,6 +327,7 @@
    - 卷挂载失败
 
 **每个问题包含**:
+
 - 症状描述
 - 诊断命令
 - 可能原因
@@ -330,6 +344,7 @@
 
 **任务描述**:
 创建完整的数据库设计文档,包含:
+
 - ER图
 - 表结构说明
 - 字段定义
@@ -338,6 +353,7 @@
 - 性能优化建议
 
 **输出文件**:
+
 - `docs/database/DATABASE_DESIGN.md` (800+ lines)
 - `docs/database/ER_DIAGRAM.md` (ER图 - Mermaid)
 - `docs/database/TABLE_REFERENCE.md` (表结构参考)
@@ -390,12 +406,14 @@
 
 **任务描述**:
 创建面向最终用户的使用手册,包含:
+
 - 功能介绍
 - 操作步骤 (图文)
 - 业务流程
 - 常见操作FAQ
 
 **输出文件**:
+
 - `docs/user/USER_MANUAL.md` (600+ lines)
 - `docs/user/QUICK_START.md` (快速上手)
 - `docs/user/BUSINESS_FLOWS.md` (业务流程)
@@ -438,6 +456,7 @@
 为关键代码添加JavaDoc注释并生成API文档。
 
 **输出文件**:
+
 - JavaDoc HTML文档 (`backend/target/site/apidocs/`)
 - 关键类的详细注释
 
@@ -471,20 +490,21 @@
 
 ## 📊 Phase 6 时间安排
 
-| 任务 | Agent | 工作量 | 优先级 |
-|------|-------|--------|--------|
-| Task 1: 系统架构文档 | docs-architect | 1天 | P0 (最高) |
-| Task 2: API文档 | api-documenter | 1天 | P0 (最高) |
-| Task 3: 部署运维手册 | docs-architect | 1天 | P1 (高) |
-| Task 4: 开发者指南 | tutorial-engineer | 1.5天 | P1 (高) |
-| Task 5: 故障排查手册 | docs-architect | 1天 | P1 (高) |
-| Task 6: 数据库设计文档 | database-architect | 1天 | P2 (中) |
-| Task 7: 用户使用手册 | docs-architect | 0.5天 | P2 (中) |
-| Task 8: 代码文档 | docs-architect | 0.5天 | P3 (低) |
+| 任务                   | Agent              | 工作量 | 优先级    |
+| ---------------------- | ------------------ | ------ | --------- |
+| Task 1: 系统架构文档   | docs-architect     | 1天    | P0 (最高) |
+| Task 2: API文档        | api-documenter     | 1天    | P0 (最高) |
+| Task 3: 部署运维手册   | docs-architect     | 1天    | P1 (高)   |
+| Task 4: 开发者指南     | tutorial-engineer  | 1.5天  | P1 (高)   |
+| Task 5: 故障排查手册   | docs-architect     | 1天    | P1 (高)   |
+| Task 6: 数据库设计文档 | database-architect | 1天    | P2 (中)   |
+| Task 7: 用户使用手册   | docs-architect     | 0.5天  | P2 (中)   |
+| Task 8: 代码文档       | docs-architect     | 0.5天  | P3 (低)   |
 
 **总计**: 8个任务, 预计 7.5天
 
 **并行执行建议**:
+
 - Day 1-2: Task 1 + Task 2 并行 (不同agent)
 - Day 3-4: Task 3 + Task 4 并行
 - Day 5-6: Task 5 + Task 6 并行
@@ -497,6 +517,7 @@
 ## 🎯 成功标准
 
 Phase 6 完成标准:
+
 - [ ] 8个核心文档全部创建
 - [ ] OpenAPI规范文件通过验证
 - [ ] 所有Mermaid图表渲染正常
@@ -558,20 +579,24 @@ GCRF_LibraryManagementSystem/
 ## 🔄 执行流程
 
 ### 阶段1: 准备 (0.5天)
+
 1. 审查现有文档 (architect.md, ARCHITECTURE.md等)
 2. 收集代码库信息
 3. 准备Mermaid图表模板
 4. 设置JavaDoc配置
 
 ### 阶段2: 核心文档创建 (3天)
+
 1. **Day 1**: Task 1 (架构文档) + Task 2 (API文档)
 2. **Day 2**: Task 3 (部署手册) + Task 4 (开发指南)
 3. **Day 3**: Task 5 (故障排查) + Task 6 (数据库设计)
 
 ### 阶段3: 补充文档 (1天)
+
 1. **Day 4**: Task 7 (用户手册) + Task 8 (代码文档)
 
 ### 阶段4: 审查与优化 (0.5-1天)
+
 1. 文档一致性检查
 2. 交叉引用验证
 3. 代码示例测试

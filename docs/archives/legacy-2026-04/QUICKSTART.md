@@ -36,14 +36,14 @@ curl http://localhost:8080/actuator/health
 
 ### 访问服务
 
-| 服务 | URL | 用户名 | 密码 |
-|------|-----|--------|------|
-| **API Gateway** | http://localhost:8080 | - | - |
-| **Web管理端** | http://localhost:3011 | admin | admin123 |
-| **Grafana监控** | http://localhost:3000 | admin | admin |
-| **Prometheus** | http://localhost:9090 | - | - |
-| **Nacos控制台** | http://localhost:8848/nacos | nacos | nacos |
-| **RabbitMQ管理** | http://localhost:15672 | admin | admin123 |
+| 服务             | URL                         | 用户名 | 密码     |
+| ---------------- | --------------------------- | ------ | -------- |
+| **API Gateway**  | http://localhost:8080       | -      | -        |
+| **Web管理端**    | http://localhost:3011       | admin  | admin123 |
+| **Grafana监控**  | http://localhost:3000       | admin  | admin    |
+| **Prometheus**   | http://localhost:9090       | -      | -        |
+| **Nacos控制台**  | http://localhost:8848/nacos | nacos  | nacos    |
+| **RabbitMQ管理** | http://localhost:15672      | admin  | admin123 |
 
 ### 测试API
 
@@ -120,6 +120,7 @@ tree -L 2 -d
 ```
 
 **项目结构**:
+
 ```
 GCRF_LibraryManagementSystem/
 ├── backend/                # 后端微服务
@@ -156,6 +157,7 @@ docker-compose -f docker-compose.infrastructure.yml ps
 ```
 
 **等待服务就绪** (约30秒):
+
 ```bash
 # 等待PostgreSQL就绪
 until pg_isready -h localhost -U postgres; do sleep 1; done
@@ -382,16 +384,16 @@ EXIT
 
 ## 🔧 故障排查速查表
 
-| 问题 | 诊断命令 | 解决方案 |
-|------|---------|---------|
-| 服务无法启动 | `docker logs <container>` | 检查日志中的错误信息 |
-| 端口被占用 | `lsof -i :8081` | 杀死占用进程或修改端口 |
-| 数据库连接失败 | `psql -h localhost -U postgres` | 确认PostgreSQL已启动 |
-| Nacos无法连接 | `curl http://localhost:8848/nacos/` | 确认Nacos已启动 |
-| 服务未注册 | `curl http://localhost:8848/nacos/v1/ns/instance/list?serviceName=auth-service` | 检查Nacos配置 |
-| 构建失败 | `mvn -version && java -version` | 确认使用Java 21 |
-| 内存不足 | `docker stats` | 增加Docker内存限制 |
-| 磁盘空间不足 | `df -h` | 清理Docker: `docker system prune -a` |
+| 问题           | 诊断命令                                                                        | 解决方案                             |
+| -------------- | ------------------------------------------------------------------------------- | ------------------------------------ |
+| 服务无法启动   | `docker logs <container>`                                                       | 检查日志中的错误信息                 |
+| 端口被占用     | `lsof -i :8081`                                                                 | 杀死占用进程或修改端口               |
+| 数据库连接失败 | `psql -h localhost -U postgres`                                                 | 确认PostgreSQL已启动                 |
+| Nacos无法连接  | `curl http://localhost:8848/nacos/`                                             | 确认Nacos已启动                      |
+| 服务未注册     | `curl http://localhost:8848/nacos/v1/ns/instance/list?serviceName=auth-service` | 检查Nacos配置                        |
+| 构建失败       | `mvn -version && java -version`                                                 | 确认使用Java 21                      |
+| 内存不足       | `docker stats`                                                                  | 增加Docker内存限制                   |
+| 磁盘空间不足   | `df -h`                                                                         | 清理Docker: `docker system prune -a` |
 
 ---
 
@@ -407,24 +409,28 @@ EXIT
 ### 推荐学习路径
 
 **第1周: 环境熟悉**
+
 - ✅ 完成本快速开始指南
 - ✅ 阅读CLAUDE.md开发规范
 - ✅ 了解项目结构和技术栈
 - ✅ 运行所有服务并访问各个管理界面
 
 **第2周: 后端开发**
+
 - ✅ 学习Spring Boot 3.2.2 + Spring Cloud
 - ✅ 理解微服务架构和服务间通信
 - ✅ 阅读architect.md理解数据库设计
 - ✅ 实现一个简单的API接口
 
 **第3周: 前端开发**
+
 - ✅ 学习Vue 3 + Element Plus
 - ✅ 理解前后端分离架构
 - ✅ 学习Mock数据和API对接
 - ✅ 实现一个简单的页面
 
 **第4周: 部署运维**
+
 - ✅ 学习Docker和Docker Compose
 - ✅ 了解CI/CD自动化流程
 - ✅ 学习监控系统使用
@@ -437,6 +443,7 @@ EXIT
 ### 常见问题
 
 **Q1: 服务启动后无法访问**
+
 ```bash
 # 检查服务是否真正启动
 docker ps | grep gcrf-auth-service
@@ -449,6 +456,7 @@ lsof -i :8081
 ```
 
 **Q2: 数据库连接失败**
+
 ```bash
 # 确认PostgreSQL运行
 docker ps | grep postgres
@@ -461,6 +469,7 @@ cat deployment/.env | grep DB_PASSWORD
 ```
 
 **Q3: Nacos服务注册失败**
+
 ```bash
 # 确认Nacos运行
 curl http://localhost:8848/nacos/
@@ -491,6 +500,7 @@ docker logs gcrf-auth-service | grep -i nacos
 - ✅ 前端管理界面可以访问
 
 **接下来可以**:
+
 - 🚀 开始你的第一个功能开发
 - 📖 深入学习系统架构设计
 - 🔧 尝试部署到生产环境
@@ -503,6 +513,7 @@ docker logs gcrf-auth-service | grep -i nacos
 **维护人**: DevOps Team
 
 **快速链接**:
+
 - [完整部署指南](./docs/deployment/OPERATIONS_GUIDE.md)
 - [开发规范](./CLAUDE.md)
 - [架构设计](./backend/doc/architect.md)
