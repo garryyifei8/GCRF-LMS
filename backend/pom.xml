@@ -76,7 +76,7 @@
         <jjwt.version>0.12.3</jjwt.version>
 
         <!-- MapStruct -->
-        <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
 
         <!-- Lombok -->
         <lombok.version>1.18.30</lombok.version>
