@@ -29,6 +29,7 @@
         <module>recommend-service</module>
         <module>chat-service</module>
         <module>analytics-service</module>
+        <module>org-service</module>
         <!-- TODO: Add remaining services as they are implemented
         <module>nlp-service</module>
         <module>vision-service</module>
