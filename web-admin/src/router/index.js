@@ -246,10 +246,15 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   NProgress.start()
 
-  // 设置页面标题
-  document.title = to.meta.title
-    ? `${to.meta.title} - 国创睿峰智能图书馆管理系统`
-    : '国创睿峰智能图书馆管理系统'
+  // 设置页面标题（品牌名从 brand store 读取，未加载时回退默认）
+  let brandName = '国创睿峰智能图书馆'
+  try {
+    const { useBrandStore } = await import('@/stores/brand')
+    brandName = useBrandStore().brand?.name || brandName
+  } catch (_) {
+    /* ignore */
+  }
+  document.title = to.meta.title ? `${to.meta.title} - ${brandName}` : brandName
 
   const userStore = useUserStore()
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth !== false)

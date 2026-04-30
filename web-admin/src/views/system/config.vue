@@ -150,6 +150,85 @@
         </div>
       </el-tab-pane>
 
+      <!-- 品牌设置（多租户：超管可调，所有学校生效） -->
+      <el-tab-pane label="品牌设置" name="brand">
+        <div class="card">
+          <div class="card-content">
+            <el-alert
+              type="info"
+              :closable="false"
+              show-icon
+              title="多租户品牌"
+              description="此处设置的品牌名称、副标题与 Logo 会立即应用到登录页、侧边栏与浏览器标题，作用于教育局下所有学校。"
+              style="margin-bottom: 24px"
+            />
+            <el-form
+              ref="brandFormRef"
+              :model="brandConfig"
+              label-width="150px"
+              style="max-width: 720px"
+            >
+              <el-form-item label="Logo 预览">
+                <BrandLogo :size="56" />
+              </el-form-item>
+
+              <el-form-item label="系统名称" required>
+                <el-input
+                  v-model="brandConfig.brandName"
+                  placeholder="例如：国创睿峰智能图书馆"
+                  maxlength="40"
+                  show-word-limit
+                />
+              </el-form-item>
+
+              <el-form-item label="副标题">
+                <el-input
+                  v-model="brandConfig.brandSubtitle"
+                  placeholder="例如：智慧图书馆管理平台"
+                  maxlength="40"
+                  show-word-limit
+                />
+              </el-form-item>
+
+              <el-form-item label="自定义 Logo">
+                <el-input
+                  v-model="brandConfig.brandLogoUrl"
+                  placeholder="可选：图片 URL（留空使用内置 SVG Logo）"
+                />
+                <div class="form-tip" style="margin-top: 4px">
+                  建议尺寸 256×256，支持 PNG / SVG，留空使用内置印章风 Logo。
+                </div>
+              </el-form-item>
+
+              <el-divider />
+
+              <el-form-item label="登录页大标题">
+                <el-input
+                  v-model="brandConfig.brandLoginTitle"
+                  placeholder="例如：欢迎使用智慧图书馆系统"
+                  maxlength="40"
+                  show-word-limit
+                />
+              </el-form-item>
+
+              <el-form-item label="登录页副标题">
+                <el-input
+                  v-model="brandConfig.brandLoginSubtitle"
+                  placeholder="例如：AI 驱动的现代化图书管理平台"
+                  maxlength="60"
+                  show-word-limit
+                />
+              </el-form-item>
+
+              <el-form-item>
+                <el-button type="primary" @click="handleSave('brand')">保存品牌</el-button>
+                <el-button @click="handleReset('brand')">重置默认</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+        </div>
+      </el-tab-pane>
+
       <!-- 系统设置 -->
       <el-tab-pane label="系统设置" name="system">
         <div class="card">
@@ -218,8 +297,20 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getSystemConfig, saveSystemConfig } from '@/api/system'
+import { useBrandStore } from '@/stores/brand'
+import BrandLogo from '@/components/BrandLogo.vue'
 
+const brandStore = useBrandStore()
 const activeTab = ref('borrow')
+
+// 品牌设置
+const brandConfig = reactive({
+  brandName: '',
+  brandSubtitle: '',
+  brandLogoUrl: '',
+  brandLoginTitle: '',
+  brandLoginSubtitle: ''
+})
 
 // 借阅规则配置 — keys map to backend config keys
 const borrowConfig = reactive({
@@ -320,6 +411,14 @@ const applyConfig = (cfg) => {
     }
   }
   if (cfg.session_timeout !== undefined) systemConfig.sessionTimeout = Number(cfg.session_timeout)
+
+  // brand
+  if (cfg.brand_name !== undefined) brandConfig.brandName = cfg.brand_name
+  if (cfg.brand_subtitle !== undefined) brandConfig.brandSubtitle = cfg.brand_subtitle
+  if (cfg.brand_logo_url !== undefined) brandConfig.brandLogoUrl = cfg.brand_logo_url
+  if (cfg.brand_login_title !== undefined) brandConfig.brandLoginTitle = cfg.brand_login_title
+  if (cfg.brand_login_subtitle !== undefined)
+    brandConfig.brandLoginSubtitle = cfg.brand_login_subtitle
 }
 
 // 加载配置
@@ -376,6 +475,15 @@ const buildPayload = (type) => {
       session_timeout: String(systemConfig.sessionTimeout)
     }
   }
+  if (type === 'brand') {
+    return {
+      brand_name: brandConfig.brandName,
+      brand_subtitle: brandConfig.brandSubtitle,
+      brand_logo_url: brandConfig.brandLogoUrl,
+      brand_login_title: brandConfig.brandLoginTitle,
+      brand_login_subtitle: brandConfig.brandLoginSubtitle
+    }
+  }
   return {}
 }
 
@@ -386,6 +494,16 @@ const handleSave = async (type) => {
     const res = await saveSystemConfig(data)
     if (res.code === 200) {
       ElMessage.success('配置保存成功')
+      // 品牌变更立即作用到 store -> 全站响应式更新
+      if (type === 'brand') {
+        brandStore.applyLocal({
+          name: brandConfig.brandName,
+          subtitle: brandConfig.brandSubtitle,
+          logoUrl: brandConfig.brandLogoUrl,
+          loginTitle: brandConfig.brandLoginTitle,
+          loginSubtitle: brandConfig.brandLoginSubtitle
+        })
+      }
     } else {
       ElMessage.error(res.message || '保存失败')
     }

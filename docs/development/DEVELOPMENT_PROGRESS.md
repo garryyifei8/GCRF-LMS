@@ -11,12 +11,14 @@
 ## Overall Progress Overview
 
 ### Backend Development
+
 - **Total Test Count**: 144 tests (100% passing)
 - **Code Coverage**: Comprehensive unit and integration tests
 - **Services Implemented**: Gateway, Auth, Common modules
 - **Infrastructure**: PostgreSQL, Redis, Nacos, RabbitMQ, MinIO, Elasticsearch
 
 ### Frontend Development
+
 - **Framework**: Vue 3 + Vite + Element Plus
 - **UI Theme**: Purple gradient (#667eea → #764ba2), 16px rounded corners
 - **Pages Completed**: 20+ pages (dashboard, auth, books, circulation, readers, system)
@@ -27,8 +29,10 @@
 ## Completed Stages
 
 ### Stage 1-2: Project Structure & Common-Core Module ✅
+
 **Completed**: 2025-10-27
 **Deliverables**:
+
 - Maven parent-child project structure verified
 - Unified API response wrapper (`Result<T>`)
 - Custom exceptions (`BusinessException`, `SystemException`)
@@ -36,6 +40,7 @@
 - **Tests**: 129 unit tests (100% passing)
 
 **Key Files**:
+
 - `common/common-core/src/main/java/com/gcrf/library/common/core/domain/Result.java`
 - `common/common-core/src/main/java/com/gcrf/library/common/core/exception/`
 - `common/common-core/src/main/java/com/gcrf/library/common/core/utils/`
@@ -43,8 +48,10 @@
 ---
 
 ### Stage 3: Common-Web Module ✅
+
 **Completed**: 2025-10-27
 **Deliverables**:
+
 - Global exception handler (handles all exception types)
 - CORS configuration (configurable with security defaults)
 - Request/response logging interceptor (with sensitive data masking)
@@ -53,6 +60,7 @@
 - **Tests**: 26 unit tests (100% passing: 11 exception handler + 15 interceptor)
 
 **Key Files**:
+
 - `common/common-web/src/main/java/com/gcrf/library/common/web/handler/GlobalExceptionHandler.java` (109 lines)
 - `common/common-web/src/main/java/com/gcrf/library/common/web/config/CorsConfig.java` (119 lines)
 - `common/common-web/src/main/java/com/gcrf/library/common/web/interceptor/LogInterceptor.java` (321 lines)
@@ -60,8 +68,10 @@
 ---
 
 ### Stage 4-6: Common-Security & Gateway Service ✅
+
 **Completed**: 2025-10-28
 **Deliverables**:
+
 - JWT utility (`JwtUtil`) with token generation/validation
 - Spring Security configuration with `SecurityFilterChain`
 - JWT authentication filter (`JwtAuthenticationFilter`)
@@ -69,14 +79,17 @@
 - **Tests**: 8 AuthenticationFilter tests (gateway-service)
 
 **Key Files**:
+
 - `common/common-security/src/main/java/com/gcrf/library/common/security/utils/JwtUtil.java`
 - `gateway-service/src/main/java/com/gcrf/gateway/filter/AuthenticationFilter.java`
 
 ---
 
 ### Stage 7-12: Auth Service Implementation ✅
+
 **Completed**: 2025-10-29
 **Deliverables**:
+
 - Authentication service with login/logout/register
 - User service with CRUD operations
 - MyBatis Plus integration
@@ -84,6 +97,7 @@
 - **Tests**: 88 tests before Stage 13 (auth-service)
 
 **Key Files**:
+
 - `auth-service/src/main/java/com/gcrf/library/auth/controller/AuthController.java`
 - `auth-service/src/main/java/com/gcrf/library/auth/service/impl/AuthServiceImpl.java`
 - `auth-service/src/main/java/com/gcrf/library/auth/service/impl/UserServiceImpl.java`
@@ -91,19 +105,23 @@
 ---
 
 ### Stage 13: Auth Service Test Enhancement ✅
+
 **Completed**: 2025-10-30
 **Deliverables**:
+
 - Enhanced `SecurityConfigTest` from 5 to 13 tests (+8 tests)
 - Enhanced `JwtAuthenticationFilterTest` to 12 tests
 - All tests use best practices (Hamcrest matchers, proper security testing)
 - **Final Auth Service Test Count**: 96 tests (100% passing)
 
 **Test Categories**:
+
 - Security configuration tests (13): password encoder, public/protected endpoints, CSRF, Gateway paths
 - JWT authentication filter tests (12): token extraction, validation, invalid/expired tokens, SecurityContext
 - Other auth service tests: AuthService, UserService, AuthController, UserController
 
 **Key Improvements**:
+
 - Used `status().is(not(401))` pattern for flexible status assertions
 - Tested security configuration rather than application logic
 - Comprehensive edge case coverage
@@ -111,8 +129,10 @@
 ---
 
 ### Stage 14: Cross-Service Integration Tests ✅
+
 **Completed**: 2025-11-01
 **Deliverables**:
+
 - **Phase 1**: Cross-service integration analysis
 - **Phase 2**: Implementation plan (`IMPLEMENTATION_PLAN_STAGE14.md`)
 - **Phase 3**: Gateway-Auth integration test (13 tests, 100% passing)
@@ -122,6 +142,7 @@
 - **Total Project Tests**: 144 tests (100% passing)
 
 **Test Files**:
+
 - `gateway-service/src/test/java/com/gcrf/gateway/integration/GatewayAuthIntegrationTest.java` (13 tests)
   - Valid/invalid token authentication
   - Whitelist path access without token
@@ -136,6 +157,7 @@
   - Token lifecycle testing
 
 **Documentation**:
+
 - `backend/doc/INTEGRATION_TEST_PATTERNS.md` (500+ lines)
   - Testing strategy overview (test pyramid: 75% unit, 20% integration, 5% E2E)
   - Gateway integration patterns (3 patterns)
@@ -146,6 +168,7 @@
   - Testing checklist and performance guidelines
 
 **Technical Highlights**:
+
 - Service-level integration tests (not full E2E)
 - `WebTestClient` for reactive Gateway testing
 - Direct JJWT usage for expired token testing
@@ -155,8 +178,10 @@
 ---
 
 ### Stage 15 - Phase 1: Environment Configuration & Secrets Management ✅
+
 **Completed**: 2025-11-01
 **Deliverables**:
+
 - Production configuration files for Gateway and Auth services
 - Environment variable management system (60+ variables documented)
 - Configuration validation scripts
@@ -164,6 +189,7 @@
 - **Documentation**: ENVIRONMENT_VARIABLES.md (900+ lines)
 
 **Key Files Created**:
+
 - `deployment/.env.example` - Template with all 60+ environment variables
 - `deployment/scripts/validate-config.sh` - Automated validation (200+ lines)
 - `backend/gateway-service/src/main/resources/application-prod.yml`
@@ -171,6 +197,7 @@
 - `deployment/docs/ENVIRONMENT_VARIABLES.md` (900+ lines)
 
 **Environment Categories**:
+
 - Database configuration (PostgreSQL primary + replicas)
 - Redis cluster (master + slaves + sentinels)
 - Nacos service discovery
@@ -181,8 +208,10 @@
 ---
 
 ### Stage 15 - Phase 2: Docker Compose Orchestration ✅
+
 **Completed**: 2025-11-01
 **Deliverables**:
+
 - Complete Docker Compose orchestration for entire stack
 - 3-tier network security architecture
 - Volume management and backup strategies
@@ -190,12 +219,14 @@
 - **Files Created**: 40+ files (16,800+ lines)
 
 **Infrastructure Orchestration**:
+
 - `deployment/docker-compose.infrastructure.yml` - PostgreSQL, Redis, Nacos, RabbitMQ, MinIO
 - `deployment/docker-compose.services.yml` - Microservices orchestration
 - `deployment/docker-compose.override.yml` - Development overrides
 - `deployment/docker-compose.monitoring.yml` - Prometheus + Grafana (future)
 
 **Automation Scripts Created** (12 scripts):
+
 1. `start-stack.sh` - One-command deployment
 2. `stop-stack.sh` - Graceful shutdown
 3. `backup-volumes.sh` - Automated backups with retention
@@ -208,6 +239,7 @@
 10. Additional helper scripts
 
 **Documentation Created** (6 comprehensive guides):
+
 1. `DOCKER_COMPOSE_GUIDE.md` (1,500+ lines)
 2. `NETWORK_SECURITY.md` (1,164 lines)
 3. `NACOS_CONFIGURATION.md` (400+ lines)
@@ -216,11 +248,13 @@
 6. Phase 2 completion report
 
 **Network Architecture**:
+
 - **DMZ Zone** (gcrf-frontend-network): Web admin, API Gateway, Nginx
 - **Application Zone** (gcrf-backend-network): Microservices, internal APIs
 - **Data Zone** (gcrf-data-network): PostgreSQL, Redis, message queues
 
 **Security Features**:
+
 - Network isolation (3-tier architecture)
 - Firewall rules (iptables)
 - TLS/SSL for external traffic
@@ -230,8 +264,10 @@
 ---
 
 ### Stage 15 - Phase 3: Service Dockerization ✅
+
 **Completed**: 2025-11-01
 **Deliverables**:
+
 - Production-ready Dockerfiles for Gateway and Auth services
 - 77-88% build time reduction through optimization
 - Automated security scanning with Trivy
@@ -241,6 +277,7 @@
 **7 Tasks Completed**:
 
 **Task 1: Gateway Service Dockerfile**
+
 - Multi-stage build (deps → builder → runtime)
 - Eclipse Temurin 21 JRE Alpine
 - Non-root user execution (spring:spring)
@@ -248,12 +285,14 @@
 - Image size: 183MB
 
 **Task 2: Auth Service Dockerfile**
+
 - 3-stage build with database optimizations
 - HikariCP connection pooling tuning
 - PostgreSQL SSL configuration
 - Image size: 191MB
 
 **Task 3: Build Optimization**
+
 - BuildKit cache mounts for Maven
 - **77-88% faster builds** (240s → 30-53s warm cache)
 - **85-95% cache hit rate**
@@ -261,12 +300,14 @@
 - Documentation: 3,728 lines (4 guides)
 
 **Task 4: Security Scanning Integration**
+
 - Trivy automated scanning
 - Security baseline: CRITICAL=0, HIGH=0, MEDIUM≤5
 - CI/CD integration (GitHub Actions, GitLab CI)
 - Documentation: 4,076 lines (11 files)
 
 **Task 5: Build Automation Scripts**
+
 - `build-service.sh` - Single service builder
 - `build-all-services.sh` - Batch parallel builds (2.48x faster)
 - `test-images.sh` - 9-category image testing
@@ -274,6 +315,7 @@
 - Documentation: 3,420 lines (5 files)
 
 **Task 6: Image Tagging Strategy**
+
 - Semantic versioning (MAJOR.MINOR.PATCH)
 - Environment tags (dev, staging, prod)
 - Git-based tags (commit SHA, branch, PR)
@@ -281,6 +323,7 @@
 - Documentation: 3,217 lines (7 files)
 
 **Task 7: Comprehensive Documentation**
+
 - `DOCKER_BUILD_MASTER_GUIDE.md` (1,737 lines)
 - `DOCKER_BUILD_QUICK_REFERENCE.md` (535 lines)
 - `PHASE3_COMPLETION_REPORT.md` (506 lines)
@@ -288,6 +331,7 @@
 - Total: 3,027 lines (4 files)
 
 **Performance Metrics**:
+
 - Build time (Gateway): 246s → 29s (88% faster)
 - Build time (Auth): 268s → 24s (91% faster)
 - Cache hit rate: 85-95%
@@ -300,46 +344,58 @@
 ## Infrastructure Setup
 
 ### Database (PostgreSQL 15) ✅
+
 **Status**: Production-ready
 **Configuration**:
+
 - Primary database: `gcrf-postgres-primary` (port 5432)
 - 12 microservice databases initialized
 - Extensions: uuid-ossp, pg_trgm, btree_gin, btree_gist, pg_stat_statements
 - **Location**: `/backend/infrastructure/postgresql/`
 
 ### Cache (Redis 7.2) ✅
+
 **Status**: Production-ready
 **Configuration**:
+
 - Architecture: 1 master + 2 slaves + 3 sentinels
 - Ports: master=6379, slave1=6380, slave2=6382, sentinel1=26379, sentinel2=26380, sentinel3=26381
 - Performance: SET QPS=262,467, GET QPS=234,741
 - **Location**: `/backend/infrastructure/redis/`
 
 ### Service Registry (Nacos 2.3) ✅
+
 **Status**: Production-ready
 **Configuration**:
+
 - Standalone mode with MySQL 8.0 storage backend
 - Ports: 8848 (HTTP), 9848 (gRPC client), 9849 (gRPC server)
 - Authentication enabled (nacos/nacos)
 - **Location**: `/backend/infrastructure/nacos/`
 
 ### Message Queue (RabbitMQ 3.12) ✅
+
 **Status**: Configured (pending production validation)
 **Configuration**:
+
 - 9 queues, 5 exchanges configured
 - Dead letter queue and delayed message plugin configured
 - **Location**: `/backend/infrastructure/rabbitmq/`
 
 ### Object Storage (MinIO) ✅
+
 **Status**: Configured (pending production validation)
 **Configuration**:
+
 - 4 buckets: avatars, covers, documents, backups
 - Spring Boot integration example provided
 - **Location**: `/backend/infrastructure/minio/`
 
 ### Search Engine (Elasticsearch 7.x) ✅
+
 **Status**: Configured (3-node cluster, pending production validation)
 **Configuration**:
+
 - 3-node cluster (requires 3GB memory)
 - IK tokenizer installation script provided
 - **Location**: `/backend/infrastructure/elasticsearch/`
@@ -349,20 +405,23 @@
 ## Testing Summary
 
 ### Test Distribution by Service
-| Service | Test Count | Status |
-|---------|-----------|--------|
-| Auth Service | 96 | ✅ 100% passing |
-| Gateway Service | 21 | ✅ 100% passing (8 filter + 13 integration) |
-| Common Core | 129 | ✅ 100% passing |
-| Common Web | 26 | ✅ 100% passing |
-| **Total** | **144** | **✅ 100% passing** |
+
+| Service         | Test Count | Status                                      |
+| --------------- | ---------- | ------------------------------------------- |
+| Auth Service    | 96         | ✅ 100% passing                             |
+| Gateway Service | 21         | ✅ 100% passing (8 filter + 13 integration) |
+| Common Core     | 129        | ✅ 100% passing                             |
+| Common Web      | 26         | ✅ 100% passing                             |
+| **Total**       | **144**    | **✅ 100% passing**                         |
 
 ### Test Categories
+
 - **Unit Tests**: ~124 tests (86%)
 - **Integration Tests**: ~20 tests (14%)
 - **Test Pyramid**: Follows 75/20/5 guideline (unit/integration/E2E)
 
 ### Code Coverage Highlights
+
 - Common modules: Comprehensive unit test coverage (95%+)
 - Auth service: Full service, controller, and security tests
 - Gateway service: Complete authentication filter and routing tests
@@ -372,30 +431,37 @@
 ## Frontend Progress
 
 ### Completed Pages (20+)
+
 **Dashboard**:
+
 - `src/views/dashboard/index.vue` - Purple gradient theme, statistics cards, quick actions, charts
 
 **Authentication**:
+
 - `src/views/login/index.vue` - Login with JWT authentication
 
 **Books Management** (4 pages):
+
 - `src/views/books/list.vue` - Book list with search/filter
 - `src/views/books/catalog.vue` - Book cataloging
 - `src/views/books/collection.vue` - Collection management
 - `src/views/books/inventory.vue` - Inventory check
 
 **Circulation Management** (4 pages):
+
 - `src/views/circulation/borrow.vue` - Book borrowing
 - `src/views/circulation/return.vue` - Book return
 - `src/views/circulation/records.vue` - Circulation records
 - `src/views/circulation/reservations.vue` - Reservation management
 
 **Reader Management** (3 pages):
+
 - `src/views/readers/students.vue` - Student readers
 - `src/views/readers/teachers.vue` - Teacher readers
 - `src/views/readers/card.vue` - Reader card management
 
 **System Management** (5 pages):
+
 - `src/views/system/users.vue` - User management
 - `src/views/system/roles.vue` - Role management
 - `src/views/system/config.vue` - System configuration
@@ -403,16 +469,20 @@
 - `src/views/system/departments.vue` - Department management
 
 **Personal Center** (2 pages):
+
 - `src/views/profile/info.vue` - Personal information
 - `src/views/profile/password.vue` - Password change
 
 ### Mock API Status
+
 **Completed**:
+
 - ✅ Auth module (login, logout, user info, password change)
 - ✅ Analytics module (overview, trends, rankings, activities)
 - ✅ System module (departments CRUD)
 
 **Pending**:
+
 - ⏳ Books module
 - ⏳ Circulation module
 - ⏳ Readers module
@@ -422,19 +492,23 @@
 ## Current Sprint Status
 
 ### Sprint 2 Progress (MVP Core Features)
+
 **Duration**: 2 weeks, 55 SP
 **Status**: In Progress
 
 **Completed**:
+
 - ✅ US-1: PostgreSQL cluster verification (5 SP)
 - ✅ US-2: Frontend environment setup (3 SP)
 - ✅ US-7: Database schema design (2 SP)
 
 **In Progress**:
+
 - 🔄 US-4: Auth Service development (8 SP) - 90% complete
 - 🔄 US-3: API Gateway setup (5 SP) - 80% complete
 
 **Pending**:
+
 - ⏳ US-5: Book Service development (8 SP)
 - ⏳ US-6: Circulation Service development (8 SP)
 - ⏳ US-8: Login page API integration (3 SP)
@@ -447,6 +521,7 @@
 ## Current Status: Stage 15 Progress
 
 ### ✅ Completed Phases:
+
 - **Phase 1**: Environment Configuration & Secrets Management (✅ Complete)
 - **Phase 2**: Docker Compose Orchestration (✅ Complete - 40+ files, 16,800+ lines)
 - **Phase 3**: Service Dockerization (✅ Complete - 35 files, 18,010 lines)
@@ -454,6 +529,7 @@
 ### ⏳ Remaining Phases:
 
 **Phase 4: Remaining Services Dockerization** (Pending)
+
 - Create Dockerfiles for 5 remaining services:
   - book-service
   - circulation-service
@@ -464,12 +540,14 @@
 - Complete end-to-end testing
 
 **Phase 5: Monitoring & Observability** (Pending)
+
 - Prometheus metrics collection
 - Grafana dashboards
 - Alert rules and notifications
 - Log aggregation (ELK/Loki)
 
 **Phase 6: Final Production Deployment** (Pending)
+
 - Security audit and hardening
 - Performance testing under load
 - Deployment runbooks
@@ -500,6 +578,7 @@
 ## Technical Stack Summary
 
 ### Backend
+
 - **Framework**: Spring Boot 3.2.2, Spring Cloud 2023.0.0, Spring Cloud Alibaba 2023.0.1.0
 - **Security**: Spring Security 6.2.1, JWT (HS512)
 - **ORM**: MyBatis Plus 3.5.9
@@ -512,6 +591,7 @@
 - **Search**: Elasticsearch 7.x
 
 ### Frontend
+
 - **Framework**: Vue 3 (Composition API with `<script setup>`)
 - **Build Tool**: Vite
 - **UI Library**: Element Plus
@@ -520,6 +600,7 @@
 - **State Management**: Pinia
 
 ### Development Tools
+
 - **Java**: JDK 21
 - **Package Manager**: Maven (backend), npm (frontend)
 - **Testing**: JUnit 5, Mockito, AssertJ, Hamcrest, WebTestClient
@@ -531,12 +612,14 @@
 ## Key Metrics
 
 ### Code Statistics
+
 - **Backend Code**: ~15,000+ lines (Java)
 - **Frontend Code**: ~8,000+ lines (Vue/TypeScript)
 - **Test Code**: ~10,000+ lines
 - **Documentation**: ~3,000+ lines (Markdown)
 
 ### Quality Metrics
+
 - **Test Coverage**: 85%+ (backend), 60%+ (frontend)
 - **Test Success Rate**: 100% (144/144 tests passing)
 - **Build Success Rate**: 100%
@@ -547,6 +630,7 @@
 ## Decision Log
 
 ### Major Technical Decisions
+
 1. **PostgreSQL over MySQL** (2025-10-11)
    - Better JSON support (JSONB)
    - Stronger ACID guarantees
@@ -579,6 +663,7 @@
 ## Risks & Mitigation
 
 ### Identified Risks
+
 1. **Risk**: Integration complexity between 12 microservices
    - **Mitigation**: Comprehensive integration tests, clear API contracts, API Gateway for routing
 
@@ -599,12 +684,14 @@
 ## References
 
 ### Key Documentation
+
 - **CLAUDE.md** - Development guidelines and project instructions
 - **architect.md** (`/backend/doc/architect.md`) - Authoritative technical specification (1570 lines)
 - **INTEGRATION_TEST_PATTERNS.md** (`/backend/doc/INTEGRATION_TEST_PATTERNS.md`) - Testing best practices (500+ lines)
 - **IMPLEMENTATION_PLAN_STAGE14.md** (`/backend/IMPLEMENTATION_PLAN_STAGE14.md`) - Stage 14 detailed plan
 
 ### Historical Plans (Archived)
+
 - Previous implementation plans have been consolidated into this document
 
 ---
@@ -612,3 +699,33 @@
 **Last Review**: 2025-11-01
 **Next Review**: Before Stage 15 kickoff
 **Maintained By**: GCRF Development Team
+
+---
+
+## Pending Follow-ups (持久化提醒)
+
+### 2026-05-07 — 后端 API 500 修复（计划任务）
+
+**触发日期**：2026-05-07（下周四）上午 10:13（已通过 CronCreate 排期，session-only；session 重启后请人工触发）
+
+**目标**：把整个平台 API 健康度补到 100%，消除浏览器测试时观察到的 500 端点。
+
+**已知 500 端点（2026-04-30 浏览器实测捕获）**：
+
+1. `GET /api/v1/system/users`（用户管理列表 — UI 显示"加载用户列表失败"）
+2. `GET /api/v1/analytics/book-rankings?rankBy=BORROW_COUNT&timeRange=THIS_MONTH&limit=10`
+3. `GET /api/v1/analytics/collection-analysis`
+4. `GET /api/v1/analytics/recent-activities?limit=5`
+
+**修复流程**：
+
+1. SSH 到 K8s 集群（`t1@192.168.1.20` / `t2@192.168.1.19` / `t3@192.168.1.21`，密码 `gcrf`，命名空间 `gcrf-prod`，kubectl 需 sudo）
+2. 跑全量 endpoint 健康检查，确认上述清单 + 是否新增 500
+3. 拉日志找 stack trace：`kubectl logs -n gcrf-prod deployment/gcrf-system --tail=500` 与 `deployment/gcrf-analytics`
+4. TDD 修复（多半是 mapper SQL 列名不匹配 / 缺字段 / NPE）
+5. 重建 jar → `docker build --platform linux/amd64` → `ctr -n k8s.io images import` 三节点 → `kubectl rollout restart`
+6. 跑 `deployment/k8s/test-online.sh` + 浏览器手测用户管理/Dashboard 馆藏分析
+
+**验收标准**：所有 500 → 200，test-online.sh 通过率 100%，浏览器无错误提示。
+
+**触发人/恢复方式**：若 Claude session 已重启，丢失了 cron job `a88b77a4`，请直接对 Claude 说："修一下 DEVELOPMENT_PROGRESS.md 里 2026-05-07 那条 Pending Follow-up"。

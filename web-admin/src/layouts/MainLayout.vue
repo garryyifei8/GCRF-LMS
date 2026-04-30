@@ -3,24 +3,7 @@
     <!-- 侧边栏 -->
     <el-aside :width="isCollapse ? '64px' : '260px'" class="main-aside">
       <div class="logo-container" :class="{ 'is-collapse': isCollapse }">
-        <div class="logo-wrapper">
-          <div class="logo-icon">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="8" fill="url(#gradient)" />
-              <path d="M16 8L8 12V20L16 24L24 20V12L16 8Z" fill="white" />
-              <defs>
-                <linearGradient id="gradient" x1="0" y1="0" x2="32" y2="32">
-                  <stop offset="0%" stop-color="#667eea" />
-                  <stop offset="100%" stop-color="#764ba2" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
-          <div v-if="!isCollapse" class="logo-content">
-            <div class="logo-text">Modernize</div>
-            <span class="logo-subtitle">图书馆管理系统</span>
-          </div>
-        </div>
+        <BrandLogo :size="36" :icon-only="isCollapse" />
       </div>
 
       <el-scrollbar class="menu-scrollbar">
@@ -143,11 +126,18 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useBrandStore } from '@/stores/brand'
 import { ElMessageBox } from 'element-plus'
 import MessageCenter from '@/components/MessageCenter.vue'
+import BrandLogo from '@/components/BrandLogo.vue'
+
+const brandStore = useBrandStore()
+onMounted(() => {
+  if (!brandStore.loaded) brandStore.loadBrand()
+})
 
 const route = useRoute()
 const router = useRouter()

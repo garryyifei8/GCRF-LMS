@@ -158,9 +158,50 @@ public class ExportServiceImpl implements ExportService {
 
     @Override
     public void exportComprehensiveReportPdf(HttpServletResponse response) {
-        log.info("导出综合报告PDF（暂未实现）");
-        // TODO: 实现PDF导出功能，可以使用iText或Flying Saucer库
-        throw new SystemException("PDF导出功能暂未实现");
+        log.info("导出综合报告Excel（多Sheet）");
+
+        try {
+            TrendQueryRequest trendReq = new TrendQueryRequest();
+            RankingQueryRequest popularReq = new RankingQueryRequest();
+            popularReq.setLimit(20);
+            RankingQueryRequest readerReq = new RankingQueryRequest();
+            readerReq.setLimit(20);
+
+            List<BorrowTrendExcelVO> trendData = analyticsService.getBorrowTrends(trendReq).stream()
+                    .map(this::convertToBorrowTrendExcelVO)
+                    .collect(Collectors.toList());
+            List<PopularBookExcelVO> bookData = analyticsService.getPopularBooks(popularReq).stream()
+                    .map(this::convertToPopularBookExcelVO)
+                    .collect(Collectors.toList());
+            List<ActiveReaderExcelVO> readerData = analyticsService.getActiveReaders(readerReq).stream()
+                    .map(this::convertToActiveReaderExcelVO)
+                    .collect(Collectors.toList());
+            List<CategoryDistributionExcelVO> categoryData = analyticsService.getCategoryDistribution().stream()
+                    .map(this::convertToCategoryDistributionExcelVO)
+                    .collect(Collectors.toList());
+
+            String fileName = "综合分析报告_" + LocalDateTime.now().format(FILE_DATE_FORMATTER) + ".xlsx";
+            setExcelResponseHeader(response, fileName);
+
+            try (com.alibaba.excel.ExcelWriter writer = EasyExcel.write(response.getOutputStream())
+                    .registerWriteHandler(new LongestMatchColumnWidthStyleStrategy())
+                    .build()) {
+                writer.write(trendData,
+                        EasyExcel.writerSheet(0, "借阅趋势").head(BorrowTrendExcelVO.class).build());
+                writer.write(bookData,
+                        EasyExcel.writerSheet(1, "热门图书").head(PopularBookExcelVO.class).build());
+                writer.write(readerData,
+                        EasyExcel.writerSheet(2, "活跃读者").head(ActiveReaderExcelVO.class).build());
+                writer.write(categoryData,
+                        EasyExcel.writerSheet(3, "分类统计").head(CategoryDistributionExcelVO.class).build());
+            }
+
+            log.info("综合报告Excel导出成功: 趋势{}/图书{}/读者{}/分类{}",
+                    trendData.size(), bookData.size(), readerData.size(), categoryData.size());
+        } catch (IOException e) {
+            log.error("导出综合报告Excel失败", e);
+            throw new SystemException("导出Excel失败: " + e.getMessage());
+        }
     }
 
     // ==================== 辅助方法 ====================
