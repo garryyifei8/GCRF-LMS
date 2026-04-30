@@ -227,7 +227,7 @@ public class ReaderController {
     public Result<Map<String, Object>> batchCancelByGrade(@RequestBody Map<String, String> request) {
         String grade = request.get("grade");
         if (grade == null || grade.isBlank()) {
-            return Result.fail("年级不能为空");
+            return Result.error("年级不能为空");
         }
         log.info("批量注销读者: grade={}", grade);
         int count = readerService.batchCancelByGrade(grade);
