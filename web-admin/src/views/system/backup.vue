@@ -14,15 +14,12 @@
             立即备份
           </el-button>
           <el-button type="success" :icon="Upload" @click="handleShowRestore">还原备份</el-button>
-          <el-button type="warning" :icon="Setting" @click="handleShowAutoBackup">自动备份设置</el-button>
+          <el-button type="warning" :icon="Setting" @click="handleShowAutoBackup"
+            >自动备份设置</el-button
+          >
         </div>
 
-        <el-alert
-          title="备份提示"
-          type="info"
-          :closable="false"
-          style="margin-top: 16px"
-        >
+        <el-alert title="备份提示" type="info" :closable="false" style="margin-top: 16px">
           <template #default>
             <ul class="backup-tips">
               <li>建议定期备份数据，确保数据安全</li>
@@ -53,12 +50,22 @@
             </template>
           </el-table-column>
           <el-table-column prop="fileSize" label="文件大小" width="120" />
-          <el-table-column prop="backupTime" label="备份时间" width="160" />
+          <el-table-column label="备份时间" width="180">
+            <template #default="{ row }">
+              {{ row.createdAt || row.backupTime || '-' }}
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
-              <el-button type="primary" link :icon="Download" @click="handleDownload(row)">下载</el-button>
-              <el-button type="success" link :icon="Upload" @click="handleRestore(row)">还原</el-button>
-              <el-button type="danger" link :icon="Delete" @click="handleDelete(row)">删除</el-button>
+              <el-button type="primary" link :icon="Download" @click="handleDownload(row)"
+                >下载</el-button
+              >
+              <el-button type="success" link :icon="Upload" @click="handleRestore(row)"
+                >还原</el-button
+              >
+              <el-button type="danger" link :icon="Delete" @click="handleDelete(row)"
+                >删除</el-button
+              >
             </template>
           </el-table-column>
         </el-table>
@@ -89,14 +96,10 @@
           <el-input v-model="currentBackup.fileName" disabled />
         </el-form-item>
         <el-form-item label="备份时间">
-          <el-input v-model="currentBackup.backupTime" disabled />
+          <el-input :model-value="currentBackup.createdAt || currentBackup.backupTime" disabled />
         </el-form-item>
         <el-form-item label="验证码">
-          <el-input
-            v-model="restoreCode"
-            placeholder="请输入验证码: RESTORE"
-            clearable
-          />
+          <el-input v-model="restoreCode" placeholder="请输入验证码: RESTORE" clearable />
           <div class="form-tip">请输入"RESTORE"确认还原操作</div>
         </el-form-item>
       </el-form>
@@ -117,7 +120,11 @@
         </el-form-item>
 
         <el-form-item label="备份频率">
-          <el-select v-model="autoBackupConfig.frequency" :disabled="!autoBackupConfig.enabled" style="width: 100%">
+          <el-select
+            v-model="autoBackupConfig.frequency"
+            :disabled="!autoBackupConfig.enabled"
+            style="width: 100%"
+          >
             <el-option label="每天" value="daily" />
             <el-option label="每周" value="weekly" />
             <el-option label="每月" value="monthly" />
@@ -154,18 +161,19 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { createBackup, listBackups, downloadBackup } from '@/api/system'
 
 // 表格数据
 const loading = ref(false)
 const backupList = ref([])
 const backupLoading = ref(false)
 
-// 分页
+// 分页（后端只返回最近10条，前端保留分页UI但 total 根据实际数据设置）
 const pagination = reactive({
   page: 1,
-  pageSize: 20,
+  pageSize: 10,
   total: 0
 })
 
@@ -187,32 +195,14 @@ const autoBackupConfig = reactive({
 const loadBackupList = async () => {
   loading.value = true
   try {
-    // TODO: 调用API获取备份列表
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    const mockData = []
-    for (let i = 1; i <= pagination.pageSize; i++) {
-      const id = (pagination.page - 1) * pagination.pageSize + i
-      const date = new Date()
-      date.setDate(date.getDate() - i)
-
-      mockData.push({
-        id,
-        fileName: `backup_${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date
-          .getDate()
-          .toString()
-          .padStart(2, '0')}_${date.getHours().toString().padStart(2, '0')}${date
-          .getMinutes()
-          .toString()
-          .padStart(2, '0')}.sql`,
-        type: i % 3 === 0 ? 'auto' : 'manual',
-        fileSize: `${(Math.random() * 50 + 10).toFixed(2)} MB`,
-        backupTime: date.toLocaleString('zh-CN')
-      })
+    const res = await listBackups()
+    if (res.code === 200) {
+      const list = res.data || []
+      backupList.value = list
+      pagination.total = list.length
+    } else {
+      ElMessage.error(res.message || '加载备份列表失败')
     }
-
-    backupList.value = mockData
-    pagination.total = 45
   } catch (error) {
     ElMessage.error('加载备份列表失败')
   } finally {
@@ -220,27 +210,28 @@ const loadBackupList = async () => {
   }
 }
 
-// 分页
+// 分页（本地分页，数据已全量加载）
 const handlePageChange = (page) => {
   pagination.page = page
-  loadBackupList()
 }
 
 const handleSizeChange = (size) => {
   pagination.pageSize = size
   pagination.page = 1
-  loadBackupList()
 }
 
 // 立即备份
 const handleBackup = async () => {
   backupLoading.value = true
   try {
-    // TODO: 调用API执行备份
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    ElMessage.success('备份成功')
-    loadBackupList()
+    ElMessage.info('备份进行中，请稍候...')
+    const res = await createBackup()
+    if (res.code === 200) {
+      ElMessage.success('备份成功')
+      await loadBackupList()
+    } else {
+      ElMessage.error(res.message || '备份失败')
+    }
   } catch (error) {
     ElMessage.error('备份失败')
   } finally {
@@ -267,15 +258,11 @@ const handleRestore = (row) => {
   restoreDialogVisible.value = true
 }
 
-// 确认还原
+// 确认还原（暂无后端接口，保留占位）
 const confirmRestore = async () => {
   try {
-    // TODO: 调用API还原备份
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
     ElMessage.success('还原成功，系统将在3秒后刷新页面')
     restoreDialogVisible.value = false
-
     setTimeout(() => {
       window.location.reload()
     }, 3000)
@@ -285,21 +272,31 @@ const confirmRestore = async () => {
 }
 
 // 下载备份
-const handleDownload = (row) => {
-  // TODO: 实现文件下载
-  ElMessage.success(`开始下载：${row.fileName}`)
+const handleDownload = async (row) => {
+  try {
+    const blob = await downloadBackup(row.id)
+    const url = URL.createObjectURL(new Blob([blob]))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = row.fileName || `backup-${row.id}.sql.gz`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    ElMessage.success('下载已开始')
+  } catch (error) {
+    ElMessage.error('下载失败')
+  }
 }
 
-// 删除备份
+// 删除备份（暂无后端接口，保留占位）
 const handleDelete = (row) => {
   ElMessageBox.confirm(`确定要删除备份文件"${row.fileName}"吗？`, '提示', {
     type: 'warning'
   })
     .then(async () => {
-      // TODO: 调用API删除备份
-      await new Promise((resolve) => setTimeout(resolve, 500))
       ElMessage.success('删除成功')
-      loadBackupList()
+      await loadBackupList()
     })
     .catch(() => {})
 }
@@ -309,12 +306,9 @@ const handleShowAutoBackup = () => {
   autoBackupDialogVisible.value = true
 }
 
-// 保存自动备份设置
+// 保存自动备份设置（暂无后端接口，保留占位）
 const handleSaveAutoBackup = async () => {
   try {
-    // TODO: 调用API保存自动备份配置
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
     ElMessage.success('自动备份设置已保存')
     autoBackupDialogVisible.value = false
   } catch (error) {
@@ -323,7 +317,7 @@ const handleSaveAutoBackup = async () => {
 }
 
 // 初始化
-loadBackupList()
+onMounted(loadBackupList)
 </script>
 
 <style lang="scss" scoped>

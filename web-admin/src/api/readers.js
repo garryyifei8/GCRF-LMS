@@ -137,3 +137,31 @@ export function getReaderByCardNumber(cardNumber) {
     method: 'get'
   })
 }
+
+/**
+ * 获取读者借阅历史(分页)
+ * @param {number} readerId - 读者ID
+ * @param {Object} params - 分页参数
+ * @param {number} params.pageNum - 页码
+ * @param {number} params.pageSize - 每页数量
+ */
+export function getReaderBorrowHistory(readerId, params) {
+  return request({
+    url: `/api/v1/readers/${readerId}/borrow-history`,
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 按年级批量注销学生读者
+ * @param {Object} data - 请求体
+ * @param {string} data.grade - 年级(如 "2024")
+ */
+export function batchCancelByGrade(data) {
+  return request({
+    url: '/api/v1/readers/batch-cancel-by-grade',
+    method: 'post',
+    data
+  })
+}

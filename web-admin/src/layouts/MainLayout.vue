@@ -108,6 +108,9 @@
             </el-icon>
           </el-tooltip>
 
+          <!-- 消息中心 -->
+          <MessageCenter />
+
           <!-- 用户信息 -->
           <el-dropdown @command="handleCommand">
             <div class="user-info">
@@ -140,10 +143,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessageBox } from 'element-plus'
+import MessageCenter from '@/components/MessageCenter.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -170,16 +174,14 @@ const menuGroups = computed(() => {
     },
     {
       title: 'APPS',
-      routes: routes.filter((r) =>
-        r.meta?.group === 'apps' ||
-        ['books', 'circulation', 'readers'].includes(r.path)
+      routes: routes.filter(
+        (r) => r.meta?.group === 'apps' || ['books', 'circulation', 'readers'].includes(r.path)
       )
     },
     {
       title: 'SYSTEM',
-      routes: routes.filter((r) =>
-        r.meta?.group === 'system' ||
-        ['system', 'profile'].includes(r.path)
+      routes: routes.filter(
+        (r) => r.meta?.group === 'system' || ['system', 'profile'].includes(r.path)
       )
     }
   ].filter((group) => group.routes.length > 0)
@@ -270,7 +272,7 @@ function handleCommand(command) {
         .logo-text {
           font-size: 20px;
           font-weight: 700;
-          color: #2A3547;
+          color: #2a3547;
           line-height: 1.2;
           letter-spacing: -0.5px;
         }
@@ -278,7 +280,7 @@ function handleCommand(command) {
         .logo-subtitle {
           font-size: 12px;
           font-weight: 500;
-          color: #5A6A85;
+          color: #5a6a85;
           line-height: 1.2;
           white-space: nowrap;
         }
@@ -305,7 +307,7 @@ function handleCommand(command) {
       .menu-group-title {
         font-size: 11px;
         font-weight: 600;
-        color: #A1A5B7;
+        color: #a1a5b7;
         letter-spacing: 0.5px;
         text-transform: uppercase;
         padding: 8px 8px 8px;
@@ -324,7 +326,7 @@ function handleCommand(command) {
     transition: background 0.3s;
 
     &:hover {
-      background: #F6F9FC;
+      background: #f6f9fc;
     }
 
     .user-card-info {
@@ -334,7 +336,7 @@ function handleCommand(command) {
       .user-card-name {
         font-size: 14px;
         font-weight: 600;
-        color: #2A3547;
+        color: #2a3547;
         line-height: 1.4;
         white-space: nowrap;
         overflow: hidden;
@@ -343,14 +345,14 @@ function handleCommand(command) {
 
       .user-card-role {
         font-size: 12px;
-        color: #5A6A85;
+        color: #5a6a85;
         line-height: 1.4;
       }
     }
 
     .user-card-icon {
       font-size: 16px;
-      color: #5A6A85;
+      color: #5a6a85;
       flex-shrink: 0;
     }
   }
@@ -370,16 +372,16 @@ function handleCommand(command) {
 
       .el-icon {
         font-size: 20px;
-        color: #5A6A85;
+        color: #5a6a85;
         margin-right: 12px;
       }
 
       &:hover {
-        background-color: #F6F9FC !important;
+        background-color: #f6f9fc !important;
       }
 
       &.is-active {
-        background-color: #5D87FF !important;
+        background-color: #5d87ff !important;
         color: #fff !important;
         font-weight: 600;
 
@@ -392,11 +394,11 @@ function handleCommand(command) {
     .el-sub-menu {
       .el-sub-menu__title {
         .el-icon {
-          color: #5A6A85;
+          color: #5a6a85;
         }
 
         &:hover .el-icon {
-          color: #5D87FF;
+          color: #5d87ff;
         }
       }
 
@@ -412,17 +414,17 @@ function handleCommand(command) {
         font-weight: 500;
 
         &:hover {
-          background-color: #F6F9FC !important;
-          color: #5D87FF !important;
+          background-color: #f6f9fc !important;
+          color: #5d87ff !important;
         }
 
         &.is-active {
           background-color: rgba(93, 135, 255, 0.1) !important;
-          color: #5D87FF !important;
+          color: #5d87ff !important;
           font-weight: 600;
 
           .el-icon {
-            color: #5D87FF !important;
+            color: #5d87ff !important;
           }
         }
       }

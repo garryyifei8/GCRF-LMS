@@ -25,7 +25,12 @@
           </el-form-item>
 
           <el-form-item label="部门">
-            <el-select v-model="queryForm.department" placeholder="全部部门" clearable style="width: 140px">
+            <el-select
+              v-model="queryForm.department"
+              placeholder="全部部门"
+              clearable
+              style="width: 140px"
+            >
               <el-option label="全部" value="" />
               <el-option label="语文组" value="chinese" />
               <el-option label="数学组" value="math" />
@@ -37,7 +42,12 @@
           </el-form-item>
 
           <el-form-item label="状态">
-            <el-select v-model="queryForm.status" placeholder="全部状态" clearable style="width: 120px">
+            <el-select
+              v-model="queryForm.status"
+              placeholder="全部状态"
+              clearable
+              style="width: 120px"
+            >
               <el-option label="全部" value="" />
               <el-option label="正常" value="normal" />
               <el-option label="冻结" value="frozen" />
@@ -62,7 +72,9 @@
         <!-- 批量操作 -->
         <div v-if="selectedTeachers.length > 0" class="batch-actions">
           <span class="batch-info">已选择 {{ selectedTeachers.length }} 项</span>
-          <el-button type="danger" size="small" :icon="Delete" @click="handleBatchDelete">批量删除</el-button>
+          <el-button type="danger" size="small" :icon="Delete" @click="handleBatchDelete"
+            >批量删除</el-button
+          >
           <el-button size="small" @click="handleClearSelection">取消选择</el-button>
         </div>
 
@@ -121,10 +133,11 @@
             </template>
           </el-table-column>
           <el-table-column prop="createdAt" label="创建时间" width="110" />
-          <el-table-column label="操作" width="240" fixed="right">
+          <el-table-column label="操作" width="290" fixed="right">
             <template #default="{ row }">
               <el-button type="primary" link :icon="View" @click="handleView(row)">查看</el-button>
               <el-button type="primary" link :icon="Edit" @click="handleEdit(row)">编辑</el-button>
+              <el-button type="primary" link @click="showBorrowHistory(row)">借阅历史</el-button>
               <el-button
                 v-if="row.status !== 'frozen'"
                 type="warning"
@@ -134,8 +147,12 @@
               >
                 冻结
               </el-button>
-              <el-button v-else type="success" link :icon="Unlock" @click="handleUnfreeze(row)">解冻</el-button>
-              <el-button type="danger" link :icon="Delete" @click="handleDelete(row)">删除</el-button>
+              <el-button v-else type="success" link :icon="Unlock" @click="handleUnfreeze(row)"
+                >解冻</el-button
+              >
+              <el-button type="danger" link :icon="Delete" @click="handleDelete(row)"
+                >删除</el-button
+              >
             </template>
           </el-table-column>
         </el-table>
@@ -162,12 +179,7 @@
       width="600px"
       @close="handleDialogClose"
     >
-      <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="formRules"
-        label-width="100px"
-      >
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
         <el-form-item label="工号" prop="teacherNo">
           <el-input v-model="formData.teacherNo" placeholder="请输入工号" />
         </el-form-item>
@@ -282,9 +294,14 @@
 
       <template #footer>
         <el-button @click="importDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="importing" @click="handleConfirmImport">确认导入</el-button>
+        <el-button type="primary" :loading="importing" @click="handleConfirmImport"
+          >确认导入</el-button
+        >
       </template>
     </el-dialog>
+
+    <!-- 借阅历史对话框 -->
+    <BorrowHistoryDialog v-model="showHistory" :reader="currentReader" />
 
     <!-- 详情对话框 -->
     <el-dialog v-model="detailDialogVisible" title="教师详情" width="900px">
@@ -306,33 +323,41 @@
         </div>
 
         <div class="teacher-detail-info">
-      <el-descriptions :column="2" border>
-        <el-descriptions-item label="工号">{{ currentTeacher.teacherNo }}</el-descriptions-item>
-        <el-descriptions-item label="姓名">{{ currentTeacher.name }}</el-descriptions-item>
-        <el-descriptions-item label="性别">
-          {{ currentTeacher.gender === 'male' ? '男' : '女' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="部门">
-          {{ getDepartmentName(currentTeacher.department) }}
-        </el-descriptions-item>
-        <el-descriptions-item label="职称">{{ currentTeacher.title }}</el-descriptions-item>
-        <el-descriptions-item label="联系电话">{{ currentTeacher.phone }}</el-descriptions-item>
-        <el-descriptions-item label="读者证号">{{ currentTeacher.cardNo }}</el-descriptions-item>
-        <el-descriptions-item label="电子邮箱">{{ currentTeacher.email || '暂无' }}</el-descriptions-item>
-        <el-descriptions-item label="身份证号">{{ currentTeacher.idCard }}</el-descriptions-item>
-        <el-descriptions-item label="借阅情况">
-          {{ currentTeacher.borrowedCount }} / {{ currentTeacher.maxBorrow }}
-        </el-descriptions-item>
-        <el-descriptions-item label="账户状态">
-          <el-tag v-if="currentTeacher.status === 'normal'" type="success">正常</el-tag>
-          <el-tag v-else-if="currentTeacher.status === 'frozen'" type="danger">冻结</el-tag>
-          <el-tag v-else type="info">注销</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ currentTeacher.createdAt }}</el-descriptions-item>
-        <el-descriptions-item label="办公地址" :span="2">
-          {{ currentTeacher.office || '暂无' }}
-        </el-descriptions-item>
-      </el-descriptions>
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="工号">{{ currentTeacher.teacherNo }}</el-descriptions-item>
+            <el-descriptions-item label="姓名">{{ currentTeacher.name }}</el-descriptions-item>
+            <el-descriptions-item label="性别">
+              {{ currentTeacher.gender === 'male' ? '男' : '女' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="部门">
+              {{ getDepartmentName(currentTeacher.department) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="职称">{{ currentTeacher.title }}</el-descriptions-item>
+            <el-descriptions-item label="联系电话">{{ currentTeacher.phone }}</el-descriptions-item>
+            <el-descriptions-item label="读者证号">{{
+              currentTeacher.cardNo
+            }}</el-descriptions-item>
+            <el-descriptions-item label="电子邮箱">{{
+              currentTeacher.email || '暂无'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="身份证号">{{
+              currentTeacher.idCard
+            }}</el-descriptions-item>
+            <el-descriptions-item label="借阅情况">
+              {{ currentTeacher.borrowedCount }} / {{ currentTeacher.maxBorrow }}
+            </el-descriptions-item>
+            <el-descriptions-item label="账户状态">
+              <el-tag v-if="currentTeacher.status === 'normal'" type="success">正常</el-tag>
+              <el-tag v-else-if="currentTeacher.status === 'frozen'" type="danger">冻结</el-tag>
+              <el-tag v-else type="info">注销</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{
+              currentTeacher.createdAt
+            }}</el-descriptions-item>
+            <el-descriptions-item label="办公地址" :span="2">
+              {{ currentTeacher.office || '暂无' }}
+            </el-descriptions-item>
+          </el-descriptions>
         </div>
       </div>
     </el-dialog>
@@ -343,7 +368,16 @@
 import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AvatarUpload from '@/components/AvatarUpload.vue'
-import { getReaders, getReaderById, createReader, updateReader, deleteReader, batchDeleteReaders, updateReaderStatus } from '@/api/readers'
+import BorrowHistoryDialog from '@/components/readers/BorrowHistoryDialog.vue'
+import {
+  getReaders,
+  getReaderById,
+  createReader,
+  updateReader,
+  deleteReader,
+  batchDeleteReaders,
+  updateReaderStatus
+} from '@/api/readers'
 import { exportExcel, readExcel, downloadTemplate } from '@/utils/excel'
 
 // 查询表单
@@ -388,7 +422,8 @@ const formData = reactive({
 })
 
 // 默认头像
-const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzY2N2VlYSIvPjxwYXRoIGQ9Ik01MCwyMGMxMSwwLDIwLDksMjAsMjBzLTksMjAtMjAsMjAtMjAtOS0yMC0yMFMzOSwyMCw1MCwyMHpNMjAsODBjMC0xNiwxMy41LTMwLDMwLTMwczMwLDE0LDMwLDMwIiBmaWxsPSIjZmZmIi8+PC9zdmc+'
+const defaultAvatar =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzY2N2VlYSIvPjxwYXRoIGQ9Ik01MCwyMGMxMSwwLDIwLDksMjAsMjBzLTksMjAtMjAsMjAtMjAtOS0yMC0yMFMzOSwyMCw1MCwyMHpNMjAsODBjMC0xNiwxMy41LTMwLDMwLTMwczMwLDE0LDMwLDMwIiBmaWxsPSIjZmZmIi8+PC9zdmc+'
 
 const formRules = {
   teacherNo: [{ required: true, message: '请输入工号', trigger: 'blur' }],
@@ -401,10 +436,18 @@ const formRules = {
     { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
   ],
   email: [
-    { pattern: /^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$/, message: '请输入正确的邮箱', trigger: 'blur' }
+    {
+      pattern: /^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$/,
+      message: '请输入正确的邮箱',
+      trigger: 'blur'
+    }
   ],
   idCard: [
-    { pattern: /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/, message: '请输入正确的身份证号', trigger: 'blur' }
+    {
+      pattern: /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/,
+      message: '请输入正确的身份证号',
+      trigger: 'blur'
+    }
   ]
 }
 
@@ -417,6 +460,14 @@ const uploadFile = ref(null)
 // 详情
 const detailDialogVisible = ref(false)
 const currentTeacher = ref(null)
+
+// 借阅历史
+const showHistory = ref(false)
+const currentReader = ref(null)
+const showBorrowHistory = (row) => {
+  currentReader.value = row
+  showHistory.value = true
+}
 
 // 部门映射
 const departmentMap = {
@@ -442,12 +493,17 @@ const loadTeacherList = async () => {
       pageSize: pagination.pageSize,
       keyword: queryForm.keyword,
       readerType: 'teacher',
-      status: queryForm.status === 'normal' ? 'active' : queryForm.status === 'frozen' ? 'suspended' : queryForm.status
+      status:
+        queryForm.status === 'normal'
+          ? 'active'
+          : queryForm.status === 'frozen'
+            ? 'suspended'
+            : queryForm.status
     })
 
     if (res.code === 200 && res.data) {
       // 映射API字段到页面字段
-      teacherList.value = res.data.records.map(reader => ({
+      teacherList.value = res.data.records.map((reader) => ({
         id: reader.readerId,
         teacherNo: reader.teacherId || 'N/A',
         name: reader.realName,
@@ -461,7 +517,12 @@ const loadTeacherList = async () => {
         cardNo: reader.cardNumber,
         borrowedCount: reader.currentBorrowCount,
         maxBorrow: reader.maxBorrowCount,
-        status: reader.status === 'active' ? 'normal' : reader.status === 'suspended' ? 'frozen' : 'disabled',
+        status:
+          reader.status === 'active'
+            ? 'normal'
+            : reader.status === 'suspended'
+              ? 'frozen'
+              : 'disabled',
         createdAt: reader.createdTime ? reader.createdTime.split('T')[0] : '',
         avatar: reader.avatar || ''
       }))
@@ -657,7 +718,7 @@ const handleBatchDelete = () => {
   })
     .then(async () => {
       try {
-        const ids = selectedTeachers.value.map(t => t.id)
+        const ids = selectedTeachers.value.map((t) => t.id)
         const res = await batchDeleteReaders(ids)
         if (res.code === 200) {
           ElMessage.success('批量删除成功')
@@ -696,7 +757,7 @@ const handleExport = () => {
     }
 
     // 准备导出数据
-    const exportData = teacherList.value.map(teacher => ({
+    const exportData = teacherList.value.map((teacher) => ({
       teacherNo: teacher.teacherNo,
       name: teacher.name,
       gender: teacher.gender === 'male' ? '男' : '女',
@@ -871,7 +932,13 @@ const handleConfirmImport = async () => {
 
     // 显示导入结果
     const resultMsg = `导入完成!\n成功: ${successCount} 条\n失败: ${failCount} 条${
-      failedItems.length > 0 ? '\n\n失败详情:\n' + failedItems.slice(0, 5).map(f => `${f.name}: ${f.error}`).join('\n') : ''
+      failedItems.length > 0
+        ? '\n\n失败详情:\n' +
+          failedItems
+            .slice(0, 5)
+            .map((f) => `${f.name}: ${f.error}`)
+            .join('\n')
+        : ''
     }`
 
     ElMessageBox.alert(resultMsg, '导入结果', {

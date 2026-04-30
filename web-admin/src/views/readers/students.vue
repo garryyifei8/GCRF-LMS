@@ -25,7 +25,12 @@
           </el-form-item>
 
           <el-form-item label="年级">
-            <el-select v-model="queryForm.grade" placeholder="全部年级" clearable style="width: 120px">
+            <el-select
+              v-model="queryForm.grade"
+              placeholder="全部年级"
+              clearable
+              style="width: 120px"
+            >
               <el-option label="全部" value="" />
               <el-option label="高一" value="1" />
               <el-option label="高二" value="2" />
@@ -34,7 +39,12 @@
           </el-form-item>
 
           <el-form-item label="状态">
-            <el-select v-model="queryForm.status" placeholder="全部状态" clearable style="width: 120px">
+            <el-select
+              v-model="queryForm.status"
+              placeholder="全部状态"
+              clearable
+              style="width: 120px"
+            >
               <el-option label="全部" value="" />
               <el-option label="正常" value="normal" />
               <el-option label="冻结" value="frozen" />
@@ -47,13 +57,19 @@
             <el-button :icon="Refresh" @click="handleReset">重置</el-button>
           </el-form-item>
 
-          <el-form-item style="float: right;">
+          <el-form-item style="float: right">
             <el-button-group>
-              <el-button :type="viewType === 'list' ? 'primary' : 'default'" @click="viewType = 'list'">
+              <el-button
+                :type="viewType === 'list' ? 'primary' : 'default'"
+                @click="viewType = 'list'"
+              >
                 <el-icon><List /></el-icon>
                 列表
               </el-button>
-              <el-button :type="viewType === 'card' ? 'primary' : 'default'" @click="viewType = 'card'">
+              <el-button
+                :type="viewType === 'card' ? 'primary' : 'default'"
+                @click="viewType = 'card'"
+              >
                 <el-icon><Grid /></el-icon>
                 卡片
               </el-button>
@@ -67,6 +83,9 @@
     <div class="lib-card mb-md">
       <div class="lib-card-body">
         <el-button type="success" :icon="Plus" @click="handleAdd">新增学生</el-button>
+        <el-button type="danger" :icon="Delete" @click="showBatchCancel = true"
+          >按年级批量注销</el-button
+        >
         <el-button type="warning" :icon="Upload" @click="handleImport">批量导入</el-button>
         <el-button :icon="Download" @click="handleExport">导出数据</el-button>
       </div>
@@ -78,7 +97,9 @@
         <!-- 批量操作 -->
         <div v-if="selectedStudents.length > 0" class="batch-actions">
           <span class="batch-info">已选择 {{ selectedStudents.length }} 项</span>
-          <el-button type="danger" size="small" :icon="Delete" @click="handleBatchDelete">批量删除</el-button>
+          <el-button type="danger" size="small" :icon="Delete" @click="handleBatchDelete"
+            >批量删除</el-button
+          >
           <el-button size="small" @click="handleClearSelection">取消选择</el-button>
         </div>
 
@@ -115,9 +136,7 @@
             </template>
           </el-table-column>
           <el-table-column label="年级班级" width="120">
-            <template #default="{ row }">
-              {{ row.gradeName }}({{ row.className }})
-            </template>
+            <template #default="{ row }"> {{ row.gradeName }}({{ row.className }}) </template>
           </el-table-column>
           <el-table-column prop="phone" label="联系电话" width="130" />
           <el-table-column prop="cardNo" label="读者证号" width="140" />
@@ -136,11 +155,14 @@
             </template>
           </el-table-column>
           <el-table-column prop="createdAt" label="创建时间" width="110" />
-          <el-table-column label="操作" width="200" fixed="right">
+          <el-table-column label="操作" width="240" fixed="right">
             <template #default="{ row }">
               <div class="table-actions">
                 <el-link type="primary" :underline="false" @click="handleView(row)">查看</el-link>
                 <el-link type="primary" :underline="false" @click="handleEdit(row)">编辑</el-link>
+                <el-link type="primary" :underline="false" @click="showBorrowHistory(row)"
+                  >借阅历史</el-link
+                >
                 <el-link
                   v-if="row.status !== 'frozen'"
                   type="warning"
@@ -149,7 +171,9 @@
                 >
                   冻结
                 </el-link>
-                <el-link v-else type="success" :underline="false" @click="handleUnfreeze(row)">解冻</el-link>
+                <el-link v-else type="success" :underline="false" @click="handleUnfreeze(row)"
+                  >解冻</el-link
+                >
                 <el-link type="danger" :underline="false" @click="handleDelete(row)">删除</el-link>
               </div>
             </template>
@@ -176,11 +200,7 @@
       <div class="card-grid">
         <div v-for="student in studentList" :key="student.id" class="student-card">
           <div class="card-avatar">
-            <el-image
-              :src="student.avatar || defaultAvatar"
-              fit="cover"
-              class="avatar-image"
-            >
+            <el-image :src="student.avatar || defaultAvatar" fit="cover" class="avatar-image">
               <template #error>
                 <div class="avatar-placeholder">
                   <el-icon><User /></el-icon>
@@ -203,14 +223,7 @@
             >
               冻结
             </el-tag>
-            <el-tag
-              v-else
-              type="info"
-              size="small"
-              class="status-tag"
-            >
-              注销
-            </el-tag>
+            <el-tag v-else type="info" size="small" class="status-tag"> 注销 </el-tag>
           </div>
           <div class="card-body">
             <h3>{{ student.name }}</h3>
@@ -261,12 +274,7 @@
       width="600px"
       @close="handleDialogClose"
     >
-      <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="formRules"
-        label-width="100px"
-      >
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
         <el-form-item label="学号" prop="studentNo">
           <el-input v-model="formData.studentNo" placeholder="请输入学号" />
         </el-form-item>
@@ -308,7 +316,12 @@
         </el-form-item>
 
         <el-form-item label="家庭住址">
-          <el-input v-model="formData.address" type="textarea" :rows="2" placeholder="请输入家庭住址" />
+          <el-input
+            v-model="formData.address"
+            type="textarea"
+            :rows="2"
+            placeholder="请输入家庭住址"
+          />
         </el-form-item>
 
         <el-form-item label="头像上传">
@@ -369,9 +382,17 @@
 
       <template #footer>
         <el-button @click="importDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="importing" @click="handleConfirmImport">确认导入</el-button>
+        <el-button type="primary" :loading="importing" @click="handleConfirmImport"
+          >确认导入</el-button
+        >
       </template>
     </el-dialog>
+
+    <!-- 借阅历史对话框 -->
+    <BorrowHistoryDialog v-model="showHistory" :reader="currentReader" />
+
+    <!-- 按年级批量注销对话框 -->
+    <BatchCancelDialog v-model="showBatchCancel" @success="loadStudentList" />
 
     <!-- 详情对话框 -->
     <el-dialog v-model="detailDialogVisible" title="学生详情" width="900px">
@@ -393,145 +414,153 @@
         </div>
 
         <div class="student-detail-info">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="学号">{{ currentStudent.studentNo }}</el-descriptions-item>
-          <el-descriptions-item label="姓名">{{ currentStudent.name }}</el-descriptions-item>
-          <el-descriptions-item label="性别">
-            {{ currentStudent.gender === 'male' ? '男' : '女' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="年级班级">
-            {{ currentStudent.gradeName }}({{ currentStudent.className }})
-          </el-descriptions-item>
-          <el-descriptions-item label="联系电话">{{ currentStudent.phone }}</el-descriptions-item>
-          <el-descriptions-item label="读者证号">{{ currentStudent.cardNo }}</el-descriptions-item>
-          <el-descriptions-item label="身份证号">{{ currentStudent.idCard }}</el-descriptions-item>
-          <el-descriptions-item label="借阅情况">
-            {{ currentStudent.borrowedCount }} / {{ currentStudent.maxBorrow }}
-          </el-descriptions-item>
-          <el-descriptions-item label="账户状态">
-            <el-tag v-if="currentStudent.status === 'normal'" type="success">正常</el-tag>
-            <el-tag v-else-if="currentStudent.status === 'frozen'" type="danger">冻结</el-tag>
-            <el-tag v-else type="info">注销</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ currentStudent.createdAt }}</el-descriptions-item>
-          <el-descriptions-item label="家庭住址" :span="2">
-            {{ currentStudent.address || '暂无' }}
-          </el-descriptions-item>
-        </el-descriptions>
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="学号">{{ currentStudent.studentNo }}</el-descriptions-item>
+            <el-descriptions-item label="姓名">{{ currentStudent.name }}</el-descriptions-item>
+            <el-descriptions-item label="性别">
+              {{ currentStudent.gender === 'male' ? '男' : '女' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="年级班级">
+              {{ currentStudent.gradeName }}({{ currentStudent.className }})
+            </el-descriptions-item>
+            <el-descriptions-item label="联系电话">{{ currentStudent.phone }}</el-descriptions-item>
+            <el-descriptions-item label="读者证号">{{
+              currentStudent.cardNo
+            }}</el-descriptions-item>
+            <el-descriptions-item label="身份证号">{{
+              currentStudent.idCard
+            }}</el-descriptions-item>
+            <el-descriptions-item label="借阅情况">
+              {{ currentStudent.borrowedCount }} / {{ currentStudent.maxBorrow }}
+            </el-descriptions-item>
+            <el-descriptions-item label="账户状态">
+              <el-tag v-if="currentStudent.status === 'normal'" type="success">正常</el-tag>
+              <el-tag v-else-if="currentStudent.status === 'frozen'" type="danger">冻结</el-tag>
+              <el-tag v-else type="info">注销</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{
+              currentStudent.createdAt
+            }}</el-descriptions-item>
+            <el-descriptions-item label="家庭住址" :span="2">
+              {{ currentStudent.address || '暂无' }}
+            </el-descriptions-item>
+          </el-descriptions>
 
-        <!-- AI行为分析 -->
-        <div class="ai-analysis-section">
-          <div class="section-header">
-            <h4>AI 行为分析</h4>
-            <el-tag type="success" size="small">智能洞察</el-tag>
-          </div>
-
-          <el-row :gutter="16" class="mb-md">
-            <el-col :span="8">
-              <div class="analysis-card">
-                <div class="analysis-label">阅读活跃度</div>
-                <el-progress
-                  type="circle"
-                  :percentage="readerBehavior.activityScore"
-                  :color="getActivityColor(readerBehavior.activityScore)"
-                >
-                  <template #default="{ percentage }">
-                    <span class="percentage-value">{{ percentage }}</span>
-                    <span class="percentage-label">分</span>
-                  </template>
-                </el-progress>
-                <div class="analysis-desc">{{ getActivityLevel(readerBehavior.activityScore) }}</div>
-              </div>
-            </el-col>
-            <el-col :span="8">
-              <div class="analysis-card">
-                <div class="analysis-label">阅读偏好匹配</div>
-                <el-progress
-                  type="circle"
-                  :percentage="readerBehavior.preferenceMatch"
-                  color="#52c41a"
-                >
-                  <template #default="{ percentage }">
-                    <span class="percentage-value">{{ percentage }}</span>
-                    <span class="percentage-label">%</span>
-                  </template>
-                </el-progress>
-                <div class="analysis-desc">与同龄人相似度</div>
-              </div>
-            </el-col>
-            <el-col :span="8">
-              <div class="analysis-card">
-                <div class="analysis-label">成长潜力</div>
-                <el-progress
-                  type="circle"
-                  :percentage="readerBehavior.growthPotential"
-                  color="#fa8c16"
-                >
-                  <template #default="{ percentage }">
-                    <span class="percentage-value">{{ percentage }}</span>
-                    <span class="percentage-label">%</span>
-                  </template>
-                </el-progress>
-                <div class="analysis-desc">预测未来借阅趋势</div>
-              </div>
-            </el-col>
-          </el-row>
-
-          <el-row :gutter="16" class="mb-md">
-            <el-col :span="12">
-              <div class="info-card">
-                <div class="info-header">
-                  <el-icon><Collection /></el-icon>
-                  <span>阅读偏好</span>
-                </div>
-                <div class="tag-list">
-                  <el-tag
-                    v-for="tag in readerBehavior.preferences"
-                    :key="tag"
-                    class="mr-sm mb-sm"
-                    type="primary"
-                  >
-                    {{ tag }}
-                  </el-tag>
-                </div>
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-card">
-                <div class="info-header">
-                  <el-icon><TrendCharts /></el-icon>
-                  <span>借阅趋势</span>
-                </div>
-                <div class="trend-info">
-                  <div class="trend-item">
-                    <span class="trend-label">月均借阅:</span>
-                    <span class="trend-value">{{ readerBehavior.avgMonthlyBorrow }} 本</span>
-                  </div>
-                  <div class="trend-item">
-                    <span class="trend-label">连续借阅:</span>
-                    <span class="trend-value">{{ readerBehavior.consecutiveDays }} 天</span>
-                  </div>
-                  <div class="trend-item">
-                    <span class="trend-label">最爱类别:</span>
-                    <span class="trend-value">{{ readerBehavior.favoriteCategory }}</span>
-                  </div>
-                </div>
-              </div>
-            </el-col>
-          </el-row>
-
-          <div class="info-card">
-            <div class="info-header">
-              <el-icon><ChatDotRound /></el-icon>
-              <span>AI 建议</span>
+          <!-- AI行为分析 -->
+          <div class="ai-analysis-section">
+            <div class="section-header">
+              <h4>AI 行为分析</h4>
+              <el-tag type="success" size="small">智能洞察</el-tag>
             </div>
-            <ul class="suggestion-list">
-              <li v-for="(suggestion, index) in readerBehavior.suggestions" :key="index">
-                {{ suggestion }}
-              </li>
-            </ul>
+
+            <el-row :gutter="16" class="mb-md">
+              <el-col :span="8">
+                <div class="analysis-card">
+                  <div class="analysis-label">阅读活跃度</div>
+                  <el-progress
+                    type="circle"
+                    :percentage="readerBehavior.activityScore"
+                    :color="getActivityColor(readerBehavior.activityScore)"
+                  >
+                    <template #default="{ percentage }">
+                      <span class="percentage-value">{{ percentage }}</span>
+                      <span class="percentage-label">分</span>
+                    </template>
+                  </el-progress>
+                  <div class="analysis-desc">
+                    {{ getActivityLevel(readerBehavior.activityScore) }}
+                  </div>
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="analysis-card">
+                  <div class="analysis-label">阅读偏好匹配</div>
+                  <el-progress
+                    type="circle"
+                    :percentage="readerBehavior.preferenceMatch"
+                    color="#52c41a"
+                  >
+                    <template #default="{ percentage }">
+                      <span class="percentage-value">{{ percentage }}</span>
+                      <span class="percentage-label">%</span>
+                    </template>
+                  </el-progress>
+                  <div class="analysis-desc">与同龄人相似度</div>
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="analysis-card">
+                  <div class="analysis-label">成长潜力</div>
+                  <el-progress
+                    type="circle"
+                    :percentage="readerBehavior.growthPotential"
+                    color="#fa8c16"
+                  >
+                    <template #default="{ percentage }">
+                      <span class="percentage-value">{{ percentage }}</span>
+                      <span class="percentage-label">%</span>
+                    </template>
+                  </el-progress>
+                  <div class="analysis-desc">预测未来借阅趋势</div>
+                </div>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="16" class="mb-md">
+              <el-col :span="12">
+                <div class="info-card">
+                  <div class="info-header">
+                    <el-icon><Collection /></el-icon>
+                    <span>阅读偏好</span>
+                  </div>
+                  <div class="tag-list">
+                    <el-tag
+                      v-for="tag in readerBehavior.preferences"
+                      :key="tag"
+                      class="mr-sm mb-sm"
+                      type="primary"
+                    >
+                      {{ tag }}
+                    </el-tag>
+                  </div>
+                </div>
+              </el-col>
+              <el-col :span="12">
+                <div class="info-card">
+                  <div class="info-header">
+                    <el-icon><TrendCharts /></el-icon>
+                    <span>借阅趋势</span>
+                  </div>
+                  <div class="trend-info">
+                    <div class="trend-item">
+                      <span class="trend-label">月均借阅:</span>
+                      <span class="trend-value">{{ readerBehavior.avgMonthlyBorrow }} 本</span>
+                    </div>
+                    <div class="trend-item">
+                      <span class="trend-label">连续借阅:</span>
+                      <span class="trend-value">{{ readerBehavior.consecutiveDays }} 天</span>
+                    </div>
+                    <div class="trend-item">
+                      <span class="trend-label">最爱类别:</span>
+                      <span class="trend-value">{{ readerBehavior.favoriteCategory }}</span>
+                    </div>
+                  </div>
+                </div>
+              </el-col>
+            </el-row>
+
+            <div class="info-card">
+              <div class="info-header">
+                <el-icon><ChatDotRound /></el-icon>
+                <span>AI 建议</span>
+              </div>
+              <ul class="suggestion-list">
+                <li v-for="(suggestion, index) in readerBehavior.suggestions" :key="index">
+                  {{ suggestion }}
+                </li>
+              </ul>
+            </div>
           </div>
-        </div>
         </div>
       </div>
     </el-dialog>
@@ -541,9 +570,33 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Upload, Download, View, Edit, Delete, Lock, Unlock, User, List, Grid } from '@element-plus/icons-vue'
+import {
+  Search,
+  Refresh,
+  Plus,
+  Upload,
+  Download,
+  View,
+  Edit,
+  Delete,
+  Lock,
+  Unlock,
+  User,
+  List,
+  Grid
+} from '@element-plus/icons-vue'
 import AvatarUpload from '@/components/AvatarUpload.vue'
-import { getReaders, getReaderById, createReader, updateReader, deleteReader, batchDeleteReaders, updateReaderStatus } from '@/api/readers'
+import BorrowHistoryDialog from '@/components/readers/BorrowHistoryDialog.vue'
+import BatchCancelDialog from '@/components/readers/BatchCancelDialog.vue'
+import {
+  getReaders,
+  getReaderById,
+  createReader,
+  updateReader,
+  deleteReader,
+  batchDeleteReaders,
+  updateReaderStatus
+} from '@/api/readers'
 import { exportExcel, readExcel, downloadTemplate } from '@/utils/excel'
 
 // 视图类型
@@ -590,7 +643,8 @@ const formData = reactive({
 })
 
 // 默认头像
-const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzY2N2VlYSIvPjxwYXRoIGQ9Ik01MCwyMGMxMSwwLDIwLDksMjAsMjBzLTksMjAtMjAsMjAtMjAtOS0yMC0yMFMzOSwyMCw1MCwyMHpNMjAsODBjMC0xNiwxMy41LTMwLDMwLTMwczMwLDE0LDMwLDMwIiBmaWxsPSIjZmZmIi8+PC9zdmc+'
+const defaultAvatar =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzY2N2VlYSIvPjxwYXRoIGQ9Ik01MCwyMGMxMSwwLDIwLDksMjAsMjBzLTksMjAtMjAsMjAtMjAtOS0yMC0yMFMzOSwyMCw1MCwyMHpNMjAsODBjMC0xNiwxMy41LTMwLDMwLTMwczMwLDE0LDMwLDMwIiBmaWxsPSIjZmZmIi8+PC9zdmc+'
 
 const formRules = {
   studentNo: [{ required: true, message: '请输入学号', trigger: 'blur' }],
@@ -603,7 +657,11 @@ const formRules = {
     { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
   ],
   idCard: [
-    { pattern: /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/, message: '请输入正确的身份证号', trigger: 'blur' }
+    {
+      pattern: /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/,
+      message: '请输入正确的身份证号',
+      trigger: 'blur'
+    }
   ]
 }
 
@@ -616,6 +674,17 @@ const uploadFile = ref(null)
 // 详情
 const detailDialogVisible = ref(false)
 const currentStudent = ref(null)
+
+// 借阅历史
+const showHistory = ref(false)
+const currentReader = ref(null)
+const showBorrowHistory = (row) => {
+  currentReader.value = row
+  showHistory.value = true
+}
+
+// 按年级批量注销
+const showBatchCancel = ref(false)
 
 // AI读者行为分析数据
 const readerBehavior = reactive({
@@ -635,9 +704,9 @@ const readerBehavior = reactive({
 
 // 年级映射
 const gradeMap = {
-  '1': '高一',
-  '2': '高二',
-  '3': '高三'
+  1: '高一',
+  2: '高二',
+  3: '高三'
 }
 
 // 加载学生列表
@@ -649,12 +718,17 @@ const loadStudentList = async () => {
       pageSize: pagination.pageSize,
       keyword: queryForm.keyword,
       readerType: 'student',
-      status: queryForm.status === 'normal' ? 'active' : queryForm.status === 'frozen' ? 'suspended' : queryForm.status
+      status:
+        queryForm.status === 'normal'
+          ? 'active'
+          : queryForm.status === 'frozen'
+            ? 'suspended'
+            : queryForm.status
     })
 
     if (res.code === 200 && res.data) {
       // 映射API字段到页面字段
-      studentList.value = res.data.records.map(reader => ({
+      studentList.value = res.data.records.map((reader) => ({
         id: reader.readerId,
         studentNo: reader.studentId || 'N/A',
         name: reader.realName,
@@ -667,7 +741,12 @@ const loadStudentList = async () => {
         cardNo: reader.cardNumber,
         borrowedCount: reader.currentBorrowCount,
         maxBorrow: reader.maxBorrowCount,
-        status: reader.status === 'active' ? 'normal' : reader.status === 'suspended' ? 'frozen' : 'disabled',
+        status:
+          reader.status === 'active'
+            ? 'normal'
+            : reader.status === 'suspended'
+              ? 'frozen'
+              : 'disabled',
         address: reader.address || '',
         createdAt: reader.createdTime ? reader.createdTime.split('T')[0] : '',
         avatar: reader.avatar || ''
@@ -882,7 +961,7 @@ const handleBatchDelete = () => {
   })
     .then(async () => {
       try {
-        const ids = selectedStudents.value.map(s => s.id)
+        const ids = selectedStudents.value.map((s) => s.id)
         const res = await batchDeleteReaders(ids)
         if (res.code === 200) {
           ElMessage.success('批量删除成功')
@@ -926,7 +1005,7 @@ const handleExport = () => {
     }
 
     // 准备导出数据
-    const exportData = studentList.value.map(student => ({
+    const exportData = studentList.value.map((student) => ({
       studentNo: student.studentNo,
       name: student.name,
       gender: student.gender === 'male' ? '男' : '女',
@@ -1079,7 +1158,13 @@ const handleConfirmImport = async () => {
 
     // 显示导入结果
     const resultMsg = `导入完成!\n成功: ${successCount} 条\n失败: ${failCount} 条${
-      failedItems.length > 0 ? '\n\n失败详情:\n' + failedItems.slice(0, 5).map(f => `${f.name}: ${f.error}`).join('\n') : ''
+      failedItems.length > 0
+        ? '\n\n失败详情:\n' +
+          failedItems
+            .slice(0, 5)
+            .map((f) => `${f.name}: ${f.error}`)
+            .join('\n')
+        : ''
     }`
 
     ElMessageBox.alert(resultMsg, '导入结果', {
@@ -1170,7 +1255,11 @@ loadStudentList()
     .card-avatar {
       position: relative;
       padding: 20px;
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+      background: linear-gradient(
+        135deg,
+        rgba(102, 126, 234, 0.1) 0%,
+        rgba(118, 75, 162, 0.1) 100%
+      );
       text-align: center;
 
       .avatar-image {

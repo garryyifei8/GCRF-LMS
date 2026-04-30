@@ -66,12 +66,24 @@
               </el-form-item>
 
               <el-form-item label="每日罚款金额">
-                <el-input-number v-model="fineConfig.finePerDay" :min="0" :max="10" :precision="2" :step="0.1" />
+                <el-input-number
+                  v-model="fineConfig.finePerDay"
+                  :min="0"
+                  :max="10"
+                  :precision="2"
+                  :step="0.1"
+                />
                 <span class="form-tip">元/天</span>
               </el-form-item>
 
               <el-form-item label="最高罚款金额">
-                <el-input-number v-model="fineConfig.maxFine" :min="0" :max="1000" :precision="2" :step="1" />
+                <el-input-number
+                  v-model="fineConfig.maxFine"
+                  :min="0"
+                  :max="1000"
+                  :precision="2"
+                  :step="1"
+                />
                 <span class="form-tip">元</span>
               </el-form-item>
 
@@ -203,12 +215,13 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getSystemConfig, saveSystemConfig } from '@/api/system'
 
 const activeTab = ref('borrow')
 
-// 借阅规则配置
+// 借阅规则配置 — keys map to backend config keys
 const borrowConfig = reactive({
   student: {
     maxBooks: 5,
@@ -250,23 +263,144 @@ const systemConfig = reactive({
   sessionTimeout: 30
 })
 
+/**
+ * Apply a flat config map returned by the backend to the local reactive objects.
+ * Backend keys follow snake_case convention.
+ */
+const applyConfig = (cfg) => {
+  // borrow rules
+  if (cfg.student_max_borrow !== undefined)
+    borrowConfig.student.maxBooks = Number(cfg.student_max_borrow)
+  if (cfg.student_borrow_days !== undefined)
+    borrowConfig.student.borrowDays = Number(cfg.student_borrow_days)
+  if (cfg.student_renew_times !== undefined)
+    borrowConfig.student.renewTimes = Number(cfg.student_renew_times)
+  if (cfg.teacher_max_borrow !== undefined)
+    borrowConfig.teacher.maxBooks = Number(cfg.teacher_max_borrow)
+  if (cfg.teacher_borrow_days !== undefined)
+    borrowConfig.teacher.borrowDays = Number(cfg.teacher_borrow_days)
+  if (cfg.teacher_renew_times !== undefined)
+    borrowConfig.teacher.renewTimes = Number(cfg.teacher_renew_times)
+
+  // fine rules
+  if (cfg.fine_grace_days !== undefined) fineConfig.graceDays = Number(cfg.fine_grace_days)
+  if (cfg.fine_per_day !== undefined) fineConfig.finePerDay = Number(cfg.fine_per_day)
+  if (cfg.fine_max !== undefined) fineConfig.maxFine = Number(cfg.fine_max)
+  if (cfg.fine_block_on_debt !== undefined)
+    fineConfig.blockBorrowOnDebt = cfg.fine_block_on_debt === 'true'
+  if (cfg.fine_debt_threshold !== undefined)
+    fineConfig.debtThreshold = Number(cfg.fine_debt_threshold)
+
+  // reservation rules
+  if (cfg.reservation_max !== undefined)
+    reservationConfig.maxReservations = Number(cfg.reservation_max)
+  if (cfg.reservation_hold_days !== undefined)
+    reservationConfig.holdDays = Number(cfg.reservation_hold_days)
+  if (cfg.reservation_auto_notify !== undefined)
+    reservationConfig.autoNotify = cfg.reservation_auto_notify === 'true'
+  if (cfg.reservation_notify_methods !== undefined) {
+    try {
+      reservationConfig.notifyMethods = JSON.parse(cfg.reservation_notify_methods)
+    } catch {
+      reservationConfig.notifyMethods = cfg.reservation_notify_methods.split(',')
+    }
+  }
+
+  // system settings
+  if (cfg.library_name !== undefined) systemConfig.libraryName = cfg.library_name
+  if (cfg.contact_phone !== undefined) systemConfig.contactPhone = cfg.contact_phone
+  if (cfg.contact_email !== undefined) systemConfig.contactEmail = cfg.contact_email
+  if (cfg.open_time !== undefined) systemConfig.openTime = cfg.open_time
+  if (cfg.close_time !== undefined) systemConfig.closeTime = cfg.close_time
+  if (cfg.closed_days !== undefined) {
+    try {
+      systemConfig.closedDays = JSON.parse(cfg.closed_days)
+    } catch {
+      systemConfig.closedDays = cfg.closed_days.split(',')
+    }
+  }
+  if (cfg.session_timeout !== undefined) systemConfig.sessionTimeout = Number(cfg.session_timeout)
+}
+
+// 加载配置
+const loadConfig = async () => {
+  try {
+    const res = await getSystemConfig()
+    if (res.code === 200 && res.data) {
+      applyConfig(res.data)
+    }
+  } catch (error) {
+    ElMessage.error('加载配置失败')
+  }
+}
+
+/**
+ * Build a flat kv map for the given tab and send to backend.
+ */
+const buildPayload = (type) => {
+  if (type === 'borrow') {
+    return {
+      student_max_borrow: String(borrowConfig.student.maxBooks),
+      student_borrow_days: String(borrowConfig.student.borrowDays),
+      student_renew_times: String(borrowConfig.student.renewTimes),
+      teacher_max_borrow: String(borrowConfig.teacher.maxBooks),
+      teacher_borrow_days: String(borrowConfig.teacher.borrowDays),
+      teacher_renew_times: String(borrowConfig.teacher.renewTimes)
+    }
+  }
+  if (type === 'fine') {
+    return {
+      fine_grace_days: String(fineConfig.graceDays),
+      fine_per_day: String(fineConfig.finePerDay),
+      fine_max: String(fineConfig.maxFine),
+      fine_block_on_debt: String(fineConfig.blockBorrowOnDebt),
+      fine_debt_threshold: String(fineConfig.debtThreshold)
+    }
+  }
+  if (type === 'reservation') {
+    return {
+      reservation_max: String(reservationConfig.maxReservations),
+      reservation_hold_days: String(reservationConfig.holdDays),
+      reservation_auto_notify: String(reservationConfig.autoNotify),
+      reservation_notify_methods: JSON.stringify(reservationConfig.notifyMethods)
+    }
+  }
+  if (type === 'system') {
+    return {
+      library_name: systemConfig.libraryName,
+      contact_phone: systemConfig.contactPhone,
+      contact_email: systemConfig.contactEmail,
+      open_time: systemConfig.openTime,
+      close_time: systemConfig.closeTime,
+      closed_days: JSON.stringify(systemConfig.closedDays),
+      session_timeout: String(systemConfig.sessionTimeout)
+    }
+  }
+  return {}
+}
+
 // 保存配置
 const handleSave = async (type) => {
   try {
-    // TODO: 调用API保存配置
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    ElMessage.success('配置保存成功')
+    const data = buildPayload(type)
+    const res = await saveSystemConfig(data)
+    if (res.code === 200) {
+      ElMessage.success('配置保存成功')
+    } else {
+      ElMessage.error(res.message || '保存失败')
+    }
   } catch (error) {
     ElMessage.error('保存失败')
   }
 }
 
-// 重置配置
-const handleReset = (type) => {
-  // TODO: 重置为初始值或从服务器重新加载
+// 重置配置（从服务器重新加载）
+const handleReset = async (type) => {
+  await loadConfig()
   ElMessage.info('配置已重置')
 }
+
+onMounted(loadConfig)
 </script>
 
 <style lang="scss" scoped>
