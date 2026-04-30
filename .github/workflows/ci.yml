@@ -50,7 +50,7 @@ jobs:
         run: cd web-admin && npm run test:coverage
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage
           path: web-admin/coverage/
@@ -89,14 +89,14 @@ jobs:
         run: cd backend && mvn test
 
       - name: Upload test reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: backend-test-reports
           path: backend/**/target/surefire-reports/
 
       - name: Upload JaCoCo reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: backend-jacoco-reports
