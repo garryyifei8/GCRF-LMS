@@ -143,13 +143,25 @@ public class OrgNodeServiceImpl implements OrgNodeService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public OrgNodeVO update(Long id, OrgNodeUpdateDTO dto) {
-        throw new UnsupportedOperationException("implemented in Task 11");
+        OrgNode e = mapper.selectById(id);
+        if (e == null) throw new BusinessException("org node not found: " + id);
+        e.setName(dto.getName());
+        if (dto.getStatus() != null) e.setStatus(dto.getStatus());
+        if (dto.getMetadata() != null) e.setMetadata(dto.getMetadata());
+        mapper.updateById(e);
+        return OrgNodeVO.from(e);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        throw new UnsupportedOperationException("implemented in Task 12");
+        OrgNode e = mapper.selectById(id);
+        if (e == null) return;
+        int childCount = mapper.findByParent(id).size();
+        if (childCount > 0) throw new BusinessException("node has children: " + id);
+        mapper.deleteById(id);
     }
 
     @Override
