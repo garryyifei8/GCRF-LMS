@@ -91,4 +91,12 @@ public interface ReaderService {
      * @return true表示状态正常可借书，false表示不可借书
      */
     boolean validateReaderStatus(Long readerId);
+
+    /**
+     * 按年级批量注销学生读者
+     *
+     * @param grade 年级（如"2020"），匹配学号中包含该年级字符串的学生
+     * @return 注销的读者数量
+     */
+    int batchCancelByGrade(String grade);
 }

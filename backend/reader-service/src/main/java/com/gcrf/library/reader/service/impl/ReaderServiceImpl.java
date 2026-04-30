@@ -1,6 +1,8 @@
 package com.gcrf.library.reader.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gcrf.library.common.exception.BusinessException;
 import com.gcrf.library.common.result.PageResult;
@@ -14,7 +16,6 @@ import com.gcrf.library.reader.mapper.ReaderMapper;
 import com.gcrf.library.reader.service.ReaderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -275,6 +276,21 @@ public class ReaderServiceImpl implements ReaderService {
         boolean valid = isActive && notExpired;
         log.info("验证读者状态: readerId={}, status={}, expiryDate={}, 结果={}", readerId, reader.getStatus(), reader.getExpiryDate(), valid);
         return valid;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int batchCancelByGrade(String grade) {
+        LambdaUpdateWrapper<Reader> updateWrapper = Wrappers.<Reader>lambdaUpdate()
+                .eq(Reader::getReaderType, "STUDENT")
+                .like(Reader::getStudentNo, grade)
+                .ne(Reader::getStatus, "EXPIRED")
+                .isNull(Reader::getDeletedAt)
+                .set(Reader::getStatus, "EXPIRED")
+                .set(Reader::getUpdatedAt, java.time.LocalDateTime.now());
+        int count = readerMapper.update(null, updateWrapper);
+        log.info("批量注销读者完成, grade={}, count={}", grade, count);
+        return count;
     }
 
     /**

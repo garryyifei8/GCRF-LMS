@@ -220,6 +220,21 @@ public class ReaderController {
     }
 
     /**
+     * 按年级批量注销学生读者
+     */
+    @Operation(summary = "按年级批量注销学生读者", description = "根据年级（如2020）批量注销对应学生读者")
+    @PostMapping("/batch-cancel-by-grade")
+    public Result<Map<String, Object>> batchCancelByGrade(@RequestBody Map<String, String> request) {
+        String grade = request.get("grade");
+        if (grade == null || grade.isBlank()) {
+            return Result.fail("年级不能为空");
+        }
+        log.info("批量注销读者: grade={}", grade);
+        int count = readerService.batchCancelByGrade(grade);
+        return Result.success(Map.of("cancelledCount", count, "grade", grade));
+    }
+
+    /**
      * 批量删除读者
      */
     @Operation(summary = "批量删除读者", description = "根据ID列表批量删除读者（逻辑删除）")
