@@ -1,0 +1,35 @@
+spring:
+  # Datasource is dynamically configured by @DynamicPropertySource in the test class
+
+  # Flyway: run region migrations against the testcontainers PG
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/region
+    schemas: gcrf_region
+    create-schemas: true
+    baseline-on-migrate: true
+
+  # Use no-op cache in tests — Redis not available
+  cache:
+    type: none
+
+  # Disable Redis auto-configuration so missing Redis doesn't fail context startup
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+  # Disable Nacos discovery/config during integration tests
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+
+logging:
+  level:
+    com.gcrf.library: DEBUG
+    org.flywaydb: INFO
+    org.springframework: INFO
