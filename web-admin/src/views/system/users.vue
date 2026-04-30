@@ -84,24 +84,24 @@
             </template>
           </el-table-column>
           <el-table-column prop="lastLoginTime" label="最后登录" width="160" />
-          <el-table-column label="操作" width="260" fixed="right">
+          <el-table-column label="操作" width="130" fixed="right">
             <template #default="{ row }">
-              <el-button type="primary" link :icon="Edit" @click="handleEdit(row)">编辑</el-button>
-              <el-button type="warning" link :icon="Key" @click="handleResetPassword(row)"
-                >重置密码</el-button
-              >
-              <el-button
-                v-if="row.status === 'active'"
-                type="danger"
-                link
-                :icon="Close"
-                @click="handleToggleStatus(row)"
-              >
-                停用
-              </el-button>
-              <el-button v-else type="success" link :icon="Check" @click="handleToggleStatus(row)"
-                >启用</el-button
-              >
+              <ActionIcons
+                :actions="[
+                  { key: 'edit', label: '编辑', icon: Edit, variant: 'primary' },
+                  { key: 'reset', label: '重置密码', icon: Key, variant: 'warning' },
+                  row.status === 'active'
+                    ? { key: 'disable', label: '停用账户', icon: Close, variant: 'danger' }
+                    : { key: 'enable', label: '启用账户', icon: Check, variant: 'success' }
+                ]"
+                @action="
+                  (k) => {
+                    if (k === 'edit') handleEdit(row)
+                    else if (k === 'reset') handleResetPassword(row)
+                    else handleToggleStatus(row)
+                  }
+                "
+              />
             </template>
           </el-table-column>
         </el-table>
@@ -181,6 +181,7 @@
 import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Key, Close, Check } from '@element-plus/icons-vue'
+import ActionIcons from '@/components/ActionIcons.vue'
 import { getUsers, createUser, updateUser, resetPassword, updateUserStatus } from '@/api/system'
 
 // 查询表单

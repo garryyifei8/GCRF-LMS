@@ -57,47 +57,50 @@
             </el-table-column>
             <el-table-column prop="creator" label="创建人" width="100" />
             <el-table-column prop="createdAt" label="创建时间" width="160" />
-            <el-table-column label="操作" width="280" fixed="right">
+            <el-table-column label="操作" width="160" fixed="right">
               <template #default="{ row }">
-                <el-button
-                  v-if="row.status?.toUpperCase() === 'PENDING'"
-                  type="success"
-                  link
-                  :icon="VideoPlay"
-                  @click="handleStartTask(row)"
-                >
-                  开始盘点
-                </el-button>
-                <el-button
-                  v-if="row.status?.toUpperCase() === 'PAUSED'"
-                  type="success"
-                  link
-                  :icon="VideoPlay"
-                  @click="handleResumeTask(row)"
-                >
-                  恢复
-                </el-button>
-                <el-button type="primary" link :icon="View" @click="handleViewTask(row)"
-                  >查看详情</el-button
-                >
-                <el-button
-                  v-if="row.status?.toUpperCase() === 'IN_PROGRESS'"
-                  type="warning"
-                  link
-                  :icon="VideoPause"
-                  @click="handlePauseTask(row)"
-                >
-                  暂停
-                </el-button>
-                <el-button
-                  v-if="row.status?.toUpperCase() === 'COMPLETED'"
-                  type="primary"
-                  link
-                  :icon="Download"
-                  @click="handleExportReport(row)"
-                >
-                  导出报告
-                </el-button>
+                <ActionIcons
+                  :actions="[
+                    {
+                      key: 'start',
+                      label: '开始盘点',
+                      icon: VideoPlay,
+                      variant: 'success',
+                      hidden: row.status?.toUpperCase() !== 'PENDING'
+                    },
+                    {
+                      key: 'resume',
+                      label: '恢复盘点',
+                      icon: VideoPlay,
+                      variant: 'success',
+                      hidden: row.status?.toUpperCase() !== 'PAUSED'
+                    },
+                    { key: 'view', label: '查看详情', icon: View, variant: 'primary' },
+                    {
+                      key: 'pause',
+                      label: '暂停盘点',
+                      icon: VideoPause,
+                      variant: 'warning',
+                      hidden: row.status?.toUpperCase() !== 'IN_PROGRESS'
+                    },
+                    {
+                      key: 'export',
+                      label: '导出报告',
+                      icon: Download,
+                      variant: 'primary',
+                      hidden: row.status?.toUpperCase() !== 'COMPLETED'
+                    }
+                  ]"
+                  @action="
+                    (k) => {
+                      if (k === 'start') handleStartTask(row)
+                      else if (k === 'resume') handleResumeTask(row)
+                      else if (k === 'view') handleViewTask(row)
+                      else if (k === 'pause') handlePauseTask(row)
+                      else if (k === 'export') handleExportReport(row)
+                    }
+                  "
+                />
               </template>
             </el-table-column>
           </el-table>
@@ -241,6 +244,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, View, VideoPlay, VideoPause, Download } from '@element-plus/icons-vue'
+import ActionIcons from '@/components/ActionIcons.vue'
 import { SkeletonLoader, PageLoading } from '@/components/Loading'
 import {
   getInventoryTasks,

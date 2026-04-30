@@ -55,17 +55,22 @@
               {{ row.createdAt || row.backupTime || '-' }}
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="200" fixed="right">
+          <el-table-column label="操作" width="130" fixed="right">
             <template #default="{ row }">
-              <el-button type="primary" link :icon="Download" @click="handleDownload(row)"
-                >下载</el-button
-              >
-              <el-button type="success" link :icon="Upload" @click="handleRestore(row)"
-                >还原</el-button
-              >
-              <el-button type="danger" link :icon="Delete" @click="handleDelete(row)"
-                >删除</el-button
-              >
+              <ActionIcons
+                :actions="[
+                  { key: 'download', label: '下载备份', icon: Download, variant: 'primary' },
+                  { key: 'restore', label: '还原数据', icon: Upload, variant: 'success' },
+                  { key: 'del', label: '删除备份', icon: Delete, variant: 'danger' }
+                ]"
+                @action="
+                  (k) => {
+                    if (k === 'download') handleDownload(row)
+                    else if (k === 'restore') handleRestore(row)
+                    else handleDelete(row)
+                  }
+                "
+              />
             </template>
           </el-table-column>
         </el-table>
@@ -163,6 +168,8 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Download, Upload, Delete } from '@element-plus/icons-vue'
+import ActionIcons from '@/components/ActionIcons.vue'
 import { createBackup, listBackups, downloadBackup } from '@/api/system'
 
 // 表格数据

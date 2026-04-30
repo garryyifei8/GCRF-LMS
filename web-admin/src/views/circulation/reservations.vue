@@ -149,36 +149,42 @@
               <el-tag v-else type="info" size="small">未通知</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="200" fixed="right">
+          <el-table-column label="操作" width="160" fixed="right">
             <template #default="{ row }">
-              <el-button
-                v-if="row.status === 'pending'"
-                type="success"
-                link
-                :icon="Check"
-                @click="handleProcess(row)"
-              >
-                处理
-              </el-button>
-              <el-button
-                v-if="row.status === 'pending' || row.status === 'ready'"
-                type="danger"
-                link
-                :icon="Close"
-                @click="handleCancel(row)"
-              >
-                取消
-              </el-button>
-              <el-button
-                v-if="row.status === 'ready' && !row.notified"
-                type="primary"
-                link
-                :icon="Message"
-                @click="handleNotify(row)"
-              >
-                通知
-              </el-button>
-              <el-button type="primary" link :icon="View" @click="handleView(row)">详情</el-button>
+              <ActionIcons
+                :actions="[
+                  {
+                    key: 'process',
+                    label: '处理预约',
+                    icon: IconCheck,
+                    variant: 'success',
+                    hidden: row.status !== 'pending'
+                  },
+                  {
+                    key: 'cancel',
+                    label: '取消预约',
+                    icon: IconClose,
+                    variant: 'danger',
+                    hidden: row.status !== 'pending' && row.status !== 'ready'
+                  },
+                  {
+                    key: 'notify',
+                    label: '通知读者',
+                    icon: IconMessage,
+                    variant: 'primary',
+                    hidden: !(row.status === 'ready' && !row.notified)
+                  },
+                  { key: 'view', label: '查看详情', icon: IconView, variant: 'primary' }
+                ]"
+                @action="
+                  (k) => {
+                    if (k === 'process') handleProcess(row)
+                    else if (k === 'cancel') handleCancel(row)
+                    else if (k === 'notify') handleNotify(row)
+                    else handleView(row)
+                  }
+                "
+              />
             </template>
           </el-table-column>
         </el-table>
@@ -307,6 +313,13 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
+import ActionIcons from '@/components/ActionIcons.vue'
+import {
+  View as IconView,
+  Check as IconCheck,
+  Close as IconClose,
+  Message as IconMessage
+} from '@element-plus/icons-vue'
 import {
   getReservations,
   cancelReservation,

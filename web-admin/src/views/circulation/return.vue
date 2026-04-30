@@ -120,11 +120,14 @@
                   <span v-else class="text-success">¥0.00</span>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="80" fixed="right">
+              <el-table-column label="操作" width="70" fixed="right">
                 <template #default="{ $index }">
-                  <el-button type="danger" link :icon="Delete" @click="removeBook($index)"
-                    >移除</el-button
-                  >
+                  <ActionIcons
+                    :actions="[
+                      { key: 'remove', label: '移除', icon: IconDelete, variant: 'danger' }
+                    ]"
+                    @action="() => removeBook($index)"
+                  />
                 </template>
               </el-table-column>
             </el-table>
@@ -191,6 +194,8 @@
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
+import ActionIcons from '@/components/ActionIcons.vue'
+import { Delete as IconDelete } from '@element-plus/icons-vue'
 import { getBorrowRecordByBarcode, returnBook } from '@/api/circulation'
 
 // 图书归还

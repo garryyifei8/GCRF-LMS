@@ -344,9 +344,12 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" fixed="right" width="120">
+        <el-table-column label="操作" fixed="right" width="80">
           <template #default>
-            <el-button link type="primary" size="small">查看详情</el-button>
+            <ActionIcons
+              :actions="[{ key: 'view', label: '查看详情', icon: View, variant: 'primary' }]"
+              @action="() => {}"
+            />
           </template>
         </el-table-column>
       </el-table>
@@ -374,8 +377,10 @@ import {
   More,
   MagicStick,
   Star,
-  InfoFilled
+  InfoFilled,
+  View
 } from '@element-plus/icons-vue'
+import ActionIcons from '@/components/ActionIcons.vue'
 import {
   getOverview,
   getBorrowTrends,

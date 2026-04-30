@@ -64,16 +64,15 @@
           </template>
         </el-table-column>
         <el-table-column prop="description" label="描述" show-overflow-tooltip />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)">
-              <el-icon><Edit /></el-icon>
-              编辑
-            </el-button>
-            <el-button link type="danger" @click="handleDelete(row)">
-              <el-icon><Delete /></el-icon>
-              删除
-            </el-button>
+            <ActionIcons
+              :actions="[
+                { key: 'edit', label: '编辑', icon: Edit, variant: 'primary' },
+                { key: 'del', label: '删除', icon: Delete, variant: 'danger' }
+              ]"
+              @action="(k) => (k === 'edit' ? handleEdit(row) : handleDelete(row))"
+            />
           </template>
         </el-table-column>
       </el-table>
@@ -145,6 +144,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Edit, Delete } from '@element-plus/icons-vue'
+import ActionIcons from '@/components/ActionIcons.vue'
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from '@/api/system'
 
 // 查询参数

@@ -46,7 +46,12 @@
           </el-form-item>
 
           <el-form-item label="分类">
-            <el-select v-model="queryForm.category" placeholder="全部分类" clearable style="width: 150px">
+            <el-select
+              v-model="queryForm.category"
+              placeholder="全部分类"
+              clearable
+              style="width: 150px"
+            >
               <el-option label="全部" value="" />
               <el-option label="文学" value="literature" />
               <el-option label="历史" value="history" />
@@ -58,7 +63,12 @@
           </el-form-item>
 
           <el-form-item label="状态">
-            <el-select v-model="queryForm.status" placeholder="全部状态" clearable style="width: 120px">
+            <el-select
+              v-model="queryForm.status"
+              placeholder="全部状态"
+              clearable
+              style="width: 120px"
+            >
               <el-option label="全部" value="" />
               <el-option label="在架" value="available" />
               <el-option label="借出" value="borrowed" />
@@ -70,7 +80,9 @@
           <el-form-item>
             <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
             <el-button :icon="Refresh" @click="handleReset">重置</el-button>
-            <el-button type="success" :icon="Plus" @click="$router.push('/books/catalog')">新增图书</el-button>
+            <el-button type="success" :icon="Plus" @click="$router.push('/books/catalog')"
+              >新增图书</el-button
+            >
           </el-form-item>
         </el-form>
       </div>
@@ -82,7 +94,9 @@
         <!-- 批量操作 -->
         <div v-if="selectedBooks.length > 0" class="batch-actions">
           <span class="batch-info">已选择 {{ selectedBooks.length }} 项</span>
-          <el-button type="danger" size="small" :icon="Delete" @click="handleBatchDelete">批量删除</el-button>
+          <el-button type="danger" size="small" :icon="Delete" @click="handleBatchDelete"
+            >批量删除</el-button
+          >
           <el-button size="small" @click="handleClearSelection">取消选择</el-button>
         </div>
 
@@ -131,16 +145,29 @@
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
               <el-tag v-if="row.status === 'available'" type="success" size="small">在架</el-tag>
-              <el-tag v-else-if="row.status === 'borrowed'" type="warning" size="small">借出</el-tag>
+              <el-tag v-else-if="row.status === 'borrowed'" type="warning" size="small"
+                >借出</el-tag
+              >
               <el-tag v-else-if="row.status === 'reserved'" type="info" size="small">预约中</el-tag>
               <el-tag v-else type="danger" size="small">停用</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="200" fixed="right">
+          <el-table-column label="操作" width="140" fixed="right">
             <template #default="{ row }">
-              <el-button type="primary" link :icon="View" @click="handleView(row)">查看</el-button>
-              <el-button type="primary" link :icon="Edit" @click="handleEdit(row)">编辑</el-button>
-              <el-button type="danger" link :icon="Delete" @click="handleDelete(row)">删除</el-button>
+              <ActionIcons
+                :actions="[
+                  { key: 'view', label: '查看详情', icon: IconView, variant: 'primary' },
+                  { key: 'edit', label: '编辑', icon: IconEdit, variant: 'primary' },
+                  { key: 'delete', label: '删除', icon: IconDelete, variant: 'danger' }
+                ]"
+                @action="
+                  (key) => {
+                    if (key === 'view') handleView(row)
+                    else if (key === 'edit') handleEdit(row)
+                    else if (key === 'delete') handleDelete(row)
+                  }
+                "
+              />
             </template>
           </el-table-column>
         </el-table>
@@ -183,14 +210,24 @@
           <el-descriptions :column="2" border>
             <el-descriptions-item label="ISBN">{{ currentBook.isbn }}</el-descriptions-item>
             <el-descriptions-item label="条码号">{{ currentBook.barcode }}</el-descriptions-item>
-            <el-descriptions-item label="书名" :span="2">{{ currentBook.title }}</el-descriptions-item>
+            <el-descriptions-item label="书名" :span="2">{{
+              currentBook.title
+            }}</el-descriptions-item>
             <el-descriptions-item label="作者">{{ currentBook.author }}</el-descriptions-item>
             <el-descriptions-item label="出版社">{{ currentBook.publisher }}</el-descriptions-item>
-            <el-descriptions-item label="分类">{{ getCategoryName(currentBook.category) }}</el-descriptions-item>
+            <el-descriptions-item label="分类">{{
+              getCategoryName(currentBook.category)
+            }}</el-descriptions-item>
             <el-descriptions-item label="价格">¥{{ currentBook.price }}</el-descriptions-item>
-            <el-descriptions-item label="馆藏数量">{{ currentBook.totalCount }}</el-descriptions-item>
-            <el-descriptions-item label="可借数量">{{ currentBook.availableCount }}</el-descriptions-item>
-            <el-descriptions-item label="借阅次数">{{ currentBook.borrowCount }}</el-descriptions-item>
+            <el-descriptions-item label="馆藏数量">{{
+              currentBook.totalCount
+            }}</el-descriptions-item>
+            <el-descriptions-item label="可借数量">{{
+              currentBook.availableCount
+            }}</el-descriptions-item>
+            <el-descriptions-item label="借阅次数">{{
+              currentBook.borrowCount
+            }}</el-descriptions-item>
             <el-descriptions-item label="状态">
               <el-tag v-if="currentBook.status === 'available'" type="success">在架</el-tag>
               <el-tag v-else-if="currentBook.status === 'borrowed'" type="warning">借出</el-tag>
@@ -211,6 +248,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getBooks, deleteBook, batchDeleteBooks, getBookCategories } from '@/api/books'
+import ActionIcons from '@/components/ActionIcons.vue'
+import { View as IconView, Edit as IconEdit, Delete as IconDelete } from '@element-plus/icons-vue'
 
 // 查询表单
 const queryForm = reactive({
@@ -239,7 +278,8 @@ const currentBook = ref(null)
 const isAISearchEnabled = ref(true)
 
 // 默认图书封面
-const defaultBookCover = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjE0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iIzY2N2VlYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiNmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPuWbvuS5pjwvdGV4dD48L3N2Zz4='
+const defaultBookCover =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjE0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iIzY2N2VlYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiNmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPuWbvuS5pjwvdGV4dD48L3N2Zz4='
 
 // 分类映射
 const categoryMap = {
@@ -270,7 +310,7 @@ const loadBookList = async () => {
 
     if (res.code === 200 && res.data) {
       // 转换Mock API数据格式到页面需要的格式
-      bookList.value = res.data.records.map(book => ({
+      bookList.value = res.data.records.map((book) => ({
         id: book.bookId,
         isbn: book.isbn,
         barcode: book.callNumber,
@@ -368,7 +408,7 @@ const handleBatchDelete = () => {
   })
     .then(async () => {
       try {
-        const ids = selectedBooks.value.map(b => b.id)
+        const ids = selectedBooks.value.map((b) => b.id)
         await batchDeleteBooks(ids)
         ElMessage.success('批量删除成功')
         selectedBooks.value = []

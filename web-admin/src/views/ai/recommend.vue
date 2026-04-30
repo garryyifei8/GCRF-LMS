@@ -197,14 +197,15 @@
               <span class="text-secondary">{{ row.reason }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="120" fixed="right">
+          <el-table-column label="操作" width="100" fixed="right">
             <template #default="{ row }">
-              <el-button type="primary" link :icon="View" @click="handleViewDetail(row)"
-                >详情</el-button
-              >
-              <el-button type="primary" link :icon="Promotion" @click="handlePushToReader(row)"
-                >推送</el-button
-              >
+              <ActionIcons
+                :actions="[
+                  { key: 'view', label: '查看详情', icon: View, variant: 'primary' },
+                  { key: 'push', label: '推送给读者', icon: Promotion, variant: 'success' }
+                ]"
+                @action="(k) => (k === 'view' ? handleViewDetail(row) : handlePushToReader(row))"
+              />
             </template>
           </el-table-column>
         </el-table>
@@ -288,6 +289,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Download, View, Promotion, RefreshRight } from '@element-plus/icons-vue'
 import { DataAnalysis, Document, TrendCharts, Connection } from '@element-plus/icons-vue'
+import ActionIcons from '@/components/ActionIcons.vue'
 import {
   batchRecommend,
   getRecommendStats,

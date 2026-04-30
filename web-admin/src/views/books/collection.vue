@@ -25,7 +25,12 @@
           </el-form-item>
 
           <el-form-item label="分类">
-            <el-select v-model="queryForm.category" placeholder="全部分类" clearable style="width: 140px">
+            <el-select
+              v-model="queryForm.category"
+              placeholder="全部分类"
+              clearable
+              style="width: 140px"
+            >
               <el-option label="全部" value="" />
               <el-option label="文学" value="literature" />
               <el-option label="历史" value="history" />
@@ -36,7 +41,12 @@
           </el-form-item>
 
           <el-form-item label="状态">
-            <el-select v-model="queryForm.status" placeholder="全部状态" clearable style="width: 120px">
+            <el-select
+              v-model="queryForm.status"
+              placeholder="全部状态"
+              clearable
+              style="width: 120px"
+            >
               <el-option label="全部" value="" />
               <el-option label="在库" value="available" />
               <el-option label="借出" value="borrowed" />
@@ -47,7 +57,12 @@
           </el-form-item>
 
           <el-form-item label="位置">
-            <el-input v-model="queryForm.location" placeholder="如: A区" clearable style="width: 120px" />
+            <el-input
+              v-model="queryForm.location"
+              placeholder="如: A区"
+              clearable
+              style="width: 120px"
+            />
           </el-form-item>
 
           <el-form-item>
@@ -93,8 +108,12 @@
         <!-- 批量操作 -->
         <div v-if="selectedItems.length > 0" class="batch-actions">
           <span class="batch-info">已选择 {{ selectedItems.length }} 项</span>
-          <el-button type="primary" size="small" :icon="Edit" @click="handleBatchUpdateLocation">批量调整位置</el-button>
-          <el-button type="warning" size="small" :icon="Warning" @click="handleBatchSetStatus">批量设置状态</el-button>
+          <el-button type="primary" size="small" :icon="Edit" @click="handleBatchUpdateLocation"
+            >批量调整位置</el-button
+          >
+          <el-button type="warning" size="small" :icon="Warning" @click="handleBatchSetStatus"
+            >批量设置状态</el-button
+          >
           <el-button size="small" @click="handleClearSelection">取消选择</el-button>
         </div>
 
@@ -129,12 +148,24 @@
             </template>
           </el-table-column>
           <el-table-column prop="acquisitionDate" label="入馆日期" width="110" />
-          <el-table-column label="操作" width="260" fixed="right">
+          <el-table-column label="操作" width="160" fixed="right">
             <template #default="{ row }">
-              <el-button type="primary" link :icon="View" @click="handleView(row)">详情</el-button>
-              <el-button type="primary" link :icon="Edit" @click="handleEditLocation(row)">调整位置</el-button>
-              <el-button type="warning" link :icon="Warning" @click="handleSetStatus(row)">设置状态</el-button>
-              <el-button type="danger" link :icon="Delete" @click="handleDelete(row)">注销</el-button>
+              <ActionIcons
+                :actions="[
+                  { key: 'view', label: '查看详情', icon: IconView, variant: 'primary' },
+                  { key: 'loc', label: '调整位置', icon: IconLocation, variant: 'primary' },
+                  { key: 'status', label: '设置状态', icon: IconWarning, variant: 'warning' },
+                  { key: 'del', label: '注销', icon: IconDelete, variant: 'danger' }
+                ]"
+                @action="
+                  (k) => {
+                    if (k === 'view') handleView(row)
+                    else if (k === 'loc') handleEditLocation(row)
+                    else if (k === 'status') handleSetStatus(row)
+                    else handleDelete(row)
+                  }
+                "
+              />
             </template>
           </el-table-column>
         </el-table>
@@ -159,18 +190,26 @@
       <el-descriptions v-if="currentItem" :column="2" border>
         <el-descriptions-item label="条码号">{{ currentItem.barcode }}</el-descriptions-item>
         <el-descriptions-item label="ISBN">{{ currentItem.isbn }}</el-descriptions-item>
-        <el-descriptions-item label="书名" :span="2">{{ currentItem.bookTitle }}</el-descriptions-item>
+        <el-descriptions-item label="书名" :span="2">{{
+          currentItem.bookTitle
+        }}</el-descriptions-item>
         <el-descriptions-item label="作者">{{ currentItem.author }}</el-descriptions-item>
         <el-descriptions-item label="出版社">{{ currentItem.publisher }}</el-descriptions-item>
-        <el-descriptions-item label="分类">{{ getCategoryName(currentItem.category) }}</el-descriptions-item>
+        <el-descriptions-item label="分类">{{
+          getCategoryName(currentItem.category)
+        }}</el-descriptions-item>
         <el-descriptions-item label="存放位置">{{ currentItem.location }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="getStatusType(currentItem.status)" size="small">
             {{ getStatusName(currentItem.status) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="借阅次数">{{ currentItem.borrowCount }} 次</el-descriptions-item>
-        <el-descriptions-item label="入馆日期">{{ currentItem.acquisitionDate }}</el-descriptions-item>
+        <el-descriptions-item label="借阅次数"
+          >{{ currentItem.borrowCount }} 次</el-descriptions-item
+        >
+        <el-descriptions-item label="入馆日期">{{
+          currentItem.acquisitionDate
+        }}</el-descriptions-item>
         <el-descriptions-item label="最后借出">
           {{ currentItem.lastBorrowDate || '未借出' }}
         </el-descriptions-item>
@@ -248,9 +287,7 @@
     <!-- 批量调整位置对话框 -->
     <el-dialog v-model="batchLocationDialogVisible" title="批量调整存放位置" width="500px">
       <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px">
-        <template #title>
-          即将调整 {{ selectedItems.length }} 项馆藏的存放位置
-        </template>
+        <template #title> 即将调整 {{ selectedItems.length }} 项馆藏的存放位置 </template>
       </el-alert>
 
       <el-form label-width="100px">
@@ -268,9 +305,7 @@
     <!-- 批量设置状态对话框 -->
     <el-dialog v-model="batchStatusDialogVisible" title="批量设置状态" width="500px">
       <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px">
-        <template #title>
-          即将设置 {{ selectedItems.length }} 项馆藏的状态
-        </template>
+        <template #title> 即将设置 {{ selectedItems.length }} 项馆藏的状态 </template>
       </el-alert>
 
       <el-form label-width="100px">
@@ -296,6 +331,13 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import ActionIcons from '@/components/ActionIcons.vue'
+import {
+  View as IconView,
+  Location as IconLocation,
+  Warning as IconWarning,
+  Delete as IconDelete
+} from '@element-plus/icons-vue'
 
 // 查询表单
 const queryForm = reactive({
@@ -416,7 +458,9 @@ const loadCollectionList = async () => {
         isbn: `978-7-${Math.random().toString().substr(2, 9)}`,
         bookTitle: ['活着', '三体', '百年孤独', 'Python编程', '数据结构与算法'][i % 5],
         author: ['余华', '刘慈欣', '马尔克斯', 'Eric Matthes', '严蔚敏'][i % 5],
-        publisher: ['作家出版社', '重庆出版社', '南海出版社', '人民邮电出版社', '清华大学出版社'][i % 5],
+        publisher: ['作家出版社', '重庆出版社', '南海出版社', '人民邮电出版社', '清华大学出版社'][
+          i % 5
+        ],
         category: categories[i % categories.length],
         location: `${'ABCD'[i % 4]}区${(i % 5) + 1}层${(i % 10) + 1}排`,
         status,
@@ -575,7 +619,7 @@ const handleConfirmBatchLocation = async () => {
 
 // 批量设置状态
 const handleBatchSetStatus = () => {
-  const hasBorrowed = selectedItems.value.some(item => item.status === 'borrowed')
+  const hasBorrowed = selectedItems.value.some((item) => item.status === 'borrowed')
   if (hasBorrowed) {
     ElMessage.warning('选中的项目中包含已借出图书，无法批量设置状态')
     return

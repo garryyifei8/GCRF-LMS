@@ -155,7 +155,10 @@
           </el-table-column>
           <el-table-column label="操作" width="80" fixed="right">
             <template #default="{ row }">
-              <el-button type="primary" link :icon="View" @click="handleView(row)">详情</el-button>
+              <ActionIcons
+                :actions="[{ key: 'view', label: '查看详情', icon: IconView, variant: 'primary' }]"
+                @action="() => handleView(row)"
+              />
             </template>
           </el-table-column>
         </el-table>
@@ -236,6 +239,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import { getCirculationRecords } from '@/api/circulation'
+import ActionIcons from '@/components/ActionIcons.vue'
+import { View as IconView } from '@element-plus/icons-vue'
 
 // 查询表单
 const queryForm = reactive({

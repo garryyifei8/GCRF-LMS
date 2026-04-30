@@ -155,27 +155,12 @@
             </template>
           </el-table-column>
           <el-table-column prop="createdAt" label="创建时间" width="110" />
-          <el-table-column label="操作" width="240" fixed="right">
+          <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
-              <div class="table-actions">
-                <el-link type="primary" :underline="false" @click="handleView(row)">查看</el-link>
-                <el-link type="primary" :underline="false" @click="handleEdit(row)">编辑</el-link>
-                <el-link type="primary" :underline="false" @click="showBorrowHistory(row)"
-                  >借阅历史</el-link
-                >
-                <el-link
-                  v-if="row.status !== 'frozen'"
-                  type="warning"
-                  :underline="false"
-                  @click="handleFreeze(row)"
-                >
-                  冻结
-                </el-link>
-                <el-link v-else type="success" :underline="false" @click="handleUnfreeze(row)"
-                  >解冻</el-link
-                >
-                <el-link type="danger" :underline="false" @click="handleDelete(row)">删除</el-link>
-              </div>
+              <ActionIcons
+                :actions="buildRowActions(row)"
+                @action="(key) => handleRowAction(key, row)"
+              />
             </template>
           </el-table-column>
         </el-table>
@@ -246,9 +231,10 @@
             </div>
           </div>
           <div class="card-footer">
-            <el-link type="primary" :underline="false" @click="handleView(student)">查看</el-link>
-            <el-link type="primary" :underline="false" @click="handleEdit(student)">编辑</el-link>
-            <el-link type="danger" :underline="false" @click="handleDelete(student)">删除</el-link>
+            <ActionIcons
+              :actions="buildRowActions(student)"
+              @action="(key) => handleRowAction(key, student)"
+            />
           </div>
         </div>
       </div>
@@ -588,6 +574,15 @@ import {
 import AvatarUpload from '@/components/AvatarUpload.vue'
 import BorrowHistoryDialog from '@/components/readers/BorrowHistoryDialog.vue'
 import BatchCancelDialog from '@/components/readers/BatchCancelDialog.vue'
+import ActionIcons from '@/components/ActionIcons.vue'
+import {
+  View as IconView,
+  Edit as IconEdit,
+  Reading as IconReading,
+  Lock as IconLock,
+  Unlock as IconUnlock,
+  Delete as IconDelete
+} from '@element-plus/icons-vue'
 import {
   getReaders,
   getReaderById,
@@ -681,6 +676,33 @@ const currentReader = ref(null)
 const showBorrowHistory = (row) => {
   currentReader.value = row
   showHistory.value = true
+}
+
+// 行操作图标按钮
+const buildRowActions = (row) => [
+  { key: 'view', label: '查看详情', icon: IconView, variant: 'primary' },
+  { key: 'edit', label: '编辑', icon: IconEdit, variant: 'primary' },
+  { key: 'history', label: '借阅历史', icon: IconReading, variant: 'success' },
+  row.status === 'frozen'
+    ? { key: 'unfreeze', label: '解冻', icon: IconUnlock, variant: 'success' }
+    : { key: 'freeze', label: '冻结', icon: IconLock, variant: 'warning' },
+  { key: 'delete', label: '删除', icon: IconDelete, variant: 'danger' }
+]
+const handleRowAction = (key, row) => {
+  switch (key) {
+    case 'view':
+      return handleView(row)
+    case 'edit':
+      return handleEdit(row)
+    case 'history':
+      return showBorrowHistory(row)
+    case 'freeze':
+      return handleFreeze(row)
+    case 'unfreeze':
+      return handleUnfreeze(row)
+    case 'delete':
+      return handleDelete(row)
+  }
 }
 
 // 按年级批量注销
