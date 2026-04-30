@@ -1,8 +1,12 @@
 package com.gcrf.library.org.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.gcrf.library.org.handler.JsonbTypeHandler;
+import com.gcrf.library.org.handler.LtreeTypeHandler;
+import com.gcrf.library.org.handler.TimestamptzTypeHandler;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -29,8 +33,9 @@ public class OrgNode {
     private String code;
 
     /**
-     * ltree 字段，PostgreSQL 自动转换为 String
+     * ltree 字段，通过 LtreeTypeHandler 序列化为 PGobject("ltree") 写入 PostgreSQL
      */
+    @TableField(typeHandler = LtreeTypeHandler.class)
     private String path;
 
     private String tenantSchema;
@@ -38,11 +43,14 @@ public class OrgNode {
     private String status;
 
     /**
-     * JSON 元数据，存储为 JSONB，Java 端以字符串形式处理
+     * JSON 元数据，存储为 JSONB，通过 JsonbTypeHandler 序列化为 PGobject("jsonb") 写入 PostgreSQL
      */
+    @TableField(typeHandler = JsonbTypeHandler.class)
     private String metadata;
 
+    @TableField(typeHandler = TimestamptzTypeHandler.class)
     private LocalDateTime createdAt;
 
+    @TableField(typeHandler = TimestamptzTypeHandler.class)
     private LocalDateTime updatedAt;
 }

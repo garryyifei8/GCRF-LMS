@@ -1,5 +1,6 @@
 package com.gcrf.library.org.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.gcrf.library.common.exception.BusinessException;
 import com.gcrf.library.org.domain.dto.OrgNodeCreateDTO;
 import com.gcrf.library.org.domain.dto.OrgNodeUpdateDTO;
@@ -11,11 +12,13 @@ import com.gcrf.library.org.service.OrgNodeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 组织节点服务实现
@@ -33,6 +36,21 @@ import java.util.Map;
 public class OrgNodeServiceImpl implements OrgNodeService {
 
     private final OrgNodeMapper mapper;
+
+    /**
+     * Allowed parent types per node type.
+     * An empty set means only root placement (no parent) is allowed.
+     */
+    private static final Map<String, Set<String>> ALLOWED_PARENTS = Map.of(
+        "REGION",     Set.of(),
+        "DISTRICT",   Set.of("REGION"),
+        "SCHOOL",     Set.of("REGION", "DISTRICT"),
+        "SUB_SCHOOL", Set.of("SCHOOL"),
+        "BRANCH",     Set.of("SCHOOL", "SUB_SCHOOL"),
+        "STAGE",      Set.of("SCHOOL", "SUB_SCHOOL"),
+        "GRADE",      Set.of("SCHOOL", "SUB_SCHOOL", "STAGE"),
+        "CLASS",      Set.of("GRADE")
+    );
 
     // ===================== Query methods =====================
 
@@ -72,8 +90,56 @@ public class OrgNodeServiceImpl implements OrgNodeService {
     // ===================== Mutation stubs (Tasks 10-13) =====================
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public OrgNodeVO create(OrgNodeCreateDTO dto) {
-        throw new UnsupportedOperationException("implemented in Task 10");
+        // 1. Validate type vs parent relationship
+        OrgNode parent = null;
+        if (dto.getParentId() != null) {
+            parent = mapper.selectById(dto.getParentId());
+            if (parent == null) {
+                throw new BusinessException("parent not found: " + dto.getParentId());
+            }
+        }
+        Set<String> allowedParents = ALLOWED_PARENTS.getOrDefault(dto.getType(), Set.of());
+        String parentType = parent == null ? null : parent.getType();
+        boolean typeOk = parent == null ? allowedParents.isEmpty()
+                                        : allowedParents.contains(parentType);
+        if (!typeOk) {
+            throw new BusinessException(dto.getType() + " cannot be child of " + parentType);
+        }
+
+        // 2. Enforce max depth of 6 levels
+        if (parent != null && parent.getPath().split("\\.").length >= 6) {
+            throw new BusinessException("max org tree depth (6) exceeded");
+        }
+
+        // 3. Enforce unique code
+        OrgNode existing = mapper.selectOne(
+            new LambdaQueryWrapper<OrgNode>().eq(OrgNode::getCode, dto.getCode()));
+        if (existing != null) {
+            throw new BusinessException("code already exists: " + dto.getCode());
+        }
+
+        // 4. Insert with placeholder path "0", then update path based on auto-generated id
+        OrgNode entity = new OrgNode();
+        entity.setParentId(dto.getParentId());
+        entity.setType(dto.getType());
+        entity.setName(dto.getName());
+        entity.setCode(dto.getCode());
+        entity.setPath("0"); // placeholder; replaced immediately after insert to capture id
+        entity.setStatus("ACTIVE");
+        entity.setMetadata(dto.getMetadata() == null ? "{}" : dto.getMetadata());
+        mapper.insert(entity);
+
+        // Build ltree path: root → just the id; child → parent.path + "." + id
+        String path = parent == null
+            ? String.valueOf(entity.getId())
+            : parent.getPath() + "." + entity.getId();
+        entity.setPath(path);
+        mapper.updateById(entity);
+
+        log.debug("created org node id={} type={} path={}", entity.getId(), entity.getType(), path);
+        return OrgNodeVO.from(entity);
     }
 
     @Override
