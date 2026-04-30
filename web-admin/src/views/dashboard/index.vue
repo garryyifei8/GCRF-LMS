@@ -8,7 +8,7 @@
           <p>欢迎回来！今日图书馆运营概览</p>
         </div>
         <div class="header-actions">
-          <el-button>
+          <el-button @click="handleExport">
             <el-icon><Download /></el-icon>
             导出报表
           </el-button>
@@ -286,6 +286,9 @@
       </el-col>
     </el-row>
 
+    <!-- 快捷操作浮动按钮组 -->
+    <QuickActions />
+
     <!-- 馆藏分析 -->
     <div class="table-card">
       <div class="table-header">
@@ -354,6 +357,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import * as echarts from 'echarts'
+import { ElMessage } from 'element-plus'
 import {
   Reading,
   User,
@@ -379,8 +383,10 @@ import {
   getBookRankings,
   getReaderRankings,
   getCollectionAnalysis,
-  getRecentActivities
+  getRecentActivities,
+  exportComprehensiveReport
 } from '@/api/analytics'
+import QuickActions from '@/components/dashboard/QuickActions.vue'
 
 // 数据
 const trendPeriod = ref('month')
@@ -452,6 +458,25 @@ const categoryChartRef = ref()
 // 格式化数字
 const formatNumber = (num) => {
   return num ? num.toLocaleString() : '0'
+}
+
+// 导出综合报表
+const handleExport = async () => {
+  try {
+    ElMessage.info('正在生成报表...')
+    const blob = await exportComprehensiveReport()
+    const url = URL.createObjectURL(new Blob([blob], { type: 'application/vnd.ms-excel' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `图书馆综合报表_${new Date().toISOString().slice(0, 10)}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    ElMessage.success('报表已下载')
+  } catch (e) {
+    ElMessage.error('导出失败: ' + (e.message || '未知错误'))
+  }
 }
 
 // 将活动类型转换为Element Plus Timeline支持的类型
