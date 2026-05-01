@@ -165,8 +165,37 @@ public class OrgNodeServiceImpl implements OrgNodeService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public OrgNodeVO move(Long id, Long newParentId) {
-        throw new UnsupportedOperationException("implemented in Task 13");
+        OrgNode self = mapper.selectById(id);
+        if (self == null) throw new BusinessException("node not found: " + id);
+
+        // forbid moving onto itself or its descendant
+        OrgNode newParent = mapper.selectById(newParentId);
+        if (newParent == null) throw new BusinessException("new parent not found: " + newParentId);
+        if (newParent.getPath().equals(self.getPath()) ||
+            newParent.getPath().startsWith(self.getPath() + ".")) {
+            throw new BusinessException("cycle: cannot move into own descendant");
+        }
+
+        // type validation under new parent
+        Set<String> allowed = ALLOWED_PARENTS.getOrDefault(self.getType(), Set.of());
+        if (!allowed.contains(newParent.getType())) {
+            throw new BusinessException(self.getType() + " cannot be child of " + newParent.getType());
+        }
+
+        String oldPath = self.getPath();
+        String newPath = newParent.getPath() + "." + self.getId();
+
+        self.setParentId(newParentId);
+        self.setPath(newPath);
+        mapper.updateById(self);
+
+        // rewrite all descendants' paths
+        mapper.moveSubtree(oldPath, newPath);
+
+        log.debug("moved node id={} from path={} to path={}", id, oldPath, newPath);
+        return OrgNodeVO.from(self);
     }
 
     // ===================== Private helpers =====================
