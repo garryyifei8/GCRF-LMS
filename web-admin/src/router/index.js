@@ -146,6 +146,12 @@ const routes = [
         meta: { title: '系统管理', icon: 'Setting' },
         children: [
           {
+            path: 'organizations',
+            name: 'SystemOrganizations',
+            component: () => import('@/views/system/organizations.vue'),
+            meta: { title: '组织架构', icon: 'OfficeBuilding' }
+          },
+          {
             path: 'users',
             name: 'SystemUsers',
             component: () => import('@/views/system/users.vue'),
