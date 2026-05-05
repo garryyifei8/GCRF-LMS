@@ -40,3 +40,5 @@ data:
                   - uri: http://gcrf-circulation:8083
                 system-service:
                   - uri: http://gcrf-system:8085
+                org-service:
+                  - uri: http://gcrf-org:8090
