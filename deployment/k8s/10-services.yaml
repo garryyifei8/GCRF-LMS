@@ -635,3 +635,95 @@ metadata:
 spec:
   selector: { app: gcrf-org }
   ports: [{ port: 8090, targetPort: 8090 }]
+
+---
+# ============ OPAC SERVICE ============
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gcrf-opac
+  namespace: gcrf-prod
+  labels: { app: gcrf-opac }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: gcrf-opac }
+  template:
+    metadata:
+      labels: { app: gcrf-opac }
+    spec:
+      containers:
+        - name: opac-service
+          image: gcrf/opac-service:latest
+          imagePullPolicy: Never
+          ports: [{ containerPort: 8092 }]
+          envFrom:
+            - configMapRef: { name: gcrf-config }
+          env:
+            - name: SERVER_PORT
+              value: "8092"
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod,k8s
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgresql.edu-infra.svc.cluster.local:5432/gcrf_main?stringtype=unspecified"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: gcrf-db-secret, key: POSTGRES_USER } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: gcrf-db-secret, key: POSTGRES_PASSWORD } }
+            - name: DB_HOST
+              value: postgresql.edu-infra.svc.cluster.local
+            - name: DB_NAME
+              value: gcrf_main
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: gcrf-db-secret, key: POSTGRES_USER } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: gcrf-db-secret, key: POSTGRES_PASSWORD } }
+            - name: SPRING_REDIS_HOST
+              value: redis.edu-infra.svc.cluster.local
+            - name: SPRING_REDIS_PORT
+              value: "6379"
+            - name: SPRING_REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: gcrf-db-secret, key: REDIS_PASSWORD } }
+            - name: SPRING_REDIS_DATABASE
+              value: "2"
+            - name: SPRING_DATA_REDIS_HOST
+              value: redis.edu-infra.svc.cluster.local
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
+            - name: SPRING_DATA_REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: gcrf-db-secret, key: REDIS_PASSWORD } }
+            - name: SPRING_DATA_REDIS_DATABASE
+              value: "2"
+            - name: REDIS_HOST
+              value: redis.edu-infra.svc.cluster.local
+            - name: REDIS_DB
+              value: "2"
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: gcrf-db-secret, key: REDIS_PASSWORD } }
+          volumeMounts:
+            - name: service-discovery
+              mountPath: /app/config
+          resources:
+            requests: { memory: "384Mi", cpu: "100m" }
+            limits: { memory: "512Mi", cpu: "500m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8092 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8092 }
+            initialDelaySeconds: 60
+            periodSeconds: 20
+      volumes:
+        - name: service-discovery
+          configMap:
+            name: gcrf-service-discovery
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gcrf-opac
+  namespace: gcrf-prod
+spec:
+  selector: { app: gcrf-opac }
+  ports: [{ port: 8092, targetPort: 8092 }]

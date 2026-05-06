@@ -42,3 +42,5 @@ data:
                   - uri: http://gcrf-system:8085
                 org-service:
                   - uri: http://gcrf-org:8090
+                opac-service:
+                  - uri: http://gcrf-opac:8092
