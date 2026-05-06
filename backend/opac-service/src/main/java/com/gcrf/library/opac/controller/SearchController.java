@@ -7,6 +7,7 @@ import com.gcrf.library.opac.domain.vo.PageVO;
 import com.gcrf.library.opac.ratelimit.RateLimit;
 import com.gcrf.library.opac.service.NewArrivalsService;
 import com.gcrf.library.opac.service.SearchService;
+import com.gcrf.library.opac.service.SuggestService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,6 +23,7 @@ public class SearchController {
 
     private final SearchService searchService;
     private final NewArrivalsService newArrivalsService;
+    private final SuggestService suggestService;
 
     @GetMapping("/search")
     @RateLimit(value = 10, periodSeconds = 1)
@@ -47,5 +49,13 @@ public class SearchController {
             @RequestParam(defaultValue = "30") int days,
             @RequestParam(defaultValue = "20") int limit) {
         return Result.success(newArrivalsService.newArrivals(school, days, limit));
+    }
+
+    @GetMapping("/suggest")
+    @RateLimit(value = 30, periodSeconds = 1)
+    public Result<List<com.gcrf.library.opac.domain.vo.SuggestionVO>> suggest(
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "10") int limit) {
+        return Result.success(suggestService.suggest(q, limit));
     }
 }
