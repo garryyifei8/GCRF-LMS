@@ -55,4 +55,16 @@ public interface BookSearchMapper {
         </script>
         """)
     long count(@Param("q") String q, @Param("clc") String clc, @Param("school") String school);
+
+    @Select("""
+        SELECT title AS text, 'title' AS type, MIN(isbn) AS isbn, count(*) AS count
+          FROM gcrf_region.book_search_mview
+         WHERE title ILIKE CONCAT(#{q}::text, '%')
+         GROUP BY title
+         ORDER BY count DESC, title
+         LIMIT #{limit}
+        """)
+    java.util.List<com.gcrf.library.opac.domain.vo.SuggestionVO> suggestByTitle(
+        @org.apache.ibatis.annotations.Param("q") String q,
+        @org.apache.ibatis.annotations.Param("limit") int limit);
 }
