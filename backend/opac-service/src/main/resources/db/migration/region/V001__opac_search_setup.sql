@@ -41,6 +41,9 @@ DECLARE
     union_sql TEXT := '';
     row_count INT;
 BEGIN
+    -- Ensure dynamic SQL (EXECUTE) can resolve pg_trgm operators in public schema
+    SET LOCAL search_path = gcrf_region, public;
+
     -- Iterate over all school_* schemas, ordered by name
     FOR sch IN
         SELECT nspname FROM pg_namespace
