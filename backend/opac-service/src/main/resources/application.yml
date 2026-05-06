@@ -29,6 +29,7 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
 
 mybatis-plus:
+  type-handlers-package: com.gcrf.library.opac.handler
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
