@@ -61,7 +61,9 @@ populated by `org-service`. With `baseline-on-migrate: false` and
 
 1. Created `flyway_schema_history_opac` (empty)
 2. Applied `V001__opac_search_setup.sql` (created `pg_trgm` extension,
-   `book_search_mview`, `refresh_book_search_mview()` function)
+   `book_search_mview` with GIN trigram indexes on title/author/isbn,
+   btree indexes on classification/school_schema, and
+   `refresh_book_search_mview()` function)
 3. Recorded V001 in `flyway_schema_history_opac`
 
 `org-service`'s history in `flyway_schema_history` is unaffected.
