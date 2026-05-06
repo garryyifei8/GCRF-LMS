@@ -17,15 +17,15 @@ public interface BookSearchMapper {
           FROM gcrf_region.book_search_mview
          <where>
            <if test="q != null and q != ''">
-             AND (title ILIKE CONCAT('%', #{q}, '%')
-               OR author ILIKE CONCAT('%', #{q}, '%')
-               OR isbn ILIKE CONCAT(#{q}, '%'))
+             AND (title ILIKE CONCAT('%', #{q}::text, '%')
+               OR author ILIKE CONCAT('%', #{q}::text, '%')
+               OR isbn ILIKE CONCAT(#{q}::text, '%'))
            </if>
            <if test="clc != null and clc != ''">
-             AND classification LIKE CONCAT(#{clc}, '%')
+             AND classification LIKE CONCAT(#{clc}::text, '%')
            </if>
            <if test="school != null and school != ''">
-             AND school_schema = #{school}
+             AND school_schema = #{school}::text
            </if>
          </where>
          ORDER BY title
@@ -41,15 +41,15 @@ public interface BookSearchMapper {
         SELECT count(*) FROM gcrf_region.book_search_mview
          <where>
            <if test="q != null and q != ''">
-             AND (title ILIKE CONCAT('%', #{q}, '%')
-               OR author ILIKE CONCAT('%', #{q}, '%')
-               OR isbn ILIKE CONCAT(#{q}, '%'))
+             AND (title ILIKE CONCAT('%', #{q}::text, '%')
+               OR author ILIKE CONCAT('%', #{q}::text, '%')
+               OR isbn ILIKE CONCAT(#{q}::text, '%'))
            </if>
            <if test="clc != null and clc != ''">
-             AND classification LIKE CONCAT(#{clc}, '%')
+             AND classification LIKE CONCAT(#{clc}::text, '%')
            </if>
            <if test="school != null and school != ''">
-             AND school_schema = #{school}
+             AND school_schema = #{school}::text
            </if>
          </where>
         </script>
