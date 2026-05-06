@@ -1,0 +1,65 @@
+[
+  { "code": "A", "name": "马列毛邓理论", "parentCode": null, "children": [] },
+  { "code": "B", "name": "哲学、宗教", "parentCode": null, "children": [
+    { "code": "B0", "name": "哲学理论" },
+    { "code": "B2", "name": "中国哲学" },
+    { "code": "B5", "name": "欧美哲学" },
+    { "code": "B8", "name": "心理学" },
+    { "code": "B9", "name": "宗教" }
+  ] },
+  { "code": "C", "name": "社会科学总论", "parentCode": null, "children": [
+    { "code": "C8", "name": "统计学" }
+  ] },
+  { "code": "D", "name": "政治、法律", "parentCode": null, "children": [
+    { "code": "D0", "name": "政治理论" },
+    { "code": "D9", "name": "法律" }
+  ] },
+  { "code": "E", "name": "军事", "parentCode": null, "children": [] },
+  { "code": "F", "name": "经济", "parentCode": null, "children": [
+    { "code": "F0", "name": "政治经济学" },
+    { "code": "F8", "name": "财政、金融" }
+  ] },
+  { "code": "G", "name": "文化、科学、教育、体育", "parentCode": null, "children": [
+    { "code": "G0", "name": "文化理论" },
+    { "code": "G4", "name": "教育" },
+    { "code": "G8", "name": "体育" }
+  ] },
+  { "code": "H", "name": "语言、文字", "parentCode": null, "children": [
+    { "code": "H0", "name": "语言学" },
+    { "code": "H1", "name": "汉语" },
+    { "code": "H3", "name": "英语" }
+  ] },
+  { "code": "I", "name": "文学", "parentCode": null, "children": [
+    { "code": "I0", "name": "文学理论" },
+    { "code": "I2", "name": "中国文学" },
+    { "code": "I3/7", "name": "外国文学" }
+  ] },
+  { "code": "J", "name": "艺术", "parentCode": null, "children": [
+    { "code": "J0", "name": "艺术理论" },
+    { "code": "J2", "name": "绘画" },
+    { "code": "J6", "name": "音乐" },
+    { "code": "J9", "name": "电影、电视" }
+  ] },
+  { "code": "K", "name": "历史、地理", "parentCode": null, "children": [
+    { "code": "K2", "name": "中国历史" },
+    { "code": "K9", "name": "地理" }
+  ] },
+  { "code": "N", "name": "自然科学总论", "parentCode": null, "children": [] },
+  { "code": "O", "name": "数理科学和化学", "parentCode": null, "children": [
+    { "code": "O1", "name": "数学" },
+    { "code": "O4", "name": "物理学" },
+    { "code": "O6", "name": "化学" }
+  ] },
+  { "code": "P", "name": "天文学、地球科学", "parentCode": null, "children": [] },
+  { "code": "Q", "name": "生物科学", "parentCode": null, "children": [] },
+  { "code": "R", "name": "医药、卫生", "parentCode": null, "children": [] },
+  { "code": "S", "name": "农业科学", "parentCode": null, "children": [] },
+  { "code": "T", "name": "工业技术", "parentCode": null, "children": [
+    { "code": "TP", "name": "自动化、计算机" },
+    { "code": "TU", "name": "建筑科学" }
+  ] },
+  { "code": "U", "name": "交通运输", "parentCode": null, "children": [] },
+  { "code": "V", "name": "航空、航天", "parentCode": null, "children": [] },
+  { "code": "X", "name": "环境科学", "parentCode": null, "children": [] },
+  { "code": "Z", "name": "综合性图书", "parentCode": null, "children": [] }
+]
