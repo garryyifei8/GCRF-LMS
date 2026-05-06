@@ -25,21 +25,26 @@ public class SearchController {
     private final NewArrivalsService newArrivalsService;
     private final SuggestService suggestService;
 
-    @GetMapping("/search")
-    @RateLimit(value = 10, periodSeconds = 1)
-    public Result<PageVO<BookSearchItemVO>> search(
-            @RequestParam(required = false) String q,
-            @RequestParam(required = false) String clc,
-            @RequestParam(required = false) String school,
-            @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(defaultValue = "20") int pageSize) {
-        SearchRequest req = new SearchRequest();
-        req.setQ(q);
-        req.setClc(clc);
-        req.setSchool(school);
-        req.setPageNum(pageNum);
-        req.setPageSize(pageSize);
-        return Result.success(searchService.search(req));
+    @org.springframework.web.bind.annotation.GetMapping("/search")
+    @com.gcrf.library.opac.ratelimit.RateLimit(value = 10, periodSeconds = 1)
+    public com.gcrf.library.common.result.Result<com.gcrf.library.opac.domain.vo.PageVO<com.gcrf.library.opac.domain.vo.BookSearchItemVO>> search(
+        @org.springframework.web.bind.annotation.RequestParam(required = false) String q,
+        @org.springframework.web.bind.annotation.RequestParam(required = false) String clc,
+        @org.springframework.web.bind.annotation.RequestParam(required = false) String school,
+        @org.springframework.web.bind.annotation.RequestParam(defaultValue = "1") int pageNum,
+        @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int pageSize,
+        jakarta.servlet.http.HttpServletRequest request) {
+        com.gcrf.library.opac.domain.dto.SearchRequest req = new com.gcrf.library.opac.domain.dto.SearchRequest();
+        req.setQ(q); req.setClc(clc); req.setSchool(school);
+        req.setPageNum(pageNum); req.setPageSize(pageSize);
+        String clientIp = clientIp(request);
+        return com.gcrf.library.common.result.Result.success(searchService.search(req, clientIp));
+    }
+
+    private String clientIp(jakarta.servlet.http.HttpServletRequest req) {
+        String xff = req.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) return xff.split(",")[0].trim();
+        return req.getRemoteAddr();
     }
 
     @GetMapping("/new-arrivals")
