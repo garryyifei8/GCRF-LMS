@@ -1,0 +1,15 @@
+package com.gcrf.library.opac.mapper;
+
+import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+@Mapper
+public interface SearchLogMapper {
+
+    @Insert("INSERT INTO gcrf_region.search_log (keyword, client_ip, result_count) "
+          + "VALUES (#{keyword}, #{clientIp}, #{resultCount})")
+    void insert(@Param("keyword") String keyword,
+                @Param("clientIp") String clientIp,
+                @Param("resultCount") long resultCount);
+}
