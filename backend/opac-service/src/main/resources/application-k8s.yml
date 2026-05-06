@@ -9,9 +9,6 @@ spring:
       port: ${REDIS_PORT:6379}
       database: ${REDIS_DB:2}
       password: ${REDIS_PASSWORD}
-  flyway:
-    table: flyway_schema_history_opac
-
 logging:
   level:
     com.gcrf.library: INFO

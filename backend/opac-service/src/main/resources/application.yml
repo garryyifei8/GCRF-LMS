@@ -23,7 +23,8 @@ spring:
     locations: classpath:db/migration/region
     schemas: gcrf_region
     create-schemas: true
-    baseline-on-migrate: true
+    baseline-on-migrate: false
+    table: flyway_schema_history_opac
   jackson:
     time-zone: Asia/Shanghai
     date-format: yyyy-MM-dd HH:mm:ss
