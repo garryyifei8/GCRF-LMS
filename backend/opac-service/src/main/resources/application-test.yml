@@ -1,0 +1,12 @@
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+gcrf:
+  opac:
+    rate-limit:
+      enabled: false
+    search-mview:
+      auto-refresh-on-startup: false

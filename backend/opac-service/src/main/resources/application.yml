@@ -1,0 +1,52 @@
+server:
+  port: 8092
+
+spring:
+  application:
+    name: opac-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:gcrf_main}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DB:2}
+      timeout: 3000ms
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/region
+    schemas: gcrf_region
+    create-schemas: true
+    baseline-on-migrate: true
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+gcrf:
+  tenant:
+    enabled: false
+  opac:
+    rate-limit:
+      enabled: true
+    search-mview:
+      auto-refresh-on-startup: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
