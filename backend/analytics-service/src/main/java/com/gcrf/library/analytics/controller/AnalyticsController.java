@@ -64,6 +64,17 @@ public class AnalyticsController {
     }
 
     /**
+     * 获取图书排行榜（与 popular-books 同源）
+     */
+    @Operation(summary = "获取图书排行榜", description = "获取图书排行榜（与 popular-books 同源）")
+    @GetMapping("/book-rankings")
+    public Result<List<PopularBookVO>> getBookRankings(@Valid RankingQueryRequest request) {
+        log.info("获取图书排行榜: rankBy={}, limit={}", request.getRankBy(), request.getLimit());
+        List<PopularBookVO> books = analyticsService.getPopularBooks(request);
+        return Result.success(books);
+    }
+
+    /**
      * 获取活跃读者排行
      */
     @Operation(summary = "获取活跃读者", description = "获取活跃读者排行榜，支持按借阅量、到馆次数等排序")
