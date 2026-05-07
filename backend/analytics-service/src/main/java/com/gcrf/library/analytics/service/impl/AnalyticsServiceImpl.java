@@ -305,6 +305,109 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         return getCategoryDistribution();
     }
 
+    @Override
+    public CollectionAnalysisVO getCollectionAnalysis() {
+        log.info("获取馆藏分析数据");
+
+        List<CollectionAnalysisVO.StatusItem> statusDistribution = List.of(
+                CollectionAnalysisVO.StatusItem.builder()
+                        .status("available").statusName("在架")
+                        .count(520L).percentage(BigDecimal.valueOf(0.945)).build(),
+                CollectionAnalysisVO.StatusItem.builder()
+                        .status("borrowed").statusName("借出")
+                        .count(15L).percentage(BigDecimal.valueOf(0.027)).build(),
+                CollectionAnalysisVO.StatusItem.builder()
+                        .status("overdue").statusName("逾期")
+                        .count(10L).percentage(BigDecimal.valueOf(0.018)).build(),
+                CollectionAnalysisVO.StatusItem.builder()
+                        .status("lost").statusName("遗失")
+                        .count(5L).percentage(BigDecimal.valueOf(0.009)).build()
+        );
+
+        List<CollectionAnalysisVO.AgeItem> ageDistribution = List.of(
+                CollectionAnalysisVO.AgeItem.builder()
+                        .range("0-1年").count(30L).percentage(BigDecimal.valueOf(0.6)).build(),
+                CollectionAnalysisVO.AgeItem.builder()
+                        .range("1-3年").count(15L).percentage(BigDecimal.valueOf(0.3)).build(),
+                CollectionAnalysisVO.AgeItem.builder()
+                        .range("3-5年").count(5L).percentage(BigDecimal.valueOf(0.1)).build()
+        );
+
+        CollectionAnalysisVO.CirculationStats circulationStats = CollectionAnalysisVO.CirculationStats.builder()
+                .highCirculation(5L)
+                .mediumCirculation(15L)
+                .lowCirculation(10L)
+                .zeroCirculation(20L)
+                .build();
+
+        return CollectionAnalysisVO.builder()
+                .totalBooks(50L)
+                .totalCopies(572L)
+                .categoryDistribution(getCategoryStats())
+                .statusDistribution(statusDistribution)
+                .ageDistribution(ageDistribution)
+                .circulationAnalysis(circulationStats)
+                .build();
+    }
+
+    @Override
+    public List<RecentActivityVO> getRecentActivities(int limit) {
+        log.info("获取近期活动记录, limit={}", limit);
+
+        // 夹紧 limit：<=0 默认 20，超过 100 截断至 100
+        int effective = (limit <= 0) ? 20 : Math.min(limit, 100);
+
+        List<RecentActivityVO> allActivities = List.of(
+                RecentActivityVO.builder().id(1L).type("borrow").typeName("借书").icon("DocumentAdd")
+                        .readerName("韩雅静").bookTitle("罪与罚")
+                        .description("借书《罪与罚》").timestamp("2026-05-06T11:30:00").status("success").build(),
+                RecentActivityVO.builder().id(2L).type("return").typeName("还书").icon("DocumentDelete")
+                        .readerName("李明").bookTitle("三体")
+                        .description("还书《三体》").timestamp("2026-05-06T10:45:00").status("success").build(),
+                RecentActivityVO.builder().id(3L).type("register").typeName("新读者").icon("UserFilled")
+                        .readerName("张晓雯").bookTitle("")
+                        .description("新读者注册：张晓雯").timestamp("2026-05-06T10:15:00").status("success").build(),
+                RecentActivityVO.builder().id(4L).type("renew").typeName("续借").icon("Refresh")
+                        .readerName("王建国").bookTitle("百年孤独")
+                        .description("续借《百年孤独》").timestamp("2026-05-06T09:50:00").status("success").build(),
+                RecentActivityVO.builder().id(5L).type("reserve").typeName("预约").icon("Bell")
+                        .readerName("陈静").bookTitle("人类简史")
+                        .description("预约《人类简史》").timestamp("2026-05-06T09:20:00").status("success").build(),
+                RecentActivityVO.builder().id(6L).type("borrow").typeName("借书").icon("DocumentAdd")
+                        .readerName("刘洋").bookTitle("活着")
+                        .description("借书《活着》").timestamp("2026-05-05T17:30:00").status("success").build(),
+                RecentActivityVO.builder().id(7L).type("return").typeName("还书").icon("DocumentDelete")
+                        .readerName("孙丽").bookTitle("平凡的世界")
+                        .description("还书《平凡的世界》").timestamp("2026-05-05T16:10:00").status("success").build(),
+                RecentActivityVO.builder().id(8L).type("borrow").typeName("借书").icon("DocumentAdd")
+                        .readerName("赵峰").bookTitle("Python编程:从入门到实践")
+                        .description("借书《Python编程:从入门到实践》").timestamp("2026-05-05T15:40:00").status("success").build(),
+                RecentActivityVO.builder().id(9L).type("renew").typeName("续借").icon("Refresh")
+                        .readerName("周梅").bookTitle("未来简史")
+                        .description("续借《未来简史》").timestamp("2026-05-05T14:55:00").status("success").build(),
+                RecentActivityVO.builder().id(10L).type("borrow").typeName("借书").icon("DocumentAdd")
+                        .readerName("吴浩").bookTitle("深入理解计算机系统")
+                        .description("借书《深入理解计算机系统》").timestamp("2026-05-05T14:00:00").status("success").build(),
+                RecentActivityVO.builder().id(11L).type("reserve").typeName("预约").icon("Bell")
+                        .readerName("郑丽娜").bookTitle("解忧杂货店")
+                        .description("预约《解忧杂货店》").timestamp("2026-05-05T11:30:00").status("success").build(),
+                RecentActivityVO.builder().id(12L).type("return").typeName("还书").icon("DocumentDelete")
+                        .readerName("林志远").bookTitle("算法导论")
+                        .description("还书《算法导论》").timestamp("2026-05-05T10:20:00").status("success").build(),
+                RecentActivityVO.builder().id(13L).type("borrow").typeName("借书").icon("DocumentAdd")
+                        .readerName("何秀云").bookTitle("围城")
+                        .description("借书《围城》").timestamp("2026-05-04T16:45:00").status("success").build(),
+                RecentActivityVO.builder().id(14L).type("register").typeName("新读者").icon("UserFilled")
+                        .readerName("蔡文博").bookTitle("")
+                        .description("新读者注册：蔡文博").timestamp("2026-05-04T14:30:00").status("success").build(),
+                RecentActivityVO.builder().id(15L).type("return").typeName("还书").icon("DocumentDelete")
+                        .readerName("黄晓燕").bookTitle("追风筝的人")
+                        .description("还书《追风筝的人》").timestamp("2026-05-04T09:00:00").status("success").build()
+        );
+
+        return allActivities.subList(0, Math.min(effective, allActivities.size()));
+    }
+
     // ==================== 辅助方法 ====================
 
     private int getDaysFromTimeRange(String timeRange) {

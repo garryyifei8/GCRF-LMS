@@ -8,9 +8,11 @@ import com.gcrf.library.analytics.dto.request.TrendQueryRequest;
 import com.gcrf.library.analytics.dto.response.ActiveReaderVO;
 import com.gcrf.library.analytics.dto.response.BorrowTrendVO;
 import com.gcrf.library.analytics.dto.response.CategoryDistributionVO;
+import com.gcrf.library.analytics.dto.response.CollectionAnalysisVO;
 import com.gcrf.library.analytics.dto.response.HeatmapDataVO;
 import com.gcrf.library.analytics.dto.response.OverviewVO;
 import com.gcrf.library.analytics.dto.response.PopularBookVO;
+import com.gcrf.library.analytics.dto.response.RecentActivityVO;
 import com.gcrf.library.analytics.service.impl.AnalyticsServiceImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -176,5 +178,44 @@ class AnalyticsServiceTest {
         // 7 days x 12 hours = 84 data points
         assertEquals(84, result.getData().size());
         assertTrue(result.getMinValue() <= result.getMaxValue());
+    }
+
+    @Test
+    @DisplayName("getCollectionAnalysis_normalCase_shouldReturnFullStructure")
+    void getCollectionAnalysis_normalCase_shouldReturnFullStructure() {
+        CollectionAnalysisVO out = analyticsService.getCollectionAnalysis();
+        assertNotNull(out);
+        assertNotNull(out.getTotalBooks());
+        assertNotNull(out.getTotalCopies());
+        assertNotNull(out.getCategoryDistribution());
+        assertFalse(out.getCategoryDistribution().isEmpty());
+        assertNotNull(out.getStatusDistribution());
+        assertEquals(4, out.getStatusDistribution().size());
+        assertNotNull(out.getAgeDistribution());
+        assertNotNull(out.getCirculationAnalysis());
+    }
+
+    @Test
+    @DisplayName("getRecentActivities_normalCase_shouldRespectLimit")
+    void getRecentActivities_normalCase_shouldRespectLimit() {
+        List<RecentActivityVO> out = analyticsService.getRecentActivities(5);
+        assertNotNull(out);
+        assertTrue(out.size() <= 5);
+        assertFalse(out.isEmpty());
+        RecentActivityVO first = out.get(0);
+        assertNotNull(first.getType());
+        assertNotNull(first.getReaderName());
+        assertNotNull(first.getDescription());
+    }
+
+    @Test
+    @DisplayName("getRecentActivities_invalidLimit_shouldClamp")
+    void getRecentActivities_invalidLimit_shouldClamp() {
+        List<RecentActivityVO> zero = analyticsService.getRecentActivities(0);
+        List<RecentActivityVO> negative = analyticsService.getRecentActivities(-5);
+        List<RecentActivityVO> huge = analyticsService.getRecentActivities(99999);
+        assertFalse(zero.isEmpty());
+        assertFalse(negative.isEmpty());
+        assertTrue(huge.size() <= 100);  // clamped to max 100
     }
 }

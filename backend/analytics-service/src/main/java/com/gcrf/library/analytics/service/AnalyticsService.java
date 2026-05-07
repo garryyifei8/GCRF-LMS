@@ -65,4 +65,19 @@ public interface AnalyticsService {
      * @return 分类统计列表
      */
     List<CategoryDistributionVO> getCategoryStats();
+
+    /**
+     * 获取馆藏分析数据
+     *
+     * @return 馆藏分析VO
+     */
+    CollectionAnalysisVO getCollectionAnalysis();
+
+    /**
+     * 获取近期活动记录
+     *
+     * @param limit 返回条数，将被夹紧至 [1, 100]，传入 ≤0 时默认使用 20
+     * @return 近期活动列表
+     */
+    List<RecentActivityVO> getRecentActivities(int limit);
 }

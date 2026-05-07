@@ -108,6 +108,29 @@ public class AnalyticsController {
     }
 
     /**
+     * 获取馆藏分析数据
+     */
+    @Operation(summary = "获取馆藏分析", description = "获取馆藏总览、在馆状态分布、馆龄分布及流通分析数据")
+    @GetMapping("/collection-analysis")
+    public Result<CollectionAnalysisVO> getCollectionAnalysis() {
+        log.info("获取馆藏分析数据");
+        CollectionAnalysisVO analysis = analyticsService.getCollectionAnalysis();
+        return Result.success(analysis);
+    }
+
+    /**
+     * 获取近期活动记录
+     */
+    @Operation(summary = "获取近期活动", description = "获取图书馆近期操作活动记录（借书、还书、续借、预约、注册等）")
+    @GetMapping("/recent-activities")
+    public Result<List<RecentActivityVO>> getRecentActivities(
+            @RequestParam(defaultValue = "20") int limit) {
+        log.info("获取近期活动记录, limit={}", limit);
+        List<RecentActivityVO> activities = analyticsService.getRecentActivities(limit);
+        return Result.success(activities);
+    }
+
+    /**
      * 健康检查
      */
     @GetMapping("/health")
