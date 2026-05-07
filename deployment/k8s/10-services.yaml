@@ -303,7 +303,7 @@ spec:
             - name: SERVER_PORT
               value: "8085"
             - name: SPRING_PROFILES_ACTIVE
-              value: prod
+              value: prod,k8s
             - name: SPRING_DATASOURCE_URL
               value: "jdbc:postgresql://postgresql.edu-infra.svc.cluster.local:5432/gcrf_system?stringtype=unspecified"
             - name: SPRING_DATASOURCE_USERNAME
@@ -333,6 +333,13 @@ spec:
             httpGet: { path: /actuator/health, port: 8085 }
             initialDelaySeconds: 30
             periodSeconds: 10
+          volumeMounts:
+            - name: service-discovery
+              mountPath: /app/config
+      volumes:
+        - name: service-discovery
+          configMap:
+            name: gcrf-service-discovery
 ---
 apiVersion: v1
 kind: Service
