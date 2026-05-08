@@ -304,6 +304,9 @@ spec:
               value: "8085"
             - name: SPRING_PROFILES_ACTIVE
               value: prod,k8s
+            # system-service 自己的 PG schema 是 public，不参与多租户 search_path 切换
+            - name: GCRF_TENANT_ENABLED
+              value: "false"
             - name: SPRING_DATASOURCE_URL
               value: "jdbc:postgresql://postgresql.edu-infra.svc.cluster.local:5432/gcrf_system?stringtype=unspecified"
             - name: SPRING_DATASOURCE_USERNAME
