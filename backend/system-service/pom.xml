@@ -40,6 +40,12 @@
             <artifactId>common-mybatis</artifactId>
         </dependency>
 
+        <!-- Feign auth-header relay (FeignRequestInterceptor propagates Authorization) -->
+        <dependency>
+            <groupId>com.gcrf.library</groupId>
+            <artifactId>common-feign</artifactId>
+        </dependency>
+
         <!-- PostgreSQL Driver -->
         <dependency>
             <groupId>org.postgresql</groupId>

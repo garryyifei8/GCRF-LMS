@@ -1,6 +1,6 @@
 package com.gcrf.library.system.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.gcrf.library.system.dto.response.UserPageVO;
 import com.gcrf.library.common.result.PageResult;
 import com.gcrf.library.common.result.Result;
 import com.gcrf.library.system.client.UserManagementClient;
@@ -50,14 +50,14 @@ public class UserController {
         log.info("查询用户列表: pageNum={}, pageSize={}, keyword={}, role={}, status={}",
                 pageNum, pageSize, keyword, role, status);
 
-        Result<IPage<UserVO>> authResult = userManagementClient.getUserList(
+        Result<UserPageVO> authResult = userManagementClient.getUserList(
                 pageNum, pageSize, keyword, role, status);
 
         if (authResult == null || authResult.getData() == null) {
             return Result.success(PageResult.emptyRecords(pageNum, pageSize));
         }
 
-        IPage<UserVO> page = authResult.getData();
+        UserPageVO page = authResult.getData();
         List<UserVO> adapted = page.getRecords().stream()
                 .map(this::adaptUserVO)
                 .collect(Collectors.toList());

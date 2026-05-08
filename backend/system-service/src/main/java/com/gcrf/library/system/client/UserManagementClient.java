@@ -1,11 +1,11 @@
 package com.gcrf.library.system.client;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gcrf.library.common.result.Result;
 import com.gcrf.library.system.dto.request.UserCreateRequest;
 import com.gcrf.library.system.dto.request.UserPasswordResetRequest;
 import com.gcrf.library.system.dto.request.UserStatusRequest;
 import com.gcrf.library.system.dto.request.UserUpdateRequest;
+import com.gcrf.library.system.dto.response.UserPageVO;
 import com.gcrf.library.system.dto.response.UserVO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public interface UserManagementClient {
 
     @GetMapping
-    Result<IPage<UserVO>> getUserList(
+    Result<UserPageVO> getUserList(
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String username,
