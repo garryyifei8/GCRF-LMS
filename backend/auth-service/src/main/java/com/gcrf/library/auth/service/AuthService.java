@@ -4,10 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.gcrf.library.auth.dto.LoginRequest;
 import com.gcrf.library.auth.dto.LoginResponse;
 import com.gcrf.library.auth.dto.UserInfoResponse;
+import com.gcrf.library.auth.entity.Role;
 import com.gcrf.library.auth.entity.User;
 import com.gcrf.library.auth.mapper.UserMapper;
 import com.gcrf.library.common.exception.BusinessException;
 import com.gcrf.library.common.result.ResultCode;
+import com.gcrf.library.common.security.context.Scope;
 import com.gcrf.library.common.utils.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +18,11 @@ import org.redisson.api.RedissonClient;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -33,55 +39,80 @@ public class AuthService {
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
     private final RedissonClient redissonClient;
+    private final RoleService roleService;
+    private final PermissionService permissionService;
+    private final RefreshTokenService refreshTokenService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private static final String TOKEN_BLACKLIST_PREFIX = "auth:blacklist:";
     private static final long TOKEN_EXPIRY_SECONDS = 7200L; // 2小时
 
     /**
-     * 用户登录
+     * 用户登录 — 返回含 roles/tenant/scope/permissions 的富化响应
      */
     public LoginResponse login(LoginRequest request) {
         log.info("用户登录请求: username={}", request.getUsername());
-
-        // 查询用户（只查询未删除的用户）
-        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(User::getUsername, request.getUsername())
-                    .apply("deleted_at IS NULL");
-        User user = userMapper.selectOne(queryWrapper);
-
-        if (user == null) {
-            throw new BusinessException(ResultCode.USER_NOT_FOUND);
-        }
-
-        // 验证密码
+        User user = findActiveUser(request.getUsername());
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BusinessException(ResultCode.USER_CREDENTIALS_ERROR);
         }
-
-        // 检查账号状态
-        if (!"ACTIVE".equals(user.getStatus())) {
-            throw new BusinessException(ResultCode.USER_DISABLED);
-        }
-
-        // 生成JWT令牌
-        Map<String, Object> claims = Map.of(
-                "userId", user.getId(),
-                "username", user.getUsername(),
-                "userType", user.getUserType()
-        );
-        String token = jwtUtil.generateToken(user.getId().toString(), claims);
-        Long expiresIn = 7200L; // 2小时，与JWT配置保持一致
-
         log.info("用户登录成功: username={}, userId={}", user.getUsername(), user.getId());
+        return buildLoginResponse(user);
+    }
 
-        return new LoginResponse(
-                token,
-                expiresIn,
-                user.getId(),
-                user.getUsername(),
-                user.getUserType()
-        );
+    /**
+     * 构建富化登录响应（含 roles/tenant/scope/permissions）
+     * 供 login() 和 refreshToken() 共用。
+     */
+    public LoginResponse buildLoginResponse(User user) {
+        List<Role> roles = roleService.rolesOfUser(user.getId());
+        List<String> roleCodes = roles.stream().map(Role::getCode).toList();
+
+        String maxScope = roles.stream()
+                .map(Role::getScopeDefault)
+                .max(Comparator.comparingInt(s -> Scope.valueOf(s).ordinal()))
+                .orElse("SELF");
+
+        Set<String> perms = permissionService.codesForUser(user.getId());
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId());
+        claims.put("username", user.getUsername());
+        if (user.getTenantSchema() != null) {
+            claims.put("tenant", user.getTenantSchema());
+            claims.put("tenantId", user.getSchoolId());
+        }
+        claims.put("roles", roleCodes);
+        claims.put("scope", maxScope);
+
+        String accessToken = jwtUtil.generateToken(user.getId().toString(), claims);
+        String refreshToken = refreshTokenService.issue(user.getId());
+
+        return LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .expiresIn(1800L)
+                .userId(user.getId())
+                .username(user.getUsername())
+                .userType(user.getUserType())
+                .roles(roleCodes)
+                .tenant(user.getTenantSchema())
+                .tenantId(user.getSchoolId())
+                .scope(maxScope)
+                .permissions(perms)
+                .build();
+    }
+
+    /**
+     * 查询并校验活跃用户（已删除或不存在均抛异常）
+     */
+    private User findActiveUser(String username) {
+        LambdaQueryWrapper<User> w = new LambdaQueryWrapper<>();
+        w.eq(User::getUsername, username).apply("deleted_at IS NULL");
+        User u = userMapper.selectOne(w);
+        if (u == null) throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        if (!"ACTIVE".equals(u.getStatus())) throw new BusinessException(ResultCode.USER_DISABLED);
+        return u;
     }
 
     /**

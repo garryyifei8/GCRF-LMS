@@ -56,7 +56,7 @@ class RoleServiceTest {
 
         svc.assignRole(42L, 7L, null, null, 1L);
 
-        verify(userRoleMapper, never()).insert(any());
+        verify(userRoleMapper, never()).insert(any(UserRole.class));
     }
 
     @Test
