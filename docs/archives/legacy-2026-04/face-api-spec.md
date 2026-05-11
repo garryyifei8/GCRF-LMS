@@ -3,9 +3,11 @@
 ## 1. 概述
 
 ### 1.1 文档说明
+
 本文档定义了国创睿峰智能图书馆管理系统人脸识别相关的所有API接口规范，包括人脸注册、识别、管理等功能的详细接口定义。
 
 ### 1.2 基本信息
+
 - **API版本**: v1.0.0
 - **基础路径**: `https://api.library.gcrf.com/api/v1`
 - **协议**: HTTPS
@@ -15,6 +17,7 @@
 ### 1.3 通用规范
 
 #### 1.3.1 请求头
+
 ```http
 Content-Type: application/json | multipart/form-data
 Authorization: Bearer {token}
@@ -24,6 +27,7 @@ X-Device-ID: {device_id}
 ```
 
 #### 1.3.2 响应格式
+
 ```json
 {
   "code": 200,
@@ -35,19 +39,21 @@ X-Device-ID: {device_id}
 ```
 
 #### 1.3.3 错误码定义
-| 错误码 | HTTP状态码 | 说明 |
-|--------|------------|------|
-| 200 | 200 | 成功 |
-| 400 | 400 | 请求参数错误 |
-| 401 | 401 | 未授权/认证失败 |
-| 403 | 403 | 禁止访问 |
-| 404 | 404 | 资源不存在 |
-| 409 | 409 | 资源冲突 |
-| 429 | 429 | 请求过于频繁 |
-| 500 | 500 | 服务器内部错误 |
-| 503 | 503 | 服务暂时不可用 |
+
+| 错误码 | HTTP状态码 | 说明            |
+| ------ | ---------- | --------------- |
+| 200    | 200        | 成功            |
+| 400    | 400        | 请求参数错误    |
+| 401    | 401        | 未授权/认证失败 |
+| 403    | 403        | 禁止访问        |
+| 404    | 404        | 资源不存在      |
+| 409    | 409        | 资源冲突        |
+| 429    | 429        | 请求过于频繁    |
+| 500    | 500        | 服务器内部错误  |
+| 503    | 503        | 服务暂时不可用  |
 
 ### 1.4 认证机制
+
 - **JWT Token**: 用于API访问认证
 - **API Key**: 用于服务间调用
 - **签名验证**: 关键接口需要请求签名
@@ -57,6 +63,7 @@ X-Device-ID: {device_id}
 ### 2.1 人脸注册
 
 #### 2.1.1 注册新人脸
+
 **接口地址**: `POST /face/register`
 
 **接口说明**: 为用户注册新的人脸特征
@@ -73,6 +80,7 @@ X-Device-ID: {device_id}
 | metadata | object | 否 | 附加元数据 |
 
 **请求示例**:
+
 ```bash
 curl -X POST https://api.library.gcrf.com/api/v1/face/register \
   -H "Authorization: Bearer {token}" \
@@ -93,6 +101,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/register \
 | created_at | string | 创建时间(ISO 8601) |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -109,23 +118,21 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/register \
 ```
 
 **错误响应**:
+
 ```json
 {
   "code": 400,
   "message": "人脸质量不符合要求",
   "data": {
-    "quality_issues": [
-      "光线过暗",
-      "人脸角度过大",
-      "遮挡面积超过阈值"
-    ],
+    "quality_issues": ["光线过暗", "人脸角度过大", "遮挡面积超过阈值"],
     "quality_score": 0.45,
-    "min_required_score": 0.70
+    "min_required_score": 0.7
   }
 }
 ```
 
 #### 2.1.2 批量注册
+
 **接口地址**: `POST /face/batch-register`
 
 **接口说明**: 批量注册多个用户的人脸
@@ -141,6 +148,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/register \
 | faces[].face_image | file | 是 | 人脸图片 |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -168,6 +176,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/register \
 ### 2.2 人脸登录
 
 #### 2.2.1 人脸识别登录
+
 **接口地址**: `POST /face/login`
 
 **接口说明**: 使用人脸进行身份认证登录
@@ -185,6 +194,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/register \
 | location.longitude | float | 否 | 经度 |
 
 **请求示例**:
+
 ```bash
 curl -X POST https://api.library.gcrf.com/api/v1/face/login \
   -F "face_image=@/path/to/face.jpg" \
@@ -206,6 +216,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 | permissions | array | 用户权限列表 |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -225,6 +236,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ```
 
 #### 2.2.2 活体检测
+
 **接口地址**: `POST /face/liveness`
 
 **接口说明**: 进行活体检测，防止照片/视频攻击
@@ -239,6 +251,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 | session_id | string | 否 | 会话ID |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -255,6 +268,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ### 2.3 人脸验证
 
 #### 2.3.1 1:1人脸验证
+
 **接口地址**: `POST /face/verify`
 
 **接口说明**: 验证人脸是否属于指定用户
@@ -269,6 +283,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 | threshold | float | 否 | 相似度阈值(默认0.8) |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -276,13 +291,14 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
   "data": {
     "is_match": true,
     "similarity": 0.95,
-    "threshold": 0.80,
+    "threshold": 0.8,
     "face_id": "FACE_20251010_001"
   }
 }
 ```
 
 #### 2.3.2 1:N人脸搜索
+
 **接口地址**: `POST /face/search`
 
 **接口说明**: 在指定范围内搜索匹配的人脸
@@ -299,6 +315,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 | threshold | float | 否 | 最低相似度阈值 |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -329,6 +346,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ### 3.1 人脸更新
 
 #### 3.1.1 更新人脸特征
+
 **接口地址**: `PUT /face/{user_id}`
 
 **接口说明**: 更新用户的人脸特征
@@ -348,6 +366,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 | replace_all | boolean | 否 | 是否替换所有人脸 |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -363,6 +382,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ```
 
 #### 3.1.2 删除人脸特征
+
 **接口地址**: `DELETE /face/{user_id}`
 
 **接口说明**: 删除用户的人脸特征
@@ -381,6 +401,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 | delete_all | boolean | 否 | 删除所有人脸 |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -395,6 +416,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ### 3.2 人脸查询
 
 #### 3.2.1 获取用户人脸列表
+
 **接口地址**: `GET /face/list/{user_id}`
 
 **接口说明**: 获取指定用户的所有人脸信息
@@ -407,6 +429,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 | user_id | string | 用户ID |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -435,6 +458,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ```
 
 #### 3.2.2 获取人脸详情
+
 **接口地址**: `GET /face/detail/{face_id}`
 
 **接口说明**: 获取特定人脸的详细信息
@@ -442,6 +466,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 **请求方式**: GET
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -475,6 +500,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ### 4.1 头像上传
 
 #### 4.1.1 上传用户头像
+
 **接口地址**: `POST /avatar/upload`
 
 **接口说明**: 上传用户头像图片
@@ -490,6 +516,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 | crop_params | object | 否 | 裁剪参数 |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -505,11 +532,13 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ```
 
 #### 4.1.2 更新用户头像
+
 **接口地址**: `PUT /avatar/{user_id}`
 
 **请求方式**: PUT (multipart/form-data)
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -525,6 +554,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ### 4.2 图书封面管理
 
 #### 4.2.1 上传图书封面
+
 **接口地址**: `POST /book/cover/upload`
 
 **请求参数**:
@@ -535,6 +565,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 | cover | file | 是 | 封面图片 |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -552,6 +583,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ### 5.1 识别统计
 
 #### 5.1.1 获取识别统计数据
+
 **接口地址**: `GET /face/statistics`
 
 **请求参数**:
@@ -563,6 +595,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 | group_by | string | 否 | 分组方式(day/week/month) |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -587,15 +620,16 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
       "admin": 500
     },
     "peak_hours": [
-      {"hour": 8, "count": 800},
-      {"hour": 12, "count": 750},
-      {"hour": 18, "count": 650}
+      { "hour": 8, "count": 800 },
+      { "hour": 12, "count": 750 },
+      { "hour": 18, "count": 650 }
     ]
   }
 }
 ```
 
 #### 5.1.2 获取异常记录
+
 **接口地址**: `GET /face/anomalies`
 
 **请求参数**:
@@ -608,6 +642,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 | size | integer | 否 | 每页大小 |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -637,17 +672,19 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ### 6.1 配置管理
 
 #### 6.1.1 获取系统配置
+
 **接口地址**: `GET /face/config`
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
   "message": "查询成功",
   "data": {
-    "recognition_threshold": 0.80,
+    "recognition_threshold": 0.8,
     "liveness_threshold": 0.95,
-    "quality_threshold": 0.70,
+    "quality_threshold": 0.7,
     "max_face_per_user": 3,
     "face_expire_days": 365,
     "rate_limit": {
@@ -664,9 +701,11 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ```
 
 #### 6.1.2 更新系统配置
+
 **接口地址**: `PUT /face/config`
 
 **请求参数**:
+
 ```json
 {
   "recognition_threshold": 0.85,
@@ -680,6 +719,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ### 6.2 日志查询
 
 #### 6.2.1 查询识别日志
+
 **接口地址**: `GET /face/logs`
 
 **请求参数**:
@@ -693,6 +733,7 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 | size | integer | 否 | 每页大小 |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -725,18 +766,21 @@ curl -X POST https://api.library.gcrf.com/api/v1/face/login \
 ## 7. WebSocket实时接口
 
 ### 7.1 实时人脸识别
+
 **接口地址**: `ws://api.library.gcrf.com/ws/face/realtime`
 
 **连接参数**:
+
 ```javascript
-const ws = new WebSocket('wss://api.library.gcrf.com/ws/face/realtime', {
+const ws = new WebSocket("wss://api.library.gcrf.com/ws/face/realtime", {
   headers: {
-    'Authorization': 'Bearer {token}'
-  }
+    Authorization: "Bearer {token}",
+  },
 });
 ```
 
 **消息格式**:
+
 ```json
 // 客户端发送
 {
@@ -762,6 +806,7 @@ const ws = new WebSocket('wss://api.library.gcrf.com/ws/face/realtime', {
 ## 8. 批量操作接口
 
 ### 8.1 批量导入
+
 **接口地址**: `POST /face/batch/import`
 
 **请求参数**:
@@ -771,6 +816,7 @@ const ws = new WebSocket('wss://api.library.gcrf.com/ws/face/realtime', {
 | mode | string | 否 | 导入模式(create/update/upsert) |
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -785,9 +831,11 @@ const ws = new WebSocket('wss://api.library.gcrf.com/ws/face/realtime', {
 ```
 
 ### 8.2 批量导出
+
 **接口地址**: `POST /face/batch/export`
 
 **请求参数**:
+
 ```json
 {
   "user_ids": ["STU2024001", "STU2024002"],
@@ -798,6 +846,7 @@ const ws = new WebSocket('wss://api.library.gcrf.com/ws/face/realtime', {
 ```
 
 **响应示例**:
+
 ```json
 {
   "code": 200,
@@ -813,6 +862,7 @@ const ws = new WebSocket('wss://api.library.gcrf.com/ws/face/realtime', {
 ## 9. SDK集成示例
 
 ### 9.1 Java SDK
+
 ```java
 // Maven依赖
 <dependency>
@@ -855,6 +905,7 @@ public class FaceRecognitionExample {
 ```
 
 ### 9.2 Python SDK
+
 ```python
 # pip install gcrf-face-recognition
 
@@ -892,56 +943,57 @@ results = client.batch_register(faces)
 ```
 
 ### 9.3 JavaScript SDK
+
 ```javascript
 // npm install @gcrf/face-recognition
 
-import { FaceClient } from '@gcrf/face-recognition';
+import { FaceClient } from "@gcrf/face-recognition";
 
 // 初始化客户端
 const client = new FaceClient({
-  apiKey: 'your_api_key',
-  apiSecret: 'your_api_secret',
-  baseUrl: 'https://api.library.gcrf.com'
+  apiKey: "your_api_key",
+  apiSecret: "your_api_secret",
+  baseUrl: "https://api.library.gcrf.com",
 });
 
 // 人脸注册
 async function registerFace() {
   const formData = new FormData();
-  formData.append('user_id', 'STU2024001');
-  formData.append('user_type', 'student');
-  formData.append('face_image', fileInput.files[0]);
+  formData.append("user_id", "STU2024001");
+  formData.append("user_type", "student");
+  formData.append("face_image", fileInput.files[0]);
 
   try {
     const response = await client.register(formData);
-    console.log('Face ID:', response.face_id);
+    console.log("Face ID:", response.face_id);
   } catch (error) {
-    console.error('Registration failed:', error);
+    console.error("Registration failed:", error);
   }
 }
 
 // 人脸登录
 async function loginWithFace() {
   const formData = new FormData();
-  formData.append('face_image', fileInput.files[0]);
+  formData.append("face_image", fileInput.files[0]);
 
   try {
     const response = await client.login(formData);
-    console.log('User:', response.user_name);
-    localStorage.setItem('token', response.access_token);
+    console.log("User:", response.user_name);
+    localStorage.setItem("token", response.access_token);
   } catch (error) {
-    console.error('Login failed:', error);
+    console.error("Login failed:", error);
   }
 }
 
 // WebSocket实时识别
 const ws = client.createRealtimeConnection();
 
-ws.on('open', () => {
-  console.log('Connected to realtime recognition');
+ws.on("open", () => {
+  console.log("Connected to realtime recognition");
 });
 
-ws.on('recognition', (data) => {
-  console.log('Recognized user:', data.user_name);
+ws.on("recognition", (data) => {
+  console.log("Recognized user:", data.user_name);
 });
 
 ws.recognize(imageBlob);
@@ -950,22 +1002,24 @@ ws.recognize(imageBlob);
 ## 10. 错误处理
 
 ### 10.1 业务错误码
-| 错误码 | 说明 | 处理建议 |
-|--------|------|----------|
-| 40001 | 人脸图片质量不合格 | 提示用户重新拍摄 |
-| 40002 | 未检测到人脸 | 确保人脸在画面中 |
-| 40003 | 检测到多个人脸 | 确保画面中只有一个人 |
-| 40004 | 活体检测失败 | 提示用户配合完成动作 |
-| 40101 | 人脸未注册 | 引导用户先注册人脸 |
-| 40102 | 人脸匹配失败 | 重新尝试或使用其他登录方式 |
-| 40301 | 账户已锁定 | 联系管理员解锁 |
-| 40302 | 权限不足 | 检查用户权限配置 |
-| 40901 | 人脸已存在 | 使用更新接口替换 |
-| 42901 | 请求过于频繁 | 稍后重试 |
-| 50001 | 人脸识别服务异常 | 使用备用登录方式 |
-| 50301 | 服务暂时不可用 | 稍后重试 |
+
+| 错误码 | 说明               | 处理建议                   |
+| ------ | ------------------ | -------------------------- |
+| 40001  | 人脸图片质量不合格 | 提示用户重新拍摄           |
+| 40002  | 未检测到人脸       | 确保人脸在画面中           |
+| 40003  | 检测到多个人脸     | 确保画面中只有一个人       |
+| 40004  | 活体检测失败       | 提示用户配合完成动作       |
+| 40101  | 人脸未注册         | 引导用户先注册人脸         |
+| 40102  | 人脸匹配失败       | 重新尝试或使用其他登录方式 |
+| 40301  | 账户已锁定         | 联系管理员解锁             |
+| 40302  | 权限不足           | 检查用户权限配置           |
+| 40901  | 人脸已存在         | 使用更新接口替换           |
+| 42901  | 请求过于频繁       | 稍后重试                   |
+| 50001  | 人脸识别服务异常   | 使用备用登录方式           |
+| 50301  | 服务暂时不可用     | 稍后重试                   |
 
 ### 10.2 错误响应格式
+
 ```json
 {
   "code": 40001,
@@ -986,44 +1040,50 @@ ws.recognize(imageBlob);
 ## 11. 性能指标
 
 ### 11.1 SLA承诺
-| 指标 | 目标值 | 说明 |
-|------|--------|------|
-| API可用性 | ≥ 99.9% | 月度统计 |
-| 识别准确率 | ≥ 99.5% | FAR < 0.001% |
-| 平均响应时间 | < 300ms | P50延迟 |
-| P95响应时间 | < 500ms | 95分位延迟 |
-| P99响应时间 | < 1000ms | 99分位延迟 |
-| 并发支持 | 1000 QPS | 单节点 |
-| 活体检测准确率 | ≥ 99% | 防攻击成功率 |
+
+| 指标           | 目标值   | 说明         |
+| -------------- | -------- | ------------ |
+| API可用性      | ≥ 99.9%  | 月度统计     |
+| 识别准确率     | ≥ 99.5%  | FAR < 0.001% |
+| 平均响应时间   | < 300ms  | P50延迟      |
+| P95响应时间    | < 500ms  | 95分位延迟   |
+| P99响应时间    | < 1000ms | 99分位延迟   |
+| 并发支持       | 1000 QPS | 单节点       |
+| 活体检测准确率 | ≥ 99%    | 防攻击成功率 |
 
 ### 11.2 限流策略
-| 接口类型 | 限流配置 | 说明 |
-|----------|----------|------|
-| 人脸注册 | 10次/分钟/用户 | 防止恶意注册 |
-| 人脸登录 | 20次/分钟/IP | 防暴力破解 |
-| 人脸搜索 | 100次/分钟/Token | 资源保护 |
-| 批量操作 | 5次/小时/账户 | 防止滥用 |
-| 实时识别 | 30fps/连接 | 流量控制 |
+
+| 接口类型 | 限流配置         | 说明         |
+| -------- | ---------------- | ------------ |
+| 人脸注册 | 10次/分钟/用户   | 防止恶意注册 |
+| 人脸登录 | 20次/分钟/IP     | 防暴力破解   |
+| 人脸搜索 | 100次/分钟/Token | 资源保护     |
+| 批量操作 | 5次/小时/账户    | 防止滥用     |
+| 实时识别 | 30fps/连接       | 流量控制     |
 
 ## 12. 安全规范
 
 ### 12.1 数据传输安全
+
 - 所有API必须使用HTTPS协议
 - 敏感数据字段需要额外加密
 - 支持请求签名验证(HMAC-SHA256)
 
 ### 12.2 数据存储安全
+
 - 人脸特征向量AES-256加密存储
 - 原始图片添加水印保护
 - 定期清理过期数据
 
 ### 12.3 访问控制
+
 - API Key + Secret认证
 - JWT Token有效期2小时
 - IP白名单(可选)
 - 设备绑定(可选)
 
 ### 12.4 隐私保护
+
 - 遵循GDPR/个人信息保护法
 - 用户可申请删除个人数据
 - 数据最小化原则
@@ -1032,31 +1092,36 @@ ws.recognize(imageBlob);
 ## 13. 版本管理
 
 ### 13.1 版本策略
+
 - 版本格式: v{major}.{minor}.{patch}
 - URL版本: /api/v1/...
 - 向后兼容保证期: 12个月
 - 废弃通知期: 6个月
 
 ### 13.2 版本历史
-| 版本 | 发布日期 | 主要变更 |
-|------|----------|----------|
-| v1.0.0 | 2025-10-10 | 初始版本发布 |
-| v1.1.0 | 计划中 | 添加3D活体检测 |
-| v1.2.0 | 计划中 | 支持口罩识别 |
+
+| 版本   | 发布日期   | 主要变更       |
+| ------ | ---------- | -------------- |
+| v1.0.0 | 2025-10-10 | 初始版本发布   |
+| v1.1.0 | 计划中     | 添加3D活体检测 |
+| v1.2.0 | 计划中     | 支持口罩识别   |
 
 ## 14. 联系支持
 
 ### 技术支持
+
 - 邮箱: tech-support@gcrf.com
 - 电话: 400-xxx-xxxx
 - 工单系统: https://support.gcrf.com
 
 ### 开发者资源
+
 - API文档: https://api.library.gcrf.com/docs
 - SDK下载: https://github.com/gcrf/face-sdk
 - 示例代码: https://github.com/gcrf/face-examples
 - 开发者论坛: https://forum.gcrf.com
 
 ### 问题反馈
+
 - GitHub Issues: https://github.com/gcrf/face-api/issues
 - 产品建议: product@gcrf.com
