@@ -28,7 +28,7 @@ spec:
             - name: SPRING_PROFILES_ACTIVE
               value: prod
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://postgresql.edu-infra.svc.cluster.local:5432/gcrf_auth?stringtype=unspecified"
+              value: "jdbc:postgresql://postgresql.edu-infra.svc.cluster.local:5432/gcrf_main?currentSchema=gcrf_region,public&stringtype=unspecified"
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom: { secretKeyRef: { name: gcrf-db-secret, key: POSTGRES_USER } }
             - name: SPRING_DATASOURCE_PASSWORD

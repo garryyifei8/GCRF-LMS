@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
  * @date 2025-10-12
  */
 @Data
-@TableName("users")
+@TableName("gcrf_region.users")
 public class User {
 
     /**
@@ -104,4 +104,22 @@ public class User {
      */
     @TableField("deleted_at")
     private LocalDateTime deletedAt;
+
+    /**
+     * 组织节点ID（多租户架构：关联 gcrf_region.org_node.id）
+     */
+    @TableField("org_node_id")
+    private Long orgNodeId;
+
+    /**
+     * 学校ID（多租户架构：快捷字段，冗余自 org_node）
+     */
+    @TableField("school_id")
+    private Long schoolId;
+
+    /**
+     * 租户 Schema 名称（多租户架构：如 school_001、school_002）
+     */
+    @TableField("tenant_schema")
+    private String tenantSchema;
 }

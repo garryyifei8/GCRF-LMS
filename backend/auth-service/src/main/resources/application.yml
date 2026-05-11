@@ -7,7 +7,7 @@ spring:
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/auth_service
+    url: jdbc:postgresql://localhost:5432/gcrf_main?currentSchema=gcrf_region,public&stringtype=unspecified
     username: postgres
     password: gcrf_secure_2024
 
