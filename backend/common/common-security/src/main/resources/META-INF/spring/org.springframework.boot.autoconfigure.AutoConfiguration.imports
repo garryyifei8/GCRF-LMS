@@ -1,2 +1,3 @@
 com.gcrf.library.common.security.config.CommonSecurityConfig
 com.gcrf.library.common.security.config.SecurityContextAutoConfiguration
+com.gcrf.library.common.security.config.SecurityRequirementAutoConfiguration
