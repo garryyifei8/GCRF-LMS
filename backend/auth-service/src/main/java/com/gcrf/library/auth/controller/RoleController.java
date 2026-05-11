@@ -21,20 +21,27 @@ public class RoleController {
 
     @GetMapping
     public Result<List<RoleVO>> list() {
+        java.util.Map<Long, Integer> permCounts = roleService.permissionCountsByRole();
+        java.util.Map<Long, Integer> userCounts = roleService.userCountsByRole();
         return Result.success(roleService.listSystemRoles().stream()
-            .map(this::toVO).toList());
+            .map(r -> toVO(r, permCounts, userCounts)).toList());
     }
 
     @GetMapping("/{id}")
     public Result<RoleDetailVO> detail(@PathVariable Long id) {
         Role r = roleService.getById(id);
+        var perms = permissionService.listForRole(id);
+        RoleVO vo = toVO(r, java.util.Map.of(), java.util.Map.of());
+        vo.setPermissionCount(perms.size());
         return Result.success(RoleDetailVO.builder()
-            .role(toVO(r))
-            .permissions(permissionService.listForRole(id))
+            .role(vo)
+            .permissions(perms)
             .build());
     }
 
-    private RoleVO toVO(Role r) {
+    private RoleVO toVO(Role r,
+                        java.util.Map<Long, Integer> permCounts,
+                        java.util.Map<Long, Integer> userCounts) {
         return RoleVO.builder()
             .id(r.getId())
             .code(r.getCode())
@@ -42,6 +49,8 @@ public class RoleController {
             .description(r.getDescription())
             .scopeDefault(r.getScopeDefault())
             .isSystem(r.getIsSystem())
+            .permissionCount(permCounts.getOrDefault(r.getId(), 0))
+            .userCount(userCounts.getOrDefault(r.getId(), 0))
             .build();
     }
 }

@@ -37,6 +37,20 @@ public class RoleService {
         return roleMapper.findByUserId(userId);
     }
 
+    public java.util.Map<Long, Integer> permissionCountsByRole() {
+        return roleMapper.countPermissionsByRole().stream()
+            .collect(java.util.stream.Collectors.toMap(
+                row -> ((Number) row.get("role_id")).longValue(),
+                row -> ((Number) row.get("cnt")).intValue()));
+    }
+
+    public java.util.Map<Long, Integer> userCountsByRole() {
+        return roleMapper.countUsersByRole().stream()
+            .collect(java.util.stream.Collectors.toMap(
+                row -> ((Number) row.get("role_id")).longValue(),
+                row -> ((Number) row.get("cnt")).intValue()));
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public void assignRole(Long userId, Long roleId, Long schoolId,
                            LocalDateTime expiresAt, Long operatorId) {

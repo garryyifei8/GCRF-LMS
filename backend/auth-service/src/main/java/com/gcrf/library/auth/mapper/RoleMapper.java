@@ -17,4 +17,19 @@ public interface RoleMapper extends BaseMapper<Role> {
            AND (ur.expires_at IS NULL OR ur.expires_at > now())
         """)
     List<Role> findByUserId(Long userId);
+
+    @org.apache.ibatis.annotations.Select("""
+        SELECT role_id, count(*) AS cnt
+          FROM gcrf_region.auth_role_permission
+         GROUP BY role_id
+        """)
+    java.util.List<java.util.Map<String, Object>> countPermissionsByRole();
+
+    @org.apache.ibatis.annotations.Select("""
+        SELECT role_id, count(DISTINCT user_id) AS cnt
+          FROM gcrf_region.auth_user_role
+         WHERE expires_at IS NULL OR expires_at > now()
+         GROUP BY role_id
+        """)
+    java.util.List<java.util.Map<String, Object>> countUsersByRole();
 }
