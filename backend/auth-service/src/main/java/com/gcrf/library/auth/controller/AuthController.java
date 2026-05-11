@@ -2,10 +2,15 @@ package com.gcrf.library.auth.controller;
 
 import com.gcrf.library.auth.dto.LoginRequest;
 import com.gcrf.library.auth.dto.LoginResponse;
-import com.gcrf.library.auth.dto.RefreshTokenRequest;
+import com.gcrf.library.auth.dto.RefreshRequest;
 import com.gcrf.library.auth.dto.UserInfoResponse;
+import com.gcrf.library.auth.entity.User;
+import com.gcrf.library.auth.mapper.UserMapper;
 import com.gcrf.library.auth.service.AuthService;
+import com.gcrf.library.common.exception.BusinessException;
 import com.gcrf.library.common.result.Result;
+import com.gcrf.library.common.result.ResultCode;
+import com.gcrf.library.common.security.context.SecurityContextHolder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +34,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserMapper userMapper;
 
     /**
      * 用户登录
@@ -74,31 +80,43 @@ public class AuthController {
     }
 
     /**
-     * 用户注销
+     * 用户注销 — 撤销 refresh token
      */
     @PostMapping("/logout")
-    @Operation(summary = "用户注销", description = "注销当前登录用户，令牌将被加入黑名单")
-    public ResponseEntity<Result<Void>> logout(
-            @RequestHeader(value = "Authorization", required = false) String authorization) {
-        if (authorization == null || authorization.isBlank()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Result.error(401, "未提供认证令牌"));
-        }
+    @Operation(summary = "用户注销", description = "撤销 refresh token，完成注销")
+    public Result<Void> logout(@RequestBody(required = false) RefreshRequest req) {
         log.info("收到注销请求");
-        String token = authorization.replace("Bearer ", "");
-        authService.logout(token);
-        return ResponseEntity.ok(Result.success());
+        String tk = req == null ? null : req.getRefreshToken();
+        authService.logout(tk);
+        return Result.success();
     }
 
     /**
-     * 刷新令牌
+     * 刷新令牌 — 消费 refresh token，旋转后返回新的富化响应
      */
     @PostMapping("/refresh")
-    @Operation(summary = "刷新令牌", description = "使用现有令牌刷新获取新令牌")
-    public Result<LoginResponse> refreshToken(@Validated @RequestBody RefreshTokenRequest request) {
+    @Operation(summary = "刷新令牌", description = "使用 refresh token 换取新的 access token + refresh token")
+    public Result<LoginResponse> refreshToken(@RequestBody RefreshRequest req) {
         log.info("收到令牌刷新请求");
-        LoginResponse response = authService.refreshToken(request.getToken());
+        LoginResponse response = authService.refreshToken(req.getRefreshToken());
         return Result.success(response);
+    }
+
+    /**
+     * 获取当前登录用户的富化信息（依赖 JWT 过滤器填充 SecurityContextHolder）
+     */
+    @GetMapping("/me")
+    @Operation(summary = "当前用户信息", description = "通过 JWT 获取当前登录用户的完整信息")
+    public Result<LoginResponse> me() {
+        Long uid = SecurityContextHolder.currentUserId();
+        if (uid == null) {
+            throw new BusinessException(ResultCode.TOKEN_INVALID);
+        }
+        User user = userMapper.selectById(uid);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        return Result.success(authService.buildLoginResponseFromUser(user));
     }
 
     /**

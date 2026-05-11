@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.gcrf.library.auth.dto.LoginRequest;
 import com.gcrf.library.auth.dto.LoginResponse;
 import com.gcrf.library.auth.dto.UserInfoResponse;
+import com.gcrf.library.auth.entity.Role;
 import com.gcrf.library.auth.mapper.UserMapper;
 import com.gcrf.library.auth.entity.User;
 import com.gcrf.library.common.exception.BusinessException;
@@ -20,7 +21,8 @@ import org.redisson.api.RedissonClient;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.time.LocalDateTime;
-import java.util.Map;
+import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -43,6 +45,15 @@ class AuthServiceTest {
 
     @Mock
     private RedissonClient redissonClient;
+
+    @Mock
+    private RoleService roleService;
+
+    @Mock
+    private PermissionService permissionService;
+
+    @Mock
+    private RefreshTokenService refreshTokenService;
 
     @InjectMocks
     private AuthService authService;
@@ -70,6 +81,14 @@ class AuthServiceTest {
         loginRequest = new LoginRequest();
         loginRequest.setUsername("testuser");
         loginRequest.setPassword("password123");
+
+        // 默认 IAM mock — 避免 NullPointerException
+        Role role = new Role();
+        role.setCode("READER");
+        role.setScopeDefault("SELF");
+        lenient().when(roleService.rolesOfUser(anyLong())).thenReturn(List.of(role));
+        lenient().when(permissionService.codesForUser(anyLong())).thenReturn(Set.of());
+        lenient().when(refreshTokenService.issue(anyLong())).thenReturn("mock-refresh-token");
     }
 
     @Test
@@ -84,7 +103,7 @@ class AuthServiceTest {
         // Assert
         assertNotNull(response);
         assertEquals("mock-jwt-token", response.getAccessToken());
-        assertEquals(7200L, response.getExpiresIn());
+        assertEquals(1800L, response.getExpiresIn());
         assertEquals(testUser.getId(), response.getUserId());
         assertEquals(testUser.getUsername(), response.getUsername());
         assertEquals(testUser.getUserType(), response.getUserType());
@@ -211,83 +230,53 @@ class AuthServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void testLogout_Success() {
-        // Arrange
-        String token = "valid-token";
-        RBucket mockBucket = mock(RBucket.class);
-        when(jwtUtil.validateToken(token)).thenReturn(true);
-        when(jwtUtil.getUserId(token)).thenReturn(1L);
-        doReturn(mockBucket).when(redissonClient).getBucket(anyString());
+        // logout now revokes the refresh token
+        String refreshToken = "some-refresh-token";
 
-        // Act
-        authService.logout(token);
+        authService.logout(refreshToken);
 
-        // Assert
-        verify(jwtUtil).validateToken(token);
-        verify(redissonClient).getBucket("auth:blacklist:" + token);
-        verify(mockBucket).set(eq("logged_out"), eq(7200L), any());
+        verify(refreshTokenService).revoke(refreshToken);
     }
 
     @Test
-    void testLogout_InvalidToken() {
-        // Arrange
-        String token = "invalid-token";
-        when(jwtUtil.validateToken(token)).thenReturn(false);
-
-        // Act & Assert
-        BusinessException exception = assertThrows(BusinessException.class, () -> {
-            authService.logout(token);
-        });
-
-        assertEquals(ResultCode.TOKEN_INVALID.getCode(), exception.getCode());
-        verify(jwtUtil).validateToken(token);
-        verify(redissonClient, never()).getBucket(anyString());
+    void testLogout_NullToken_DoesNotThrow() {
+        // null refresh token should be silently ignored
+        assertDoesNotThrow(() -> authService.logout(null));
+        verify(refreshTokenService, never()).revoke(any());
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void testRefreshToken_Success() {
-        // Arrange
-        String oldToken = "old-token";
-        String newToken = "new-token";
-        RBucket mockBucket = mock(RBucket.class);
+        // refreshToken now consumes a refresh token (opaque UUID) via RefreshTokenService
+        String refreshToken = "some-refresh-token";
+        String newAccessToken = "new-access-token";
 
-        when(jwtUtil.validateToken(oldToken)).thenReturn(true);
-        when(jwtUtil.getUserId(oldToken)).thenReturn(1L);
-        when(userMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(testUser);
-        when(jwtUtil.generateToken(anyString(), anyMap())).thenReturn(newToken);
-        doReturn(mockBucket).when(redissonClient).getBucket(anyString());
+        when(refreshTokenService.consume(refreshToken)).thenReturn(testUser.getId());
+        when(userMapper.selectById(testUser.getId())).thenReturn(testUser);
+        when(jwtUtil.generateToken(anyString(), anyMap())).thenReturn(newAccessToken);
 
-        // Act
-        LoginResponse response = authService.refreshToken(oldToken);
+        LoginResponse response = authService.refreshToken(refreshToken);
 
-        // Assert
         assertNotNull(response);
-        assertEquals(newToken, response.getAccessToken());
+        assertEquals(newAccessToken, response.getAccessToken());
         assertEquals(testUser.getId(), response.getUserId());
-        verify(jwtUtil).validateToken(oldToken);
-        verify(redissonClient, times(2)).getBucket("auth:blacklist:" + oldToken);
-        verify(mockBucket).set(eq("refreshed"), eq(7200L), any());
+        verify(refreshTokenService).consume(refreshToken);
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void testRefreshToken_InvalidToken() {
-        // Arrange
-        String token = "invalid-token";
-        RBucket mockBucket = mock(RBucket.class);
-        doReturn(mockBucket).when(redissonClient).getBucket(anyString());
-        when(mockBucket.isExists()).thenReturn(false);
-        when(jwtUtil.validateToken(token)).thenReturn(false);
+        // RefreshTokenService.consume throws BusinessException on bad token
+        String badToken = "invalid-refresh-token";
+        when(refreshTokenService.consume(badToken))
+            .thenThrow(new BusinessException(ResultCode.TOKEN_INVALID));
 
-        // Act & Assert
-        BusinessException exception = assertThrows(BusinessException.class, () -> {
-            authService.refreshToken(token);
-        });
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+            authService.refreshToken(badToken));
 
         assertEquals(ResultCode.TOKEN_INVALID.getCode(), exception.getCode());
-        verify(jwtUtil).validateToken(token);
+        verify(refreshTokenService).consume(badToken);
+        verify(userMapper, never()).selectById(any());
     }
 
     @Test

@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 认证服务
@@ -45,7 +44,6 @@ public class AuthService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private static final String TOKEN_BLACKLIST_PREFIX = "auth:blacklist:";
-    private static final long TOKEN_EXPIRY_SECONDS = 7200L; // 2小时
 
     /**
      * 用户登录 — 返回含 roles/tenant/scope/permissions 的富化响应
@@ -143,82 +141,35 @@ public class AuthService {
     }
 
     /**
-     * 用户注销
+     * 用户注销 — 撤销 refresh token（不再操作 access token 黑名单）
      */
-    public void logout(String token) {
+    public void logout(String refreshToken) {
         log.info("用户注销请求");
-
-        // 验证令牌有效性
-        if (!jwtUtil.validateToken(token)) {
-            throw new BusinessException(ResultCode.TOKEN_INVALID);
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            refreshTokenService.revoke(refreshToken);
         }
-
-        // 将令牌加入黑名单
-        String blacklistKey = TOKEN_BLACKLIST_PREFIX + token;
-        RBucket<String> bucket = redissonClient.getBucket(blacklistKey);
-        bucket.set("logged_out", TOKEN_EXPIRY_SECONDS, TimeUnit.SECONDS);
-
-        Long userId = jwtUtil.getUserId(token);
-        log.info("用户注销成功: userId={}", userId);
+        log.info("用户注销成功");
     }
 
     /**
-     * 刷新令牌
+     * 刷新令牌 — 消费旧 refresh token（旋转），返回新的富化登录响应
      */
-    public LoginResponse refreshToken(String oldToken) {
+    public LoginResponse refreshToken(String refreshToken) {
         log.info("令牌刷新请求");
-
-        // 验证旧令牌
-        if (!validateToken(oldToken)) {
-            throw new BusinessException(ResultCode.TOKEN_INVALID);
-        }
-
-        // 获取用户ID并查询用户信息（只查询未删除的用户）
-        Long userId = jwtUtil.getUserId(oldToken);
-        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(User::getId, userId)
-                    .isNull(User::getDeletedAt);
-        User user = userMapper.selectOne(queryWrapper);
-
-        if (user == null) {
-            throw new BusinessException(ResultCode.USER_NOT_FOUND);
-        }
-
-        // 检查账号状态
-        if (!"ACTIVE".equals(user.getStatus())) {
+        Long userId = refreshTokenService.consume(refreshToken);
+        User user = userMapper.selectById(userId);
+        if (user == null || !"ACTIVE".equals(user.getStatus())) {
             throw new BusinessException(ResultCode.USER_DISABLED);
         }
+        log.info("令牌刷新成功: userId={}", userId);
+        return buildLoginResponse(user);
+    }
 
-        // 将旧令牌加入黑名单
-        String blacklistKey = TOKEN_BLACKLIST_PREFIX + oldToken;
-        RBucket<String> bucket = redissonClient.getBucket(blacklistKey);
-        bucket.set("refreshed", TOKEN_EXPIRY_SECONDS, TimeUnit.SECONDS);
-
-        // 确保新令牌的时间戳与旧令牌不同（JWT iat使用秒级精度,需要至少1秒延迟）
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
-        // 生成新令牌
-        Map<String, Object> claims = Map.of(
-                "userId", user.getId(),
-                "username", user.getUsername(),
-                "userType", user.getUserType()
-        );
-        String newToken = jwtUtil.generateToken(user.getId().toString(), claims);
-        Long expiresIn = 7200L;
-
-        log.info("令牌刷新成功: userId={}", user.getId());
-
-        return new LoginResponse(
-                newToken,
-                expiresIn,
-                user.getId(),
-                user.getUsername(),
-                user.getUserType()
-        );
+    /**
+     * 通过 User 构建富化登录响应（供 /me 等端点复用）
+     */
+    public LoginResponse buildLoginResponseFromUser(User user) {
+        return buildLoginResponse(user);
     }
 
     /**
