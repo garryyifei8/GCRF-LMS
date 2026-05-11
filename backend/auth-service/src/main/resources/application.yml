@@ -13,10 +13,11 @@ spring:
 
   flyway:
     enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    baseline-version: 0
-    table: flyway_schema_history
+    locations: classpath:db/migration/region
+    schemas: gcrf_region
+    create-schemas: true
+    baseline-on-migrate: false
+    table: flyway_schema_history_auth
 
   cloud:
     nacos:

@@ -66,6 +66,15 @@ spring:
       # Register MBeans for JMX monitoring
       register-mbeans: true
 
+  # Flyway Migration Configuration (ADR-005: isolated schema history per service)
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/region
+    schemas: gcrf_region
+    create-schemas: true
+    baseline-on-migrate: false
+    table: flyway_schema_history_auth
+
   # Nacos Service Discovery Configuration
   cloud:
     nacos:
