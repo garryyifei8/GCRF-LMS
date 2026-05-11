@@ -38,18 +38,18 @@ class RefreshTokenServiceTest {
     @Test
     void consumeReadsAndDeletes() {
         when(redisson.<Long>getBucket("refresh:abc")).thenReturn(bucket);
-        when(bucket.get()).thenReturn(42L);
+        when(bucket.getAndDelete()).thenReturn(42L);
 
         Long userId = svc.consume("abc");
 
         assertThat(userId).isEqualTo(42L);
-        verify(bucket).delete();
+        verify(bucket).getAndDelete();
     }
 
     @Test
     void consumeUnknownThrowsBusinessException() {
         when(redisson.<Long>getBucket("refresh:bad")).thenReturn(bucket);
-        when(bucket.get()).thenReturn(null);
+        when(bucket.getAndDelete()).thenReturn(null);
 
         assertThatThrownBy(() -> svc.consume("bad"))
             .hasMessageContaining("refresh");

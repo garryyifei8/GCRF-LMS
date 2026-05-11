@@ -47,11 +47,10 @@ public class RefreshTokenService {
      */
     public Long consume(String token) {
         RBucket<Long> bucket = redisson.getBucket(KEY_PREFIX + token);
-        Long userId = bucket.get();
+        Long userId = bucket.getAndDelete();   // atomic — Redisson 3.17+
         if (userId == null) {
             throw new BusinessException(ResultCode.TOKEN_INVALID.getCode(), "refresh token 无效或已过期");
         }
-        bucket.delete();
         return userId;
     }
 

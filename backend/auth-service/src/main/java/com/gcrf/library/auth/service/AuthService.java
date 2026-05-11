@@ -158,7 +158,10 @@ public class AuthService {
         log.info("令牌刷新请求");
         Long userId = refreshTokenService.consume(refreshToken);
         User user = userMapper.selectById(userId);
-        if (user == null || !"ACTIVE".equals(user.getStatus())) {
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        if (!"ACTIVE".equals(user.getStatus())) {
             throw new BusinessException(ResultCode.USER_DISABLED);
         }
         log.info("令牌刷新成功: userId={}", userId);
