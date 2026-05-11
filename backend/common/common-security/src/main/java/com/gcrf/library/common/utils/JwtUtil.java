@@ -23,16 +23,22 @@ import java.util.Map;
 public class JwtUtil {
 
     /**
-     * JWT密钥
+     * JWT密钥（至少64字节/512位，满足HS512要求）
+     * 生产环境必须通过 JWT_SECRET 环境变量或 jwt.secret 配置覆盖此默认值
      */
-    @Value("${jwt.secret:gcrf-library-management-system-jwt-secret-key-2025}")
+    @Value("${jwt.secret:gcrf-library-iam-default-development-secret-key-do-not-use-in-production-2026}")
     private String secret;
 
     /**
-     * JWT过期时间（毫秒），默认2小时
+     * JWT过期时间（毫秒），默认30分钟
      */
-    @Value("${jwt.expiration:7200000}")
+    @Value("${jwt.expiration:1800000}")
     private Long expiration;
+
+    /**
+     * HS512算法要求的最小密钥长度（字节）
+     */
+    private static final int MIN_SECRET_BYTES = 64;
 
     /**
      * 生成JWT Token
@@ -162,10 +168,19 @@ public class JwtUtil {
 
     /**
      * 获取签名密钥
+     * 若密钥长度不足 64 字节（512 bits），则 fail-fast 抛出 IllegalStateException，
+     * 避免 HS512 产生 WeakKeyException 或静默降级。
      *
      * @return SecretKey
+     * @throws IllegalStateException 当 jwt.secret 不足 64 字节时
      */
     private SecretKey getSignKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                "jwt.secret must be at least " + MIN_SECRET_BYTES + " bytes (512 bits) for HS512, got "
+                + keyBytes.length + " bytes. Configure spring property `jwt.secret` with a longer value.");
+        }
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 }

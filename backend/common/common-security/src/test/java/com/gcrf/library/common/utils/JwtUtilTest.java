@@ -305,4 +305,37 @@ class JwtUtilTest {
         // Assert
         assertTrue(isExpired); // Invalid tokens are considered expired
     }
+
+    @Test
+    void testKeyStrength_atLeast512Bits() {
+        // 当 secret 长度 < 64 字节（512 bits）时应抛错或自动升级
+        JwtUtil util = new JwtUtil();
+        ReflectionTestUtils.setField(util, "secret", "too-short-secret-key");  // ~20 chars = 160 bits
+        ReflectionTestUtils.setField(util, "expiration", 7200000L);
+        assertThrows(IllegalStateException.class,
+            () -> util.generateToken("user", Map.of()),
+            "Expected IllegalStateException when secret < 64 bytes");
+    }
+
+    @Test
+    void testGenerateRichToken_carriesAllClaims() {
+        Map<String, Object> claims = Map.of(
+            "userId", 42L,
+            "username", "alice",
+            "tenant", "school_000001",
+            "tenantId", 1L,
+            "roles", java.util.List.of("LIBRARIAN", "TEACHER"),
+            "scope", "SCHOOL"
+        );
+        String token = jwtUtil.generateToken("42", claims);
+
+        Claims parsed = jwtUtil.parseToken(token);
+        assertEquals("42", parsed.getSubject());
+        assertEquals(42, ((Number) parsed.get("userId")).longValue());
+        assertEquals("school_000001", parsed.get("tenant", String.class));
+        assertEquals("SCHOOL", parsed.get("scope", String.class));
+        @SuppressWarnings("unchecked")
+        java.util.List<String> roles = parsed.get("roles", java.util.List.class);
+        assertTrue(roles.contains("LIBRARIAN"));
+    }
 }
