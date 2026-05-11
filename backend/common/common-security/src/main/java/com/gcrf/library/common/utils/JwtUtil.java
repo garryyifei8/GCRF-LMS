@@ -3,6 +3,7 @@ package com.gcrf.library.common.utils;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -39,6 +40,17 @@ public class JwtUtil {
      * HS512算法要求的最小密钥长度（字节）
      */
     private static final int MIN_SECRET_BYTES = 64;
+
+    private static final String DEV_DEFAULT_SECRET_PREFIX = "gcrf-library-iam-default";
+
+    @PostConstruct
+    void validateSecretOnStartup() {
+        getSignKey();  // throws IllegalStateException if secret < 64 bytes
+        if (secret.startsWith(DEV_DEFAULT_SECRET_PREFIX)) {
+            log.warn("SECURITY WARNING: Using default development JWT secret. " +
+                     "Set `jwt.secret` (or JWT_SECRET env) in production!");
+        }
+    }
 
     /**
      * 生成JWT Token
