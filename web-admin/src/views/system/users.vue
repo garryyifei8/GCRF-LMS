@@ -77,6 +77,11 @@
           <el-table-column prop="department" label="部门" width="150" />
           <el-table-column prop="phone" label="联系电话" width="140" />
           <el-table-column prop="email" label="邮箱" show-overflow-tooltip min-width="180" />
+          <el-table-column label="角色分配" width="120">
+            <template #default="{ row }">
+              <el-button type="primary" link @click="openRoleDrawer(row)">分配角色</el-button>
+            </template>
+          </el-table-column>
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
               <el-tag v-if="row.status === 'active'" type="success" size="small">正常</el-tag>
@@ -120,6 +125,9 @@
         </div>
       </div>
     </div>
+
+    <!-- 用户角色分配抽屉 -->
+    <UserRoleDrawer v-model="roleDrawerVisible" :user="roleDrawerUser" />
 
     <!-- 添加/编辑用户对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px">
@@ -182,6 +190,7 @@ import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Key, Close, Check } from '@element-plus/icons-vue'
 import ActionIcons from '@/components/ActionIcons.vue'
+import UserRoleDrawer from './UserRoleDrawer.vue'
 import { getUsers, createUser, updateUser, resetPassword, updateUserStatus } from '@/api/system'
 
 // 查询表单
@@ -206,6 +215,15 @@ const pagination = reactive({
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const dialogTitle = computed(() => (isEdit.value ? '编辑用户' : '新增用户'))
+
+// 角色分配抽屉
+const roleDrawerVisible = ref(false)
+const roleDrawerUser = ref(null)
+
+const openRoleDrawer = (row) => {
+  roleDrawerUser.value = row
+  roleDrawerVisible.value = true
+}
 
 // 表单
 const userFormRef = ref(null)
