@@ -18,16 +18,16 @@ CREATE TABLE IF NOT EXISTS gcrf_region.users (
     user_type          VARCHAR(20) NOT NULL DEFAULT 'STUDENT',
     avatar_url         VARCHAR(500),
     status             VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
-    last_login_time    TIMESTAMPTZ,
+    last_login_time    TIMESTAMP WITHOUT TIME ZONE,
     last_login_ip      VARCHAR(50),
     failed_login_count INT NOT NULL DEFAULT 0,
-    locked_until       TIMESTAMPTZ,
+    locked_until       TIMESTAMP WITHOUT TIME ZONE,
     org_node_id        BIGINT,
     school_id          BIGINT,
     tenant_schema      VARCHAR(64),
-    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    deleted_at         TIMESTAMPTZ
+    created_at         TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at         TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+    deleted_at         TIMESTAMP WITHOUT TIME ZONE
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_users_email_alive
     ON gcrf_region.users (email) WHERE deleted_at IS NULL AND email IS NOT NULL;
@@ -47,8 +47,8 @@ CREATE TABLE IF NOT EXISTS gcrf_region.auth_role (
     is_system     BOOLEAN NOT NULL DEFAULT false,
     school_id     BIGINT,
     sort_order    INT NOT NULL DEFAULT 0,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at    TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_role_school ON gcrf_region.auth_role (school_id);
 
@@ -182,8 +182,8 @@ CREATE TABLE IF NOT EXISTS gcrf_region.auth_user_role (
     scope_override VARCHAR(20),
     scope_path     VARCHAR(500),
     assigned_by    BIGINT,
-    assigned_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    expires_at     TIMESTAMPTZ
+    assigned_at    TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+    expires_at     TIMESTAMP WITHOUT TIME ZONE
 );
 -- PG 15+ supports NULLS NOT DISTINCT — region-level assignment (school_id=NULL) treated as duplicate.
 CREATE UNIQUE INDEX IF NOT EXISTS uk_user_role
@@ -192,10 +192,10 @@ CREATE INDEX IF NOT EXISTS idx_user_role_user   ON gcrf_region.auth_user_role (u
 CREATE INDEX IF NOT EXISTS idx_user_role_school ON gcrf_region.auth_user_role (school_id);
 
 -- ============ admin user + role bootstrap ============
--- Password is admin123 BCrypt-hashed, identical to current auth_service.users seed.
+-- username='admin' is the login name; BCrypt of "admin123" (10 rounds, verified).
 INSERT INTO gcrf_region.users (user_id, username, password, email, user_type, status) VALUES
-    ('admin', '系统管理员',
-     '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi',
+    ('admin', 'admin',
+     '$2a$10$1zgJjT1EN3pNQKf.uc1ye.fPoc08jBsrT1cKkkKjW8hefA/xsCsmm',
      'admin@gcrf.edu.cn', 'ADMIN', 'ACTIVE')
 ON CONFLICT (user_id) DO NOTHING;
 
