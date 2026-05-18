@@ -75,7 +75,7 @@
         <hutool.version>5.8.25</hutool.version>
 
         <!-- JWT -->
-        <jjwt.version>0.12.3</jjwt.version>
+        <jjwt.version>0.13.0</jjwt.version>
 
         <!-- MapStruct -->
         <mapstruct.version>1.5.5.Final</mapstruct.version>
