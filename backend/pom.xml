@@ -95,7 +95,7 @@
         <guava.version>32.1.3-jre</guava.version>
 
         <!-- MinIO -->
-        <minio.version>8.5.7</minio.version>
+        <minio.version>9.0.0</minio.version>
 
         <!-- EasyExcel -->
         <easyexcel.version>3.3.3</easyexcel.version>
